@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python keyword_research.py \"etsy seo tool\" \"etsy tag generator\" \"etsy keyword research\" \"etsy seller tools\" \"etsy listing software\")",
+      "Bash(python keyword_research.py \"govwin\" \"govdash\" \"sam search\" \"government contract search\" \"find government contracts\" \"small business government contracts\")"
+    ]
+  }
+}
