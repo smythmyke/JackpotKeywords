@@ -76,7 +76,77 @@
     → On-page SEO suggestions
 ```
 
-### Flow C: "Competitor Spy" (Phase 2 / Extension)
+### Flow C: "Validate a Concept" (Concept Search — separate page)
+
+Separate page at /validate. For users exploring ideas, not researching an existing product.
+Same backend pipeline as Flow A, different AI prompt and output template.
+Counts as 1 of 3 free lifetime searches.
+
+```
+[1] User enters business concept
+    "I want to sell custom pet portraits on Etsy"
+                    ↓
+[2] Same 4-source pipeline runs
+    → AI seeds (market-analysis prompt, not product-keyword prompt)
+    → Autocomplete expansion
+    → Keyword Planner enrichment
+    → Google Trends overlay
+                    ↓
+[3] AI generates Market Viability Report (not keyword table)
+    → Demand Score (0-100)
+    → Total addressable monthly searches
+    → Competition assessment (% LOW/MED/HIGH across keywords)
+    → Opportunity breakdown (quick wins, content plays, ad goldmines)
+    → Related niches discovered (adjacent opportunities user hadn't considered)
+    → Go/no-go verdict with reasoning
+                    ↓
+[4] Truncated keyword preview (bottom of report)
+    → Top 15 keywords from the full dataset
+    → Same masking rules as keyword search free tier
+    → Full metrics visible (volume, CPC, competition, Jackpot Score)
+    → Shows user: "these are the keywords you'd compete with"
+                    ↓
+[5] CTA: "Run full keyword search"
+    → Does NOT cost another search — data is already fetched
+    → Unlocks the full keyword table from the same API results
+    → Pro users see both report + full table as tabs on same page
+
+Report output example:
+┌──────────────────────────────────────────────────────┐
+│ 📊 MARKET DEMAND REPORT                             │
+│                                                      │
+│ Demand Score: 78/100 — Strong demand, moderate comp  │
+│                                                      │
+│ DEMAND SIGNALS:                                      │
+│   Total addressable searches: ~45,000/mo             │
+│   Top keyword: 12,100/mo (HIGH demand)               │
+│   Avg CPC: $1.85 (MODERATE — not saturated)          │
+│   Competition: 60% LOW, 30% MEDIUM, 10% HIGH         │
+│                                                      │
+│ OPPORTUNITY BREAKDOWN:                               │
+│   Quick wins (low comp, good vol):   23 keywords     │
+│   Content opportunities:             45 keywords     │
+│   Ad goldmines (< $1 CPC):          12 keywords     │
+│   Expensive/saturated:                8 keywords     │
+│                                                      │
+│ RELATED NICHES DISCOVERED:                           │
+│   "Pet memorial gifts"   — 2,400/mo  $0.89 CPC      │
+│   "Dog painting from photo" — 1,600/mo $1.23 CPC    │
+│                                                      │
+│ 💡 VERDICT: Strong market with room for entry.       │
+│                                                      │
+│ ─── TOP KEYWORDS PREVIEW (15 of 847) ───            │
+│                                                      │
+│  c***** p** p*******  12,100/mo $1.23 LOW  96 🟢    │
+│  p** p****** f*** p*** 3,600/mo $0.89 LOW  93 🟢    │
+│  d** p****** c*****    1,900/mo $1.45 LOW  88 🟢    │
+│  ... 12 more ...                                     │
+│                                                      │
+│  Want all 847 keywords? [→ Full Search (Pro)]        │
+└──────────────────────────────────────────────────────┘
+```
+
+### Flow D: "Competitor Spy" (Phase 2 / Extension)
 
 ```
 [1] User enters competitor URL
@@ -95,18 +165,134 @@
 
 ---
 
+## UI Structure
+
+### Two separate pages, each linking to the other
+
+**Main page — jackpotkeywords.com (keyword research)**
+```
+┌─────────────────────────────────────────────────────┐
+│                                                     │
+│   🎰 JackpotKeywords                               │
+│   Describe your product. Find your goldmine.        │
+│                                                     │
+│   Describe your product or service                  │
+│   [________________________________]                │
+│                                                     │
+│   OR enter a URL                                    │
+│   [________________________________]                │
+│                                                     │
+│   Budget (optional): [$____/mo ▼]                   │
+│                                                     │
+│   [🔍 Find Goldmine Keywords]                       │
+│                                                     │
+│   ─────────────────────────────────                 │
+│   Just exploring an idea?                           │
+│   Validate demand before you build →                │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Concept page — jackpotkeywords.com/validate**
+```
+┌─────────────────────────────────────────────────────┐
+│                                                     │
+│   💡 Validate Your Business Idea                    │
+│   Find out if there's demand before you build.      │
+│                                                     │
+│   Describe your business idea                       │
+│   [________________________________]                │
+│                                                     │
+│   Budget (optional): [$____/mo ▼]                   │
+│                                                     │
+│   [📊 Check Demand]                                 │
+│                                                     │
+│   ─────────────────────────────────                 │
+│   Already have a product?                           │
+│   Find goldmine keywords →                          │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+Each page links to the other with a single line at the bottom. Clean, no clutter.
+
+---
+
+## Budget Filter Feature
+
+### Input
+
+Optional field on both search forms (keyword search + concept search):
+
+```
+Budget (optional): [$____/mo ▼]
+
+Presets:
+  No budget — show everything
+  $100-300/mo  (~$3-10/day)
+  $300-500/mo  (~$10-17/day)
+  $500-1000/mo (~$17-33/day)
+  $1000+/mo
+  Custom: $____/mo
+```
+
+### Effect on results
+
+When budget is set, the results table adds a **Budget Fit** column and re-weights the Jackpot Score:
+
+| Column | Without Budget | With Budget ($150/mo) |
+|---|---|---|
+| Budget Fit | Not shown | 🟢 Great / 🟡 Tight / 🔴 Over |
+| Clicks/day estimate | Not shown | "~35/day" or "~0.5/day" |
+| Jackpot Score | Standard weighting | CPC penalized harder for expensive keywords |
+
+**Budget Fit thresholds:**
+- 🟢 Great: 10+ clicks/day at budget (CPC < budget/10 per day)
+- 🟡 Tight: 3-10 clicks/day at budget
+- 🔴 Over: < 3 clicks/day at budget (keyword too expensive for this budget)
+
+**Scoring adjustment:**
+When budget is set, the Jackpot Score formula increases CPC weight:
+- Without budget: CPC weight = 0.25
+- With budget: CPC weight = 0.35, Volume weight drops to 0.20
+- Keywords where CPC > daily budget get automatic score cap of 30
+
+**Clicks/day estimate formula:**
+```
+daily_budget = monthly_budget / 30
+clicks_per_day = daily_budget / avg_cpc
+(where avg_cpc = (low_cpc + high_cpc) / 2)
+```
+
+### Budget in Concept Search
+
+When budget is set on the concept search, the Market Viability Report includes:
+
+```
+💰 AT YOUR BUDGET ($150/mo):
+  Keywords you can afford (10+ clicks/day): 156 of 847
+  Affordable goldmines (score 80+, budget fit 🟢): 23
+  Best value keyword: g** b*** — 35 clicks/day at $0.14 CPC
+  Budget verdict: "Strong ROI potential — many goldmine keywords
+                   are affordable at this budget level"
+```
+
+---
+
 ## Feature Set
 
 ### MVP Features
-1. **Product Description Input** — free-text or URL
-2. **AI Keyword Generation** — multi-category seed generation across 10 intent categories
-3. **Autocomplete Expansion** — long-tail discovery from Google Autocomplete
-4. **Google Ads API Enrichment** — real volume, CPC, competition for ALL discovered keywords
-5. **Google Trends Overlay** — trend direction + seasonal detection for top results
-6. **Jackpot Scoring** — 0-100 composite score with Ad Score + SEO Score views
-7. **Results Dashboard** — grouped by 10 categories, sortable, filterable, color-coded, trend arrows
-8. **CSV Export** — download results
-9. **Save Searches** — to user account
+1. **Product Description Input** — free-text or URL (main page)
+2. **Concept Validation Search** — business idea input (separate /validate page)
+3. **Budget Filter** — optional monthly budget, adds Budget Fit column + clicks/day estimate
+4. **AI Keyword Generation** — multi-category seed generation across 10 intent categories
+5. **Autocomplete Expansion** — long-tail discovery from Google Autocomplete
+6. **Google Ads API Enrichment** — real volume, CPC, competition for ALL discovered keywords
+7. **Google Trends Overlay** — trend direction + seasonal detection for top results
+8. **Jackpot Scoring** — 0-100 composite score with Ad Score + SEO Score views
+9. **Results Dashboard** — grouped by 10 categories, sortable, filterable, color-coded, trend arrows
+10. **CSV Export** — download results (Pro)
+11. **Save Searches** — to user account (Pro)
 
 ### V2 Features
 - **Google Ads Campaign Builder** — export ready-to-import campaign (CSV for Google Ads Editor, with match types, CPC bids, ad group structure)
