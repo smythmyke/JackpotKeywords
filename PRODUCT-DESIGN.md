@@ -567,11 +567,54 @@ A keyword like "gov bids" (2,400/mo, $0.14 CPC, LOW comp):
 
 ### Pricing Tiers
 
-| Tier | Price | Searches | Data Access |
+| Tier | Price | Searches | Experience |
 |---|---|---|---|
-| Free | $0 | 3 lifetime | Blurred report — proves value, not actionable |
-| Pro | $5.99/mo | Unlimited | Full data, trends, CSV export, Ad + SEO scores |
-| Agency | $19.99/mo | Unlimited | Everything + branded PDF, Google Ads Editor export, multi-project, monitoring, competitor gap |
+| Free | $0 | 3 lifetime | Blurred keywords, full metrics visible |
+| Credits | $0.99/1, $1.99/3, $4.99/10 | Per-pack | **Full experience** — identical to Pro |
+| Pro | $5.99/mo | Unlimited | Full experience, unlimited |
+| Agency | $19.99/mo | Unlimited | Full + branded PDF reports, Google Ads Editor export, multi-project, keyword monitoring |
+
+### Credit System (A-La-Carte)
+
+Proven pattern from GovToolsPro and BulkListingPro. Firebase + Stripe + credits.
+
+**Credit packs:**
+
+| Pack | Price | Per Search | Target User |
+|---|---|---|---|
+| Single | $0.99 | $0.99 | Impulse buy — "reveal this one search" |
+| 3-pack | $1.99 | $0.66 | "I have a few products to research" |
+| 10-pack | $4.99 | $0.50 | "I do this regularly but not monthly" |
+
+**$0.99 single search psychology:**
+- Impulse buy territory — no deliberation
+- Signals "affordable product" — user equates unit cost to overall value
+- User sees 95-score keyword at $0.14 CPC behind a mask → $0.99 to reveal → instant conversion
+- 95% margin ($0.99 revenue, ~$0.05 API/AI cost)
+
+**Credit costs per action:**
+
+| Action | Cost | Notes |
+|---|---|---|
+| Full keyword search (unblurred) | 1 credit | Core action |
+| Concept validation search | 1 credit | Same pipeline |
+| Unlock full table from concept search | 0 credits | Data already fetched |
+| CSV export from paid search | 0 credits | Already paid for the search |
+| Re-run/refresh same search | 1 credit | New API calls needed |
+
+**No feature differentiation between credits and subscription.**
+If you paid, you get the full experience — trends, SEO Score, all categories, all keywords, exports. The only difference is volume:
+- Credits = pay per search
+- Pro = unlimited for $5.99/mo
+- Pro breaks even vs credits at 6 searches/month
+
+**Results never expire.** Saved to user's account permanently regardless of payment method. Every return visit is a chance to convert credit users to subscribers.
+
+### Smart upsell moments:
+
+1. **After free search:** "Unlock all 1,247 keywords for $0.99"
+2. **After 5th credit purchase:** "You've spent $4.95 on credits. Go unlimited for $5.99/mo"
+3. **On return visit viewing saved results:** "Run a fresh search to see updated data? [Use 1 credit / Go unlimited]"
 
 ### Free Tier: "Prove Value, Not Actionable"
 
@@ -650,12 +693,23 @@ Problem-Based Keywords: 94 found
 
 **Margin Analysis:**
 - Free tier (3 lifetime searches): ~$0.15 total cost → acquisition cost
-- Pro ($5.99/mo): $5.99 revenue, ~$1.50 cost (est. 30 searches) → **75% margin**
-- Agency ($19.99/mo): $19.99 revenue, ~$5.00 cost (est. 100 searches) → **75% margin**
+- Single credit ($0.99): $0.99 revenue, ~$0.05 cost → **95% margin**
+- 3-pack ($1.99): $1.99 revenue, ~$0.15 cost → **92% margin**
+- 10-pack ($4.99): $4.99 revenue, ~$0.50 cost → **90% margin**
+- Pro ($5.99/mo, ~30 searches): $5.99 revenue, ~$1.50 cost → **75% margin**
+- Agency ($19.99/mo, ~100 searches): $19.99 revenue, ~$5.00 cost → **75% margin**
 
-**Revenue Projections:**
-- 100 Pro + 50 Agency = ~$1,600/mo at modest scale
+**Revenue Projections (blended):**
+- 200 credit purchases/mo (avg $1.50) = $300/mo
+- 100 Pro subscribers = $599/mo
+- 50 Agency subscribers = $999/mo
+- Combined = ~$1,900/mo at modest scale
 - API costs at that scale: ~$50-100/mo
+
+**Credit-to-subscription conversion:**
+- Pro breaks even vs credits at 6 searches/month ($5.99 vs $5.94)
+- Natural nudge point: "You've spent $4.95 on credits. Go unlimited for $5.99/mo"
+- Expected credit→Pro conversion rate: 10-15% of credit buyers
 
 ---
 
@@ -669,3 +723,4 @@ Problem-Based Keywords: 94 found
 7. Campaign builder export — competitors show data, we help users ACT on it
 8. Dual Ad Score / SEO Score — serves both paid and organic strategies
 9. 10-category taxonomy — shows thoroughness competitors don't surface
+10. $0.99 entry point — lowest friction in the market, proven credit system from GovToolsPro/BulkListingPro

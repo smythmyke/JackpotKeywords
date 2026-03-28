@@ -28,9 +28,12 @@ AI-powered keyword research tool that undercuts SEMrush/Ahrefs by 10x. User desc
 
 | Tier | Price | Features |
 |---|---|---|
-| Free | $0 | 3 lifetime searches, blurred report (see Free Tier Design below) |
-| Pro | $5.99/mo | Unlimited searches, full data, trends, CSV export, Ad + SEO scores |
-| Agency | $19.99/mo | Everything + branded PDF reports, Google Ads Editor export, multi-project, keyword monitoring, competitor gap (V2) |
+| Free | $0 | 3 lifetime searches, blurred keywords, full metrics visible |
+| Credits | $0.99/1, $1.99/3, $4.99/10 | A-la-carte — full experience per search, identical to Pro |
+| Pro | $5.99/mo | Unlimited searches, full experience |
+| Agency | $19.99/mo | Everything + branded PDF reports, Google Ads Editor export, multi-project, keyword monitoring |
+
+**Credit system:** Same Firebase + Stripe + credits pattern as GovToolsPro/BulkListingPro. 1 credit = 1 search. No feature differentiation between credits and subscription — paid is paid. Pro breaks even vs credits at 6 searches/mo.
 
 ### Free Tier Design (Blurred Keywords, Full Metrics)
 
