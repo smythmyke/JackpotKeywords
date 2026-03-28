@@ -1,0 +1,114 @@
+import { useState } from 'react';
+import type { SearchMode } from '@jackpotkeywords/shared';
+
+interface SearchFormProps {
+  mode: SearchMode;
+  onSearch: (description: string, url: string, budget?: number) => void;
+  loading?: boolean;
+}
+
+const BUDGET_PRESETS = [
+  { label: 'No budget', value: undefined },
+  { label: '$100-300/mo', value: 200 },
+  { label: '$300-500/mo', value: 400 },
+  { label: '$500-1000/mo', value: 750 },
+  { label: '$1000+/mo', value: 1500 },
+];
+
+export default function SearchForm({ mode, onSearch, loading }: SearchFormProps) {
+  const [description, setDescription] = useState('');
+  const [url, setUrl] = useState('');
+  const [budget, setBudget] = useState<number | undefined>();
+  const [showBudget, setShowBudget] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!description.trim() && !url.trim()) return;
+    onSearch(description, url, budget);
+  };
+
+  const isKeywordMode = mode === 'keyword';
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-4">
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">
+          {isKeywordMode ? 'Describe your product or service' : 'Describe your business idea'}
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder={
+            isKeywordMode
+              ? 'e.g., I sell a Chrome extension that helps Etsy sellers bulk upload listings with AI-generated tags and descriptions'
+              : 'e.g., I want to sell custom pet portraits on Etsy using AI-generated art'
+          }
+          rows={3}
+          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500 resize-none"
+        />
+      </div>
+
+      {isKeywordMode && (
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">
+            OR enter a URL
+          </label>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://your-product.com"
+            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500"
+          />
+        </div>
+      )}
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowBudget(!showBudget)}
+          className="text-sm text-gray-500 hover:text-gray-300 transition"
+        >
+          {showBudget ? 'Hide budget options' : 'Set ad budget (optional)'}
+        </button>
+        {showBudget && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {BUDGET_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => setBudget(preset.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm transition ${
+                  budget === preset.value
+                    ? 'bg-jackpot-500 text-black font-medium'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+            <input
+              type="number"
+              value={budget && !BUDGET_PRESETS.find(p => p.value === budget) ? budget : ''}
+              onChange={(e) => setBudget(e.target.value ? Number(e.target.value) : undefined)}
+              placeholder="Custom $/mo"
+              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500"
+            />
+          </div>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading || (!description.trim() && !url.trim())}
+        className="w-full bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold py-3.5 rounded-xl text-lg transition"
+      >
+        {loading
+          ? 'Searching...'
+          : isKeywordMode
+            ? 'Find Goldmine Keywords'
+            : 'Check Demand'}
+      </button>
+    </form>
+  );
+}

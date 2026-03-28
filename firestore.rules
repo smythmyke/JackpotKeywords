@@ -1,0 +1,34 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can only access their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Credits — read by user, write only via Cloud Functions
+      match /credits/{document=**} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      // Transactions — read by user, write only via Cloud Functions
+      match /transactions/{transactionId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      // Saved searches — read/write by user
+      match /searches/{searchId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Pricing config — public read
+    match /pricingConfig/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

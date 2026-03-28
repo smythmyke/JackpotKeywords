@@ -1,0 +1,28 @@
+{
+  "name": "jackpotkeywords",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered keyword research tool that undercuts SEMrush/Ahrefs by 10x",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@jackpotkeywords/web",
+    "build:shared": "npm run build --workspace=@jackpotkeywords/shared",
+    "build:functions": "npm run build --workspace=@jackpotkeywords/functions",
+    "build:web": "npm run build --workspace=@jackpotkeywords/web",
+    "build:all": "npm run build:shared && npm run build:functions && npm run build:web",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:web": "firebase deploy --only hosting",
+    "deploy:all": "firebase deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smythmyke/JackpotKeywords.git"
+  },
+  "author": "smythmyke",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

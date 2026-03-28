@@ -1,0 +1,10 @@
+node_modules/
+dist/
+lib/
+.env
+.env.local
+*.local
+packages/functions/lib/
+packages/shared/dist/
+packages/web/dist/
+.firebase/
