@@ -1,84 +1,157 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
+import { useAuthContext } from '../contexts/AuthContext';
+import { useCredits } from '../hooks/useCredits';
 
 export default function Pricing() {
+  const pro = SUBSCRIPTION_PLANS[0];
+  const { user, signInWithGoogle, getToken } = useAuthContext();
+  const { buyCreditPack, subscribe } = useCredits({ getToken, refreshCredits: async () => {} });
+  const [loading, setLoading] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const handleBuyCredits = async (packId: string) => {
+    if (!user) {
+      await signInWithGoogle();
+      return;
+    }
+    setLoading(packId);
+    try {
+      await buyCreditPack(packId as any);
+    } catch {
+      setLoading(null);
+    }
+  };
+
+  const handleSubscribe = async (planId: string) => {
+    if (!user) {
+      await signInWithGoogle();
+      return;
+    }
+    setLoading(planId);
+    try {
+      await subscribe(planId as any);
+    } catch {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-16">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-white mb-4">Simple pricing</h1>
         <p className="text-gray-400 text-lg">
-          Pay per search or go unlimited. No hidden fees.
+          Try free. Pay per search. Or go unlimited.
         </p>
       </div>
 
-      {/* Credit packs */}
-      <div className="mb-16">
-        <h2 className="text-xl font-bold text-white mb-6 text-center">Pay per search</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-          {CREDIT_PACKS.map((pack) => (
-            <div
-              key={pack.id}
-              className={`bg-gray-900 rounded-xl border p-6 text-center transition hover:border-jackpot-500/50 ${
-                pack.popular ? 'border-jackpot-500 ring-1 ring-jackpot-500/20' : 'border-gray-800'
-              }`}
+      {/* 3-column layout: Free | Pro (hero) | Credits */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto items-start">
+        {/* Free tier */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 text-center">
+          <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Start Here</div>
+          <div className="text-3xl font-bold text-white">Free</div>
+          <div className="text-gray-400 text-sm mt-1">3 searches</div>
+          <ul className="mt-6 space-y-3 text-left">
+            <li className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="text-score-green">&#10003;</span> 3 lifetime searches
+            </li>
+            <li className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="text-score-green">&#10003;</span> Full metrics visible
+            </li>
+            <li className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="text-score-green">&#10003;</span> Keywords blurred
+            </li>
+            <li className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="text-score-green">&#10003;</span> No credit card required
+            </li>
+          </ul>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-6 w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition"
+          >
+            Get Started
+          </button>
+        </div>
+
+        {/* Pro — center hero */}
+        {pro && (
+          <div className="bg-gray-900 rounded-xl border-2 border-jackpot-500 ring-1 ring-jackpot-500/20 p-6 text-center relative md:-mt-4 md:mb-[-1rem]">
+            <div className="text-xs font-bold text-jackpot-400 mb-2 uppercase tracking-wider">Best Value</div>
+            <div className="text-4xl font-bold text-white">{pro.priceDisplay}</div>
+            <div className="text-gray-400 text-sm mt-1">{pro.name} — Unlimited</div>
+            <ul className="mt-6 space-y-3 text-left">
+              {pro.features.map((feature) => (
+                <li key={feature} className="flex items-center gap-2 text-sm text-gray-300">
+                  <svg className="w-4 h-4 text-jackpot-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => handleSubscribe(pro.id)}
+              disabled={loading === pro.id}
+              className="mt-6 w-full bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 text-black font-bold py-3 rounded-lg transition text-lg"
             >
-              {pack.popular && (
-                <div className="text-xs font-medium text-jackpot-400 mb-2">MOST POPULAR</div>
-              )}
-              <div className="text-3xl font-bold text-white">{pack.priceDisplay}</div>
-              <div className="text-gray-400 text-sm mt-1">
-                {pack.credits} {pack.credits === 1 ? 'search' : 'searches'}
-              </div>
-              <div className="text-gray-500 text-xs mt-1">
-                {pack.perSearchCost}/search
-              </div>
-              <button className="mt-4 w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition">
-                Buy now
-              </button>
+              {loading === pro.id ? 'Redirecting...' : 'Subscribe'}
+            </button>
+            <div className="text-xs text-gray-500 mt-2">
+              Breaks even at ~5 searches/month
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Credits */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 text-center">
+          <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Pay Per Search</div>
+          <div className="text-3xl font-bold text-white">Credits</div>
+          <div className="text-gray-400 text-sm mt-1">No commitment</div>
+          <div className="mt-6 space-y-3">
+            {CREDIT_PACKS.map((pack) => (
+              <div
+                key={pack.id}
+                className={`border rounded-lg p-4 transition ${
+                  pack.popular
+                    ? 'border-jackpot-500/40 bg-jackpot-500/5'
+                    : 'border-gray-800'
+                }`}
+              >
+                {pack.popular && (
+                  <div className="text-[10px] font-bold text-jackpot-400 uppercase tracking-wider mb-1">Best Deal</div>
+                )}
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="text-white font-bold">{pack.priceDisplay}</div>
+                    <div className="text-gray-500 text-xs">
+                      {pack.credits} {pack.credits === 1 ? 'search' : 'searches'} &middot; {pack.perSearchCost}/ea
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleBuyCredits(pack.id)}
+                    disabled={loading === pack.id}
+                    className="bg-gray-800 hover:bg-gray-700 disabled:bg-gray-700 text-white font-medium px-4 py-1.5 rounded-lg text-sm transition"
+                  >
+                    {loading === pack.id ? '...' : 'Buy'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Subscription plans */}
-      <div>
-        <h2 className="text-xl font-bold text-white mb-6 text-center">Go unlimited</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
-          {SUBSCRIPTION_PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`bg-gray-900 rounded-xl border p-6 transition hover:border-jackpot-500/50 ${
-                plan.id === 'pro' ? 'border-jackpot-500 ring-1 ring-jackpot-500/20' : 'border-gray-800'
-              }`}
-            >
-              {plan.id === 'pro' && (
-                <div className="text-xs font-medium text-jackpot-400 mb-2">BEST VALUE</div>
-              )}
-              <div className="text-3xl font-bold text-white">{plan.priceDisplay}</div>
-              <div className="text-gray-400 text-sm mt-1">{plan.name}</div>
-              <ul className="mt-4 space-y-2">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-jackpot-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <button className="mt-6 w-full bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold py-2.5 rounded-lg transition">
-                Subscribe
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Free tier note */}
-      <div className="mt-12 text-center text-gray-500 text-sm">
+      {/* Bottom note */}
+      <div className="mt-12 text-center text-gray-500 text-sm max-w-lg mx-auto">
         <p>
-          Start with 3 free searches (blurred results) to see the quality before you pay.
-          <br />
-          Pro subscription breaks even vs credits at 6 searches/month.
+          Start with 3 free searches to see the quality before you pay.
+          All paid searches unlock full keyword data, exports, and permanent access to results.
+        </p>
+        <p className="mt-3 text-xs text-gray-600">
+          Keyword data represents estimates at time of search. Actual CPC and volume may vary.{' '}
+          <a href="/disclaimer" className="text-gray-500 hover:text-gray-400 underline">Full disclaimer</a>
         </p>
       </div>
     </div>

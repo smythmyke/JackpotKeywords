@@ -43,6 +43,16 @@ export async function listSearches(token: string) {
   return apiFetch('/api/search', token);
 }
 
+export async function saveAnonymousResult(
+  token: string,
+  result: SearchResult,
+): Promise<{ id: string }> {
+  return apiFetch('/api/search/save-anonymous', token, {
+    method: 'POST',
+    body: JSON.stringify({ result }),
+  });
+}
+
 export async function refineSearch(
   token: string,
   searchId: string,

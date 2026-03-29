@@ -22,9 +22,9 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="JackpotKeywords" className="h-10 rounded" />
+            <img src="/logo-option2.png" alt="JackpotKeywords" className="h-[52px]" />
           </Link>
           <div className="flex items-center gap-4 text-sm">
             <Link to="/pricing" className="text-gray-400 hover:text-white transition">

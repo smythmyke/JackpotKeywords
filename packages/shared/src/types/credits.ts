@@ -54,6 +54,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     priceInCents: 999,
     priceDisplay: '$9.99/mo',
     interval: 'month',
+    stripePriceId: 'price_1TGDy1PHvSenlVgmhLiG0Wfv',
     features: [
       'Unlimited searches',
       'Full keyword data + trends',

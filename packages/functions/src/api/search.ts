@@ -129,6 +129,43 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 });
 
 /**
+ * POST /api/search/save-anonymous
+ * Save anonymous search results to authenticated user's account
+ */
+router.post('/save-anonymous', authMiddleware, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const { result } = req.body;
+
+  if (!result || !result.keywords) {
+    res.status(400).json({ error: 'Invalid result data' });
+    return;
+  }
+
+  try {
+    // Deduct a free search
+    const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'saved anonymous search');
+    const paid = creditResult.allowed && !creditResult.isFreeSearch;
+
+    const searchId = db.collection('users').doc().id;
+    const savedResult = {
+      ...result,
+      id: searchId,
+      paid,
+      createdAt: new Date().toISOString(),
+    };
+
+    const firestoreData = JSON.parse(JSON.stringify(savedResult));
+    await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
+
+    functions.logger.info(`Saved anonymous result: ${searchId} for user ${userId}`);
+    res.json({ id: searchId });
+  } catch (error: any) {
+    functions.logger.error('Save anonymous error:', error.message);
+    res.status(500).json({ error: 'Failed to save results' });
+  }
+});
+
+/**
  * GET /api/search/:searchId
  * Retrieve saved search results
  */

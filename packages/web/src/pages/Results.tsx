@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch } from '../services/api';
+import { getSearchResult, refineSearch, saveAnonymousResult } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -33,8 +33,10 @@ const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 export default function Results() {
   const { searchId } = useParams<{ searchId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { getToken, loading: authLoading, user, profile, signInWithGoogle } = useAuthContext();
   const isAnonymous = searchId === 'anonymous';
+  const [savingAnonymous, setSavingAnonymous] = useState(false);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export default function Results() {
   const [refineInput, setRefineInput] = useState('');
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -141,7 +144,26 @@ export default function Results() {
     fetchResults();
   }, [searchId, getToken, authLoading, user, isAnonymous, location.state]);
 
-  if (loading) {
+  // When user signs in on anonymous page, save results and redirect
+  useEffect(() => {
+    if (!isAnonymous || !user || !result || savingAnonymous) return;
+
+    async function saveAndRedirect() {
+      setSavingAnonymous(true);
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const { id } = await saveAnonymousResult(token, result!);
+        navigate(`/results/${id}`, { replace: true });
+      } catch (err: any) {
+        console.error('Failed to save anonymous results:', err.message);
+        setSavingAnonymous(false);
+      }
+    }
+    saveAndRedirect();
+  }, [isAnonymous, user, result, savingAnonymous, getToken, navigate]);
+
+  if (loading || savingAnonymous) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-gray-400 text-lg">Loading results...</div>
@@ -170,7 +192,6 @@ export default function Results() {
   const refineCount = (result as any).refineCount || 0;
   const refinesRemaining = 5 - refineCount;
   const showRefineBar = canRefine && activeCategory !== 'direct' && refinesRemaining > 0;
-  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
 
   const handleKeywordClick = (kw: KeywordResult) => {
     if (!paid && !isAdmin) {
@@ -251,8 +272,8 @@ export default function Results() {
   });
 
   // For free users, show only top 3 per category; paginate for paid
-  const displayKeywords = paid ? sortedKeywords.slice(0, visibleCount) : sortedKeywords.slice(0, 3);
-  const hasMore = paid && visibleCount < sortedKeywords.length;
+  const displayKeywords = sortedKeywords.slice(0, visibleCount);
+  const hasMore = visibleCount < sortedKeywords.length;
 
   // Find related keywords for expanded panel (share 2+ words)
   function getRelatedKeywords(kw: KeywordResult): KeywordResult[] {
@@ -689,12 +710,6 @@ export default function Results() {
           </div>
         )}
 
-        {/* Show locked count for free users */}
-        {!paid && categoryKeywords.length > 3 && (
-          <div className="text-center py-4 text-gray-500 text-sm">
-            ... and {categoryKeywords.length - 3} more keywords in this category
-          </div>
-        )}
       </div>
 
       {/* Paywall CTA for free/anonymous users */}
@@ -729,6 +744,14 @@ export default function Results() {
           )}
         </div>
       )}
+
+      {/* Inline disclaimer */}
+      <div className="mt-8 text-center text-xs text-gray-600">
+        Data reflects conditions at time of search. Actual CPC and volume may vary.{' '}
+        <Link to="/disclaimer" className="text-gray-500 hover:text-gray-400 underline">
+          Full disclaimer
+        </Link>
+      </div>
     </div>
   );
 }

@@ -7,21 +7,21 @@ import SearchProgress from '../components/SearchProgress';
 
 const COMPARISON_FEATURES = [
   'Price',
-  'Google Ads API (real data)',
-  'Google Trends',
-  'Google Autocomplete',
-  'AI Opportunity Scoring',
-  'Intent Categories',
-  'No keyword knowledge needed',
+  'Real search volume data',
+  'CPC & competition data',
+  'Trend analysis',
+  'AI opportunity scoring',
+  '10 intent categories',
+  'No keyword expertise needed',
 ];
 
 const COMPARISON_DATA: Record<string, string[]> = {
-  'JackpotKeywords': ['$5.99/mo', 'Yes', 'Yes', 'Yes', 'Yes', '10', 'Yes'],
-  'SEMrush':         ['$140/mo', 'No', 'Separate', 'Yes', 'Basic', 'Manual', 'No'],
-  'Ahrefs':          ['$99/mo', 'No', 'Partial', 'Yes', 'No', 'Manual', 'No'],
-  'SE Ranking':      ['$44/mo', 'No', 'Partial', 'Yes', 'Basic', 'Manual', 'No'],
-  'Ubersuggest':     ['$29/mo', 'No', 'No', 'Yes', 'No', 'None', 'No'],
-  'KeywordTool.io':  ['$89/mo', 'No', 'No', 'Yes', 'No', 'None', 'No'],
+  'JackpotKeywords': ['$9.99/mo', 'Yes', 'Yes', 'Yes', 'Yes', 'Yes', 'Yes'],
+  'SEMrush':         ['$140/mo', 'Estimated', 'Yes', 'Separate', 'Basic', 'Manual', 'No'],
+  'Ahrefs':          ['$99/mo', 'Estimated', 'Yes', 'Partial', 'No', 'Manual', 'No'],
+  'SE Ranking':      ['$44/mo', 'Estimated', 'Yes', 'Partial', 'Basic', 'Manual', 'No'],
+  'Ubersuggest':     ['$29/mo', 'Limited', 'Partial', 'No', 'No', 'No', 'No'],
+  'KeywordTool.io':  ['$89/mo', 'No', 'No', 'No', 'No', 'No', 'No'],
 };
 
 const TOOLS = Object.keys(COMPARISON_DATA);
@@ -63,7 +63,7 @@ const CATEGORIES = [
 const FAQS = [
   {
     q: 'Where does the keyword data come from?',
-    a: 'Real Google Ads API data — the same source advertisers use. We combine it with Google autocomplete, Google Trends, and Gemini AI for the most complete picture.',
+    a: 'Real advertiser-grade data — actual search volumes, CPC ranges, and competition levels. We combine multiple data sources with AI analysis for the most complete picture.',
   },
   {
     q: 'How is this different from ChatGPT keyword suggestions?',
@@ -151,7 +151,7 @@ export default function Home() {
             <span className="text-jackpot-400">Find your goldmine.</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            AI-powered keyword research with real Google Ads data.
+            AI-powered keyword research with real advertiser-grade data.
             Discover 1,000+ keyword opportunities across 10 intent categories —
             scored, ranked, and ready to act on.
             <br />
@@ -201,8 +201,8 @@ export default function Home() {
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-jackpot-400">$0.99</div>
-            <div>Per search<br />credit</div>
+            <div className="text-2xl font-bold text-jackpot-400">30s</div>
+            <div>Results<br />delivered</div>
           </div>
         </div>
         </div>
@@ -256,7 +256,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">Stop Overpaying for Keywords</h2>
           <p className="text-gray-400 text-center mb-10">
-            More data sources. AI-powered scoring. A fraction of the price.
+            Real data. AI scoring. A fraction of the price.
           </p>
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
@@ -312,16 +312,16 @@ export default function Home() {
       {/* Data Sources */}
       <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Powered by 4 Data Sources</h2>
+          <h2 className="text-3xl font-bold mb-4">Real Data, Not Guesswork</h2>
           <p className="text-gray-400 mb-10 max-w-lg mx-auto">
             Every keyword is enriched with real data — not estimates, not scraped guesses.
           </p>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { name: 'Google Ads API', desc: 'Exact volume, CPC, competition', badge: 'Primary' },
-              { name: 'Google Autocomplete', desc: 'Real user search patterns', badge: 'Free' },
-              { name: 'Google Trends', desc: 'Trend direction & seasonality', badge: 'Free' },
-              { name: 'Gemini AI', desc: 'Intent mapping & categorization', badge: '$0.001' },
+              { name: 'Search Volume', desc: 'Real monthly search data, not estimates', badge: 'Exact' },
+              { name: 'CPC & Competition', desc: 'Actual advertiser bid ranges and competition', badge: 'Live' },
+              { name: 'Trend Analysis', desc: '12-month trends and seasonality detection', badge: 'Historical' },
+              { name: 'AI Scoring', desc: 'Intent mapping, scoring & categorization', badge: 'Intelligent' },
             ].map((source) => (
               <div key={source.name} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
                 <div className="text-xs text-jackpot-400 font-bold mb-2">{source.badge}</div>
@@ -375,6 +375,7 @@ export default function Home() {
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
             <Link to="/validate" className="hover:text-gray-400 transition">Validate an Idea</Link>
+            <Link to="/disclaimer" className="hover:text-gray-400 transition">Disclaimer</Link>
           </div>
         </div>
       </footer>
