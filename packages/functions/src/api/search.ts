@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
-import { authMiddleware, type AuthRequest } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
@@ -18,9 +18,10 @@ const db = admin.firestore();
  * POST /api/search
  * Main search endpoint — orchestrates the 6-step pipeline
  */
-router.post('/', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   const startTime = Date.now();
-  const userId = req.userId!;
+  const userId = req.userId;
+  const isAnonymous = !userId;
   const { description, url, mode, budget } = req.body as SearchRequest;
 
   if (!description?.trim() && !url?.trim()) {
@@ -28,16 +29,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     return;
   }
 
-  // Step 0: Check and deduct credits
-  const operation = mode === 'concept' ? 'concept_search' : 'keyword_search';
-  const creditResult = await checkAndDeductCredits(userId, 1, operation, `${mode} search`);
+  // Step 0: Check and deduct credits (skip for anonymous)
+  let creditResult = { allowed: true, newBalance: 0, isFreeSearch: true };
+  if (!isAnonymous) {
+    const operation = mode === 'concept' ? 'concept_search' : 'keyword_search';
+    creditResult = await checkAndDeductCredits(userId, 1, operation, `${mode} search`);
 
-  if (!creditResult.allowed) {
-    res.status(402).json({
-      error: 'Insufficient credits',
-      balance: creditResult.newBalance,
-    });
-    return;
+    if (!creditResult.allowed) {
+      res.status(402).json({
+        error: 'Insufficient credits',
+        balance: creditResult.newBalance,
+      });
+      return;
+    }
   }
 
   try {
@@ -103,22 +107,23 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       },
     };
 
-    // Log monthlyVolumes status before save
-    const kwWithVols = result.keywords.filter((kw) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
-    functions.logger.info(`Pre-save: ${result.keywords.length} keywords, ${kwWithVols.length} with monthlyVolumes`);
-
-    // Save to Firestore (strip undefined values)
-    const firestoreData = JSON.parse(JSON.stringify(result));
-    const savedWithVols = firestoreData.keywords.filter((kw: any) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
-    functions.logger.info(`Post-stringify: ${firestoreData.keywords.length} keywords, ${savedWithVols.length} with monthlyVolumes`);
-
-    await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
+    // Save to Firestore for authenticated users only
+    if (!isAnonymous) {
+      const kwWithVols = result.keywords.filter((kw) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
+      functions.logger.info(`Saving: ${result.keywords.length} keywords, ${kwWithVols.length} with monthlyVolumes`);
+      const firestoreData = JSON.parse(JSON.stringify(result));
+      await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
+    } else {
+      functions.logger.info(`Anonymous search: ${result.keywords.length} keywords (not saved)`);
+    }
 
     res.json(result);
   } catch (error: any) {
     functions.logger.error('Search pipeline error:', error.stack || error.message);
-    // Refund credit on pipeline failure
-    await refundCredits(userId, 1, `Search failed: ${error.message}`);
+    // Refund credit on pipeline failure (skip for anonymous)
+    if (!isAnonymous) {
+      await refundCredits(userId!, 1, `Search failed: ${error.message}`);
+    }
     res.status(500).json({ error: 'Search pipeline failed', details: error.message });
   }
 });

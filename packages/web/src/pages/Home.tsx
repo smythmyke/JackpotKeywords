@@ -94,33 +94,20 @@ export default function Home() {
   const plan = profile?.plan || 'free';
 
   function getStatusLine(): string {
-    if (!user) return '3 free searches. Then $0.99/search.';
+    if (!user) return '3 free searches. No sign-up required.';
     if (isAdmin) return 'Unlimited searches. Admin access.';
     if (plan === 'pro') return 'Unlimited searches. Pro plan.';
     if (plan === 'agency') return 'Unlimited searches. Agency plan.';
     if (credits && credits.balance > 0) return `You have ${credits.balance} credit${credits.balance !== 1 ? 's' : ''} remaining.`;
     if (credits && credits.freeSearchesUsed < 3) return `${3 - credits.freeSearchesUsed} of 3 free searches remaining.`;
-    return "You've used your free searches. Get more from $0.99.";
+    return "You've used your free searches. Unlock more from $1.99.";
   }
 
   const handleSearch = async (description: string, url: string, budget?: number) => {
     setError(null);
-
-    // Require sign-in before searching
-    if (!user) {
-      try {
-        await signInWithGoogle();
-      } catch {
-        return;
-      }
-      // Auth state change will re-render; user needs to click search again
-      return;
-    }
-
     setLoading(true);
     try {
-      const token = await getToken();
-      if (!token) throw new Error('Not authenticated');
+      const token = user ? await getToken() : null;
 
       const result = await runSearch(token, {
         description,
@@ -129,7 +116,12 @@ export default function Home() {
         budget,
       });
 
-      navigate(`/results/${result.id}`);
+      if (result.id && user) {
+        navigate(`/results/${result.id}`);
+      } else {
+        // Anonymous search — pass results via state since they're not saved
+        navigate('/results/anonymous', { state: { result } });
+      }
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -178,7 +170,7 @@ export default function Home() {
 
         {!user && (
           <p className="mt-3 text-gray-500 text-xs">
-            You&apos;ll be asked to sign in before your first search
+            No sign-up required. See results in 30 seconds.
           </p>
         )}
 

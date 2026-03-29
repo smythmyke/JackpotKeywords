@@ -2,14 +2,17 @@ import type { SearchResult } from '@jackpotkeywords/shared';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
 
-async function authedFetch(path: string, token: string, options: RequestInit = {}) {
+async function apiFetch(path: string, token: string | null, options: RequestInit = {}) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
+    headers: { ...headers, ...options.headers },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -19,25 +22,25 @@ async function authedFetch(path: string, token: string, options: RequestInit = {
 }
 
 export async function initUser(token: string) {
-  return authedFetch('/api/auth/init', token, { method: 'POST' });
+  return apiFetch('/api/auth/init', token, { method: 'POST' });
 }
 
 export async function runSearch(
-  token: string,
+  token: string | null,
   params: { description: string; url?: string; mode: 'keyword' | 'concept'; budget?: number },
 ): Promise<SearchResult> {
-  return authedFetch('/api/search', token, {
+  return apiFetch('/api/search', token, {
     method: 'POST',
     body: JSON.stringify(params),
   });
 }
 
 export async function getSearchResult(token: string, searchId: string): Promise<SearchResult> {
-  return authedFetch(`/api/search/${searchId}`, token);
+  return apiFetch(`/api/search/${searchId}`, token);
 }
 
 export async function listSearches(token: string) {
-  return authedFetch('/api/search', token);
+  return apiFetch('/api/search', token);
 }
 
 export async function refineSearch(
@@ -46,7 +49,7 @@ export async function refineSearch(
   input: string,
   category: string,
 ): Promise<{ added: number; refineCount: number; keywords: any[] }> {
-  return authedFetch(`/api/search/${searchId}/refine`, token, {
+  return apiFetch(`/api/search/${searchId}/refine`, token, {
     method: 'POST',
     body: JSON.stringify({ input, category }),
   });

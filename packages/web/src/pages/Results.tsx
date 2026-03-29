@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { CATEGORY_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -9,7 +9,6 @@ import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
 import TrendArrow from '../components/TrendArrow';
 import KeywordPanel from '../components/KeywordPanel';
-import ColumnFilter from '../components/ColumnFilter';
 import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
 
 const ALL_CATEGORIES: KeywordCategory[] = [
@@ -33,7 +32,9 @@ const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 export default function Results() {
   const { searchId } = useParams<{ searchId: string }>();
-  const { getToken, loading: authLoading, user, profile } = useAuthContext();
+  const location = useLocation();
+  const { getToken, loading: authLoading, user, profile, signInWithGoogle } = useAuthContext();
+  const isAnonymous = searchId === 'anonymous';
   const [result, setResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +96,22 @@ export default function Results() {
     sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
 
   useEffect(() => {
+    // Anonymous results — load from location state
+    if (isAnonymous) {
+      const stateResult = (location.state as any)?.result;
+      if (stateResult) {
+        setResult(stateResult);
+        const firstWithData = ALL_CATEGORIES.find(
+          (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
+        );
+        if (firstWithData) setActiveCategory(firstWithData);
+      } else {
+        setError('Results expired. Please run a new search.');
+      }
+      setLoading(false);
+      return;
+    }
+
     // Wait for auth to initialize before fetching
     if (authLoading) return;
 
@@ -111,7 +128,6 @@ export default function Results() {
         const data = await getSearchResult(token, searchId);
         setResult(data);
 
-        // Auto-select first category that has keywords
         const firstWithData = ALL_CATEGORIES.find(
           (cat) => data.keywords?.some((kw: KeywordResult) => kw.category === cat),
         );
@@ -123,7 +139,7 @@ export default function Results() {
       }
     }
     fetchResults();
-  }, [searchId, getToken, authLoading, user]);
+  }, [searchId, getToken, authLoading, user, isAnonymous, location.state]);
 
   if (loading) {
     return (
@@ -154,6 +170,17 @@ export default function Results() {
   const refineCount = (result as any).refineCount || 0;
   const refinesRemaining = 5 - refineCount;
   const showRefineBar = canRefine && activeCategory !== 'direct' && refinesRemaining > 0;
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+
+  const handleKeywordClick = (kw: KeywordResult) => {
+    if (!paid && !isAdmin) {
+      // Anonymous or free user — show sign-in/upgrade prompt
+      setShowSignInPrompt(true);
+      setTimeout(() => setShowSignInPrompt(false), 4000);
+      return;
+    }
+    setExpandedKeyword(expandedKeyword === kw.keyword ? null : kw.keyword);
+  };
 
   const handleRefine = async () => {
     if (!refineInput.trim() || !searchId || refining) return;
@@ -241,7 +268,23 @@ export default function Results() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-[1400px] mx-auto px-4 py-8">
+      {/* Anonymous user banner */}
+      {isAnonymous && (
+        <div className="bg-jackpot-500/10 border border-jackpot-500/30 rounded-xl px-5 py-3 mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-sm">
+            <span className="text-jackpot-400 font-medium">These results disappear on refresh.</span>
+            <span className="text-gray-400 ml-1">Sign in to save them and unlock 3 free searches.</span>
+          </div>
+          <button
+            onClick={signInWithGoogle}
+            className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2 rounded-lg text-sm transition whitespace-nowrap"
+          >
+            Sign In to Save
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
@@ -378,24 +421,103 @@ export default function Results() {
         </div>
       )}
 
+      {/* Filter bar */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl mb-3 flex-wrap">
+        <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold mr-1">Filters</span>
+        <select
+          value={filterVolume ?? ''}
+          onChange={(e) => { setFilterVolume(e.target.value ? Number(e.target.value) : null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterVolume !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">Volume: Any</option>
+          <option value="100">100+</option>
+          <option value="500">500+</option>
+          <option value="1000">1,000+</option>
+          <option value="5000">5,000+</option>
+          <option value="10000">10,000+</option>
+        </select>
+        <div className="w-px h-6 bg-gray-700" />
+        <select
+          value={filterCpc ?? ''}
+          onChange={(e) => { setFilterCpc(e.target.value ? Number(e.target.value) : null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterCpc !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">CPC: Any</option>
+          <option value="1">Under $1</option>
+          <option value="2">Under $2</option>
+          <option value="5">Under $5</option>
+          <option value="10">Under $10</option>
+        </select>
+        <div className="w-px h-6 bg-gray-700" />
+        <select
+          value={filterComp ?? ''}
+          onChange={(e) => { setFilterComp(e.target.value || null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterComp !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">Comp: Any</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+        </select>
+        <div className="w-px h-6 bg-gray-700" />
+        <select
+          value={filterTrend ?? ''}
+          onChange={(e) => { setFilterTrend(e.target.value || null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterTrend !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">Trend: Any</option>
+          <option value="rising">Rising</option>
+          <option value="stable">Stable</option>
+          <option value="declining">Declining</option>
+        </select>
+        <div className="w-px h-6 bg-gray-700" />
+        <select
+          value={filterScore ?? ''}
+          onChange={(e) => { setFilterScore(e.target.value ? Number(e.target.value) : null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterScore !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">Score: Any</option>
+          <option value="80">80+</option>
+          <option value="70">70+</option>
+          <option value="60">60+</option>
+          <option value="50">50+</option>
+        </select>
+        {activeFilterCount > 0 && (
+          <button onClick={resetAll} className="ml-auto text-xs text-gray-500 hover:text-white transition">
+            Clear all ({activeFilterCount} active)
+          </button>
+        )}
+      </div>
+
       {/* Filter status */}
-      {(activeFilterCount > 0 || filteredKeywords.length !== categoryKeywords.length) && (
-        <div className="flex items-center justify-between mb-3 text-sm">
-          <span className="text-gray-400">
-            Showing {filteredKeywords.length} of {categoryKeywords.length} keywords
-            {activeFilterCount > 0 && (
-              <span className="text-jackpot-400 ml-1">({activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active)</span>
-            )}
-          </span>
-          {activeFilterCount > 0 && (
-            <div className="flex gap-3">
-              <button onClick={clearAllFilters} className="text-gray-500 hover:text-white text-xs transition">
-                Clear filters
-              </button>
-              <button onClick={resetAll} className="text-gray-500 hover:text-white text-xs transition">
-                Reset all
-              </button>
-            </div>
+      {activeFilterCount > 0 && (
+        <div className="text-sm text-gray-400 mb-2">
+          Showing {filteredKeywords.length} of {categoryKeywords.length} keywords
+          <span className="text-jackpot-400 ml-1">({activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active)</span>
+        </div>
+      )}
+
+      {/* Sign-in prompt toast */}
+      {showSignInPrompt && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-jackpot-500/40 rounded-xl px-6 py-4 shadow-2xl flex items-center gap-4 animate-fade-in">
+          <div className="text-sm">
+            <span className="text-white font-medium">Sign in to unlock keyword details.</span>
+            <span className="text-gray-400 ml-1">See charts, insights, and related keywords.</span>
+          </div>
+          {!user ? (
+            <button
+              onClick={signInWithGoogle}
+              className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-4 py-2 rounded-lg text-sm transition whitespace-nowrap"
+            >
+              Sign In Free
+            </button>
+          ) : (
+            <Link
+              to="/pricing"
+              className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-4 py-2 rounded-lg text-sm transition whitespace-nowrap"
+            >
+              Upgrade
+            </Link>
           )}
         </div>
       )}
@@ -418,77 +540,18 @@ export default function Results() {
                     Keyword{sortIndicator('keyword')}
                   </th>
                   <th className="text-left px-4 py-3 font-medium w-20">Source</th>
-                  <th className="text-right px-4 py-3 font-medium w-32 select-none">
-                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('volume')}>Volume{sortIndicator('volume')}</span>
-                    <ColumnFilter
-                      value={filterVolume}
-                      onChange={(v) => { setFilterVolume(v as number | null); setVisibleCount(50); }}
-                      options={[
-                        { label: '100+', value: 100 },
-                        { label: '500+', value: 500 },
-                        { label: '1,000+', value: 1000 },
-                        { label: '5,000+', value: 5000 },
-                        { label: '10,000+', value: 10000 },
-                      ]}
-                      customPlaceholder="Min vol"
-                    />
+                  <th className="text-right px-4 py-3 font-medium w-28 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('volume')}>
+                    Volume{sortIndicator('volume')}
                   </th>
-                  <th className="text-right px-4 py-3 font-medium w-36 select-none">
-                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('cpc')}>CPC Range{sortIndicator('cpc')}</span>
-                    <ColumnFilter
-                      value={filterCpc}
-                      onChange={(v) => { setFilterCpc(v as number | null); setVisibleCount(50); }}
-                      options={[
-                        { label: 'Under $1', value: 1 },
-                        { label: 'Under $2', value: 2 },
-                        { label: 'Under $5', value: 5 },
-                        { label: 'Under $10', value: 10 },
-                      ]}
-                      type="max"
-                      customPlaceholder="Max CPC"
-                    />
+                  <th className="text-right px-4 py-3 font-medium w-32 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('cpc')}>
+                    CPC Range{sortIndicator('cpc')}
                   </th>
-                  <th className="text-center px-4 py-3 font-medium w-24 select-none">
-                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('comp')}>Comp{sortIndicator('comp')}</span>
-                    <ColumnFilter
-                      value={filterComp}
-                      onChange={(v) => { setFilterComp(v as string | null); setVisibleCount(50); }}
-                      options={[
-                        { label: 'LOW', value: 'LOW' },
-                        { label: 'MEDIUM', value: 'MEDIUM' },
-                        { label: 'HIGH', value: 'HIGH' },
-                      ]}
-                      type="select"
-                    />
+                  <th className="text-center px-4 py-3 font-medium w-20 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('comp')}>
+                    Comp{sortIndicator('comp')}
                   </th>
-                  <th className="text-center px-4 py-3 font-medium w-20 select-none">
-                    Trend
-                    <ColumnFilter
-                      value={filterTrend}
-                      onChange={(v) => { setFilterTrend(v as string | null); setVisibleCount(50); }}
-                      options={[
-                        { label: 'Rising', value: 'rising' },
-                        { label: 'Stable', value: 'stable' },
-                        { label: 'Declining', value: 'declining' },
-                      ]}
-                      type="select"
-                    />
-                  </th>
-                  <th className="text-center px-4 py-3 font-medium w-28 select-none">
-                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('score')}>
-                      {scoreView === 'ad' ? 'Ad Score' : 'SEO Score'}{sortIndicator('score')}
-                    </span>
-                    <ColumnFilter
-                      value={filterScore}
-                      onChange={(v) => { setFilterScore(v as number | null); setVisibleCount(50); }}
-                      options={[
-                        { label: '80+', value: 80 },
-                        { label: '70+', value: 70 },
-                        { label: '60+', value: 60 },
-                        { label: '50+', value: 50 },
-                      ]}
-                      customPlaceholder="Min score"
-                    />
+                  <th className="text-center px-4 py-3 font-medium w-24">Trend</th>
+                  <th className="text-center px-4 py-3 font-medium w-24 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('score')}>
+                    {scoreView === 'ad' ? 'Ad Score' : 'SEO Score'}{sortIndicator('score')}
                   </th>
                 </tr>
               </thead>
@@ -499,7 +562,7 @@ export default function Results() {
                       className={`border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer ${
                         expandedKeyword === kw.keyword ? 'bg-gray-800/40' : ''
                       }`}
-                      onClick={() => setExpandedKeyword(expandedKeyword === kw.keyword ? null : kw.keyword)}
+                      onClick={() => handleKeywordClick(kw)}
                     >
                       <td className="px-4 py-3">
                         <MaskedKeyword keyword={kw.keyword} paid={paid} />
@@ -559,7 +622,7 @@ export default function Results() {
                   className={`bg-gray-900 border border-gray-800 rounded-xl p-4 cursor-pointer ${
                     expandedKeyword === kw.keyword ? 'border-jackpot-500/40' : ''
                   }`}
-                  onClick={() => setExpandedKeyword(expandedKeyword === kw.keyword ? null : kw.keyword)}
+                  onClick={() => handleKeywordClick(kw)}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 mr-3">
@@ -634,8 +697,8 @@ export default function Results() {
         )}
       </div>
 
-      {/* Paywall CTA for free users */}
-      {!paid && (
+      {/* Paywall CTA for free/anonymous users */}
+      {!paid && !isAdmin && (
         <div className="mt-8 text-center bg-gradient-to-r from-jackpot-500/10 to-purple-500/10 border border-jackpot-500/20 rounded-xl p-8">
           <h2 className="text-xl font-bold text-white mb-2">
             Unlock all {totalKeywords.toLocaleString()} keywords
@@ -643,15 +706,27 @@ export default function Results() {
           <p className="text-gray-400 mb-4">
             See every keyword, CPC, trend, and score. Export to CSV or Google Ads.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition">
-              Unlock for $0.99
-            </button>
-            <span className="text-gray-500">or</span>
-            <button className="bg-gray-800 hover:bg-gray-700 text-white font-medium px-6 py-3 rounded-xl transition">
-              Go unlimited — $5.99/mo
-            </button>
-          </div>
+          {!user ? (
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={signInWithGoogle}
+                className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition"
+              >
+                Sign In for 3 Free Searches
+              </button>
+              <span className="text-gray-500 text-sm">No credit card required</span>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link to="/pricing" className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition">
+                Unlock from $1.99
+              </Link>
+              <span className="text-gray-500">or</span>
+              <Link to="/pricing" className="bg-gray-800 hover:bg-gray-700 text-white font-medium px-6 py-3 rounded-xl transition">
+                Go unlimited — $9.99/mo
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </div>
