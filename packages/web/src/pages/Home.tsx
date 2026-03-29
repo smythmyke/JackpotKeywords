@@ -252,8 +252,12 @@ export default function Home() {
       </section>
 
       {/* Comparison */}
-      <section className="py-20 px-4 border-t border-gray-800">
-        <div className="max-w-5xl mx-auto">
+      <section className="py-20 px-4 border-t border-gray-800 relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-center bg-cover opacity-[0.12] pointer-events-none"
+          style={{ backgroundImage: "url('/bg-coins.png')" }}
+        />
+        <div className="max-w-5xl mx-auto relative z-10">
           <h2 className="text-3xl font-bold text-center mb-4">Stop Overpaying for Keywords</h2>
           <p className="text-gray-400 text-center mb-10">
             Real data. AI scoring. A fraction of the price.
@@ -349,11 +353,15 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50 text-center">
-        <h2 className="text-3xl font-bold mb-4">
+      <section className="py-20 px-4 border-t border-gray-800 text-center relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-center bg-cover opacity-[0.18] pointer-events-none"
+          style={{ backgroundImage: "url('/bg-coins.png')" }}
+        />
+        <h2 className="text-3xl font-bold mb-4 relative z-10">
           Ready to find your <span className="text-jackpot-400">goldmine keywords</span>?
         </h2>
-        <p className="text-gray-400 mb-8 max-w-md mx-auto">
+        <p className="text-gray-400 mb-8 max-w-md mx-auto relative z-10">
           3 free searches. No credit card required. Results in under 30 seconds.
         </p>
         <a
@@ -362,7 +370,7 @@ export default function Home() {
             e.preventDefault();
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-xl text-lg transition"
+          className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-xl text-lg transition relative z-10"
         >
           Start Your Free Search
         </a>
