@@ -3,6 +3,8 @@ import type { KeywordResult } from '@jackpotkeywords/shared';
 interface KeywordPanelProps {
   keyword: KeywordResult;
   relatedKeywords: KeywordResult[];
+  selectedKeywords?: Set<string>;
+  onToggleSelect?: (keyword: string) => void;
 }
 
 function getQuickTake(kw: KeywordResult): { label: string; color: string } {
@@ -70,7 +72,7 @@ function getBestTimeToBid(volumes: { month: string; volume: number }[]): string 
   return `Consider bidding in ${lowMonths.slice(0, 3).join(', ')} — lower competition`;
 }
 
-export default function KeywordPanel({ keyword: kw, relatedKeywords }: KeywordPanelProps) {
+export default function KeywordPanel({ keyword: kw, relatedKeywords, selectedKeywords, onToggleSelect }: KeywordPanelProps) {
   const quickTake = getQuickTake(kw);
   const volumes = kw.monthlyVolumes || [];
   const maxVol = Math.max(...volumes.map((v) => v.volume), 1);
@@ -92,15 +94,18 @@ export default function KeywordPanel({ keyword: kw, relatedKeywords }: KeywordPa
           {volumes.length > 0 && (
             <div className="mb-4">
               <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Monthly Volume (12mo)</div>
-              <div className="flex items-end gap-1 h-20">
+              <div className="flex gap-1" style={{ height: '80px' }}>
                 {volumes.map((v, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <div key={i} className="flex-1 flex flex-col justify-end items-center">
                     <div
-                      className="w-full bg-jackpot-500/60 rounded-t hover:bg-jackpot-400/80 transition"
-                      style={{ height: `${Math.max((v.volume / maxVol) * 100, 2)}%` }}
+                      className="w-full bg-jackpot-500 rounded-t hover:bg-jackpot-400 transition"
+                      style={{
+                        height: `${Math.max((v.volume / maxVol) * 100, 4)}%`,
+                        minHeight: '3px',
+                      }}
                       title={`${v.month}: ${v.volume.toLocaleString()}`}
                     />
-                    <span className="text-[9px] text-gray-500">{v.month}</span>
+                    <span className="text-[9px] text-gray-500 mt-1">{v.month}</span>
                   </div>
                 ))}
               </div>
@@ -128,18 +133,44 @@ export default function KeywordPanel({ keyword: kw, relatedKeywords }: KeywordPa
         <div>
           {relatedKeywords.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-                Related Keywords ({relatedKeywords.length})
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-xs text-gray-500 uppercase tracking-wider">
+                  Related Keywords ({relatedKeywords.length})
+                </span>
+                {onToggleSelect && (
+                  <span className="text-[10px] text-gray-600 italic">Click to select for export</span>
+                )}
               </div>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {relatedKeywords.map((rk, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm py-1">
-                    <span className="text-gray-300 truncate mr-3">{rk.keyword}</span>
-                    <span className="text-gray-500 text-xs whitespace-nowrap">
-                      {rk.avgMonthlySearches.toLocaleString()}/mo
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                {relatedKeywords.map((rk, i) => {
+                  const isSelected = selectedKeywords?.has(rk.keyword);
+                  return (
+                    <div
+                      key={i}
+                      className={`flex items-center text-sm py-1.5 gap-3 rounded px-2 -mx-2 cursor-pointer transition ${
+                        isSelected
+                          ? 'bg-jackpot-500/10 border-l-2 border-jackpot-500'
+                          : 'hover:bg-gray-700/30 border-l-2 border-transparent'
+                      }`}
+                      onClick={() => onToggleSelect?.(rk.keyword)}
+                    >
+                      <span className="text-gray-300 truncate flex-1">{rk.keyword}</span>
+                      <span className="text-gray-500 text-xs whitespace-nowrap w-16 text-right font-mono">
+                        {rk.avgMonthlySearches.toLocaleString()}/mo
+                      </span>
+                      <span className="text-gray-500 text-xs whitespace-nowrap w-24 text-right font-mono">
+                        ${rk.lowCpc.toFixed(2)}-${rk.highCpc.toFixed(2)}
+                      </span>
+                      <span className={`text-xs font-bold whitespace-nowrap w-8 text-right ${
+                        rk.adScore >= 80 ? 'text-score-green' :
+                        rk.adScore >= 60 ? 'text-score-yellow' :
+                        'text-gray-500'
+                      }`}>
+                        {rk.adScore}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

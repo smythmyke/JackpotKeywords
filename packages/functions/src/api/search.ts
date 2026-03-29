@@ -5,7 +5,7 @@ import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../mid
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
-import { expandAutocomplete } from '../services/autocomplete';
+import { expandAutocomplete, discoverCompetitors } from '../services/autocomplete';
 import { enrichKeywords } from '../services/keywordPlanner';
 import { overlayTrends } from '../services/googleTrends';
 import { scoreAndClassify } from '../services/gemini';
@@ -49,6 +49,14 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     functions.logger.info('Step 1: Generating seeds...');
     const seeds = await generateSeeds(description, url, mode);
     functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
+
+    // Step 1b: Autocomplete competitor discovery
+    functions.logger.info('Step 1b: Discovering competitors via autocomplete...');
+    const competitorSeeds = await discoverCompetitors(seeds.productLabel, seeds.allSeeds);
+    if (competitorSeeds.length > 0) {
+      seeds.allSeeds.push(...competitorSeeds);
+      functions.logger.info(`Step 1b done: discovered ${competitorSeeds.length} additional competitor seeds`);
+    }
 
     // Step 2: Autocomplete expansion
     functions.logger.info('Step 2: Expanding via autocomplete...');

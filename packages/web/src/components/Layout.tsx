@@ -22,11 +22,11 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo-option2.png" alt="JackpotKeywords" className="h-[52px]" />
+            <img src="/logo-option2.png" alt="JackpotKeywords" className="h-[60px]" />
           </Link>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-6 text-base">
             <Link to="/pricing" className="text-gray-400 hover:text-white transition">
               Pricing
             </Link>
@@ -45,7 +45,7 @@ export default function Layout() {
                   Sign Out
                 </button>
                 {badge && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.color}`}>
+                  <span className={`text-[13px] font-bold px-3 py-1 rounded-full ${badge.color}`}>
                     {badge.label}
                   </span>
                 )}

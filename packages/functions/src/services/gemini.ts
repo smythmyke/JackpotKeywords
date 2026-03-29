@@ -62,25 +62,31 @@ Return JSON format:
     ...
   ]
 }`
-    : `You are an expert keyword researcher. Generate keyword seeds for this product/service to find advertising and SEO opportunities.
+    : `You are an expert keyword researcher specializing in finding advertising and SEO opportunities for specific products. Your job is to generate HIGHLY RELEVANT keyword seeds that someone searching for THIS EXACT type of product would type into Google.
 
 ${url ? `Primary source — analyze this URL to understand the product: ${url}` : ''}
 ${url && description ? `Additional context from user: "${description}"` : ''}
 ${!url && description ? `Product/service: "${description}"` : ''}
 
-Generate 40-65 keyword seeds across these 10 categories. Return ONLY valid JSON, no markdown.
+IMPORTANT RULES:
+- Every keyword MUST be directly relevant to this specific product, not the general technology it uses
+- If the product uses AI, do NOT generate generic "AI" or "ChatGPT" keywords — focus on what the product DOES
+- For competitors, find tools that solve the SAME specific problem, not general-purpose tools in a broader category
+- Keywords should be what a potential BUYER would search, not what a developer or researcher would search
+
+Generate 50-70 keyword seeds across these 10 categories. Return ONLY valid JSON, no markdown.
 
 Categories:
-1. direct - Short head terms describing the product category (3-5 seeds)
-2. feature - Keywords for each specific feature (5-10 seeds)
-3. problem - How-to queries and pain-point searches (5-8 seeds)
-4. audience - Keywords identifying the target user (3-5 seeds)
-5. competitor_brand - Names of competing products/services (5-10 seeds)
-6. competitor_alt - "X alternative", "vs", "best" comparison terms (3-5 seeds)
-7. use_case - Specific scenarios when the product is needed (3-5 seeds)
-8. niche - Sub-niche and industry-specific terms (3-5 seeds)
-9. benefit - Result/outcome-focused keywords (3-5 seeds)
-10. adjacent - Related topics that attract the same audience (3-5 seeds)
+1. direct (4-6 seeds) - Short head terms for this specific product category. What would someone type to find this exact type of tool? NOT the underlying technology.
+2. feature (6-10 seeds) - A keyword variation for each distinct feature mentioned. Extract every feature from the description and create a searchable phrase for each.
+3. problem (5-8 seeds) - Pain points and "how to" queries that this product solves. What frustration leads someone to need this tool? Include the specific task they're struggling with.
+4. audience (4-6 seeds) - Keywords that identify the target user by role, job title, or industry. Who buys this? "[role] tools", "[industry] software", etc.
+5. competitor_brand (5-8 seeds) - Names of DIRECT competitors that solve the same specific problem. Search your knowledge thoroughly. These must be real products, not general-purpose tools. If unsure, use the product's category to infer likely competitors.
+6. competitor_alt (4-6 seeds) - "[competitor] alternative", "[competitor] vs [this product category]", "best [product category]" comparison queries. Use the competitors from category 5.
+7. use_case (4-6 seeds) - Specific scenarios or workflows where this product is needed. "[task] tool", "how to [accomplish goal] faster", "[specific workflow] automation".
+8. niche (3-5 seeds) - Industry-specific or sub-niche terms. What vertical or specialty does this product serve?
+9. benefit (4-6 seeds) - Outcome-focused keywords. "save time [doing X]", "increase [metric]", "automate [task]", "best tool for [result]".
+10. adjacent (3-5 seeds) - Related topics that the same target audience also searches for. Complementary tools, related workflows, adjacent needs.
 
 Return JSON format:
 {
@@ -100,11 +106,28 @@ Return JSON format:
 
   const parsed = JSON.parse(jsonMatch[0]);
   const productLabel = parsed.productLabel || 'Keyword Research';
-  const allSeeds = parsed.seeds.map((s: any) => ({
+  let allSeeds = parsed.seeds.map((s: any) => ({
     keyword: s.keyword,
     category: s.category,
     source: 'ai' as const,
   }));
+
+  // Multi-pass: check for weak categories and re-prompt
+  const categoryCounts = new Map<string, number>();
+  for (const seed of allSeeds) {
+    categoryCounts.set(seed.category, (categoryCounts.get(seed.category) || 0) + 1);
+  }
+
+  const weakCategories = [
+    'competitor_brand', 'competitor_alt', 'problem', 'use_case', 'benefit',
+  ].filter((cat) => (categoryCounts.get(cat) || 0) < 3);
+
+  if (weakCategories.length > 0) {
+    functions.logger.info(`Multi-pass: ${weakCategories.length} weak categories detected: ${weakCategories.join(', ')}`);
+    const boostSeeds = await boostWeakCategories(model, description, url, productLabel, weakCategories);
+    allSeeds = [...allSeeds, ...boostSeeds];
+    functions.logger.info(`Multi-pass: added ${boostSeeds.length} additional seeds`);
+  }
 
   // Top 10 seeds for autocomplete expansion (highest-value, broadest terms)
   const topSeeds = allSeeds
@@ -113,6 +136,63 @@ Return JSON format:
     .map((s: any) => s.keyword);
 
   return { allSeeds, topSeeds, productLabel };
+}
+
+/**
+ * Multi-pass: re-prompt Gemini for categories that had fewer than 3 seeds
+ */
+async function boostWeakCategories(
+  model: any,
+  description: string,
+  url: string | undefined,
+  productLabel: string,
+  weakCategories: string[],
+): Promise<{ keyword: string; category: string; source: string }[]> {
+  const categoryInstructions: Record<string, string> = {
+    competitor_brand: `Find 5-8 DIRECT competitors to "${productLabel}". These must be real products/tools that solve the same specific problem. Think: what would someone use INSTEAD of this product? Search your knowledge thoroughly for tools in this exact niche.`,
+    competitor_alt: `Generate 5-8 "alternative to" and comparison queries. Use format: "[competitor name] alternative", "best [product type]", "[product type] comparison", "[competitor] vs [competitor]". Focus on competitors that a buyer would compare.`,
+    problem: `Generate 5-8 pain-point and "how to" queries that would lead someone to discover this product. What specific frustrations, tasks, or questions does this product solve? Think: what is the user struggling with BEFORE they find this tool?`,
+    use_case: `Generate 5-8 specific use-case scenarios. When exactly does someone need this product? What workflow or task triggers the need? Include "[task] tool", "[workflow] automation", "how to [accomplish specific goal]".`,
+    benefit: `Generate 5-8 outcome-focused keywords. What results does this product deliver? "save time [doing X]", "increase [metric]", "automate [specific task]", "best way to [achieve result]".`,
+  };
+
+  const categoryList = weakCategories
+    .map((cat) => `- ${cat}: ${categoryInstructions[cat] || 'Generate 5 relevant keywords'}`)
+    .join('\n');
+
+  const prompt = `You previously generated keyword seeds for this product but some categories were too weak. Generate additional seeds ONLY for the categories listed below.
+
+Product: "${productLabel}"
+${description ? `Description: "${description.substring(0, 500)}"` : ''}
+${url ? `URL: ${url}` : ''}
+
+Generate seeds for ONLY these weak categories:
+${categoryList}
+
+Return ONLY valid JSON, no markdown:
+{
+  "seeds": [
+    { "keyword": "example keyword", "category": "competitor_brand" },
+    ...
+  ]
+}`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return (parsed.seeds || []).map((s: any) => ({
+      keyword: s.keyword,
+      category: s.category,
+      source: 'ai' as const,
+    }));
+  } catch (err: any) {
+    functions.logger.warn(`Multi-pass boost failed: ${err.message}`);
+    return [];
+  }
 }
 
 /**

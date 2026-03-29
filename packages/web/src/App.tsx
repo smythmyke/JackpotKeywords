@@ -5,6 +5,7 @@ import Results from './pages/Results';
 import Account from './pages/Account';
 import Pricing from './pages/Pricing';
 import Disclaimer from './pages/Disclaimer';
+import Help from './pages/Help';
 import Layout from './components/Layout';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/account" element={<Account />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/disclaimer" element={<Disclaimer />} />
+        <Route path="/help" element={<Help />} />
       </Route>
     </Routes>
   );

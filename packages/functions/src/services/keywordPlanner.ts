@@ -11,6 +11,29 @@ const REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || '';
 
 const BATCH_SIZE = 20;
 
+// Generic words to exclude from seed word matching
+// These are too common to be meaningful for filtering KP related keywords
+const GENERIC_WORDS = new Set([
+  // Function words
+  'the', 'and', 'for', 'with', 'from', 'your', 'that', 'this', 'what', 'how',
+  'can', 'does', 'will', 'are', 'not', 'get', 'use', 'make', 'way', 'one',
+  // Generic tech/product terms
+  'tool', 'tools', 'app', 'apps', 'software', 'platform', 'service', 'services',
+  'chrome', 'extension', 'plugin', 'website', 'site', 'web',
+  // Generic qualifiers
+  'best', 'free', 'top', 'good', 'great', 'easy', 'simple', 'fast', 'quick',
+  'new', 'online', 'help', 'tips', 'guide', 'review', 'reviews',
+  // Generic commerce terms (too broad — "shop" matches "ACLU shop", "coffee shop", etc.)
+  'buy', 'shop', 'store', 'cost', 'price', 'pricing', 'plan', 'plans',
+  'sale', 'deal', 'deals', 'order', 'pay', 'money',
+  // Generic action words
+  'create', 'start', 'learn', 'find', 'search', 'look', 'need', 'want',
+  'work', 'works', 'using', 'used',
+  // Common filler
+  'like', 'just', 'also', 'more', 'most', 'very', 'really', 'about',
+  'meaning', 'mean', 'means', 'definition',
+]);
+
 function getClient() {
   const api = new GoogleAdsApi({
     client_id: CLIENT_ID,
@@ -25,7 +48,7 @@ function getClient() {
 
 /**
  * Step 4: Enrich keywords with Google Ads Keyword Planner data
- * Also calculates trend direction from monthly_search_volumes
+ * Hybrid approach: keeps all seed keywords + KP related that share meaningful words with seeds
  */
 export async function enrichKeywords(
   masterList: { keyword: string; category: string; source: string }[],
@@ -39,15 +62,23 @@ export async function enrichKeywords(
     batches.push(allKeywords.slice(i, i + BATCH_SIZE));
   }
 
+  // Build seed lookup and meaningful word set
   const seedLookup = new Map<string, { category: string; source: string }>();
+  const meaningfulSeedWords = new Set<string>();
   for (const seed of masterList) {
-    seedLookup.set(seed.keyword.toLowerCase().trim(), {
-      category: seed.category,
-      source: seed.source,
-    });
+    const key = seed.keyword.toLowerCase().trim();
+    seedLookup.set(key, { category: seed.category, source: seed.source });
+    for (const word of key.split(/\s+/)) {
+      if (word.length > 2 && !GENERIC_WORDS.has(word)) {
+        meaningfulSeedWords.add(word);
+      }
+    }
   }
 
-  functions.logger.info(`Enriching ${allKeywords.length} keywords in ${batches.length} batches`);
+  functions.logger.info(`Enriching ${allKeywords.length} keywords in ${batches.length} batches (${meaningfulSeedWords.size} meaningful seed words)`);
+
+  let kpKept = 0;
+  let kpDropped = 0;
 
   for (const batch of batches) {
     try {
@@ -70,6 +101,20 @@ export async function enrichKeywords(
         const lowCpc = Number(metrics.low_top_of_page_bid_micros) / 1_000_000 || 0;
         const highCpc = Number(metrics.high_top_of_page_bid_micros) / 1_000_000 || 0;
 
+        const seedInfo = seedLookup.get(key);
+        const isSeed = !!seedInfo;
+
+        // For KP-related keywords: only keep if they have volume AND share a meaningful word with seeds
+        if (!isSeed) {
+          const words = key.split(/\s+/).filter((w: string) => w.length > 2);
+          const matchCount = words.filter((w: string) => meaningfulSeedWords.has(w)).length;
+          if (avgSearches === 0 || matchCount < 1) {
+            kpDropped++;
+            continue;
+          }
+          kpKept++;
+        }
+
         // Calculate trend from monthly_search_volumes
         const trend = analyzeTrendFromVolumes(metrics.monthly_search_volumes);
 
@@ -79,17 +124,15 @@ export async function enrichKeywords(
           volume: Number(m.monthly_searches) || 0,
         }));
 
-        const seedInfo = seedLookup.get(key);
-
-        // For planner-related keywords: infer category from seed overlap or patterns
-        const inferredCategory = !seedInfo
+        // Infer category for KP-related keywords
+        const inferredCategory = !isSeed
           ? (inferCategoryFromSeeds(keyword, seedLookup) || inferCategory(keyword))
-          : seedInfo.category;
+          : seedInfo!.category;
 
         results.set(key, {
           keyword,
           category: inferredCategory as any,
-          source: (seedInfo?.source || 'planner_related') as any,
+          source: (isSeed ? seedInfo!.source : 'planner_related') as any,
           avgMonthlySearches: avgSearches,
           lowCpc,
           highCpc,
@@ -97,7 +140,7 @@ export async function enrichKeywords(
           jackpotScore: 0,
           adScore: 0,
           seoScore: 0,
-          relevance: seedInfo ? 4 : 3,
+          relevance: isSeed ? 4 : 3,
           opportunityType: 'quick_win',
           trendDirection: trend?.direction,
           trendInfo: trend?.info,
@@ -111,10 +154,7 @@ export async function enrichKeywords(
 
   const allResults = Array.from(results.values());
   const withVolumes = allResults.filter((kw) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
-  functions.logger.info(`Enriched: ${allResults.length} unique keywords from Keyword Planner (${withVolumes.length} with monthly volumes)`);
-  if (withVolumes.length > 0) {
-    functions.logger.info(`Sample monthlyVolumes: ${JSON.stringify(withVolumes[0].monthlyVolumes)}`);
-  }
+  functions.logger.info(`Enriched: ${allResults.length} keywords (${kpKept} KP related kept, ${kpDropped} dropped, ${withVolumes.length} with monthly volumes)`);
   return allResults;
 }
 
@@ -125,7 +165,6 @@ function analyzeTrendFromVolumes(
 
   const values = monthlyVolumes.map((m: any) => Number(m.monthly_searches) || 0);
 
-  // Compare first half avg to second half avg
   const half = Math.floor(values.length / 2);
   const firstHalf = values.slice(0, half);
   const secondHalf = values.slice(half);
@@ -158,7 +197,6 @@ function analyzeTrendFromVolumes(
     info = `${Math.round(changePercent)}% over 12mo`;
   }
 
-  // Detect seasonality (high variance relative to mean)
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   if (mean > 0) {
     const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;

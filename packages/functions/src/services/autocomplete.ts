@@ -89,6 +89,58 @@ async function fetchSuggestions(query: string): Promise<string[]> {
   return (data[1] || []) as string[];
 }
 
+/**
+ * Discover competitors via autocomplete suggestions
+ * Searches for "[product type] alternative", "best [product type]", "[product type] vs"
+ */
+export async function discoverCompetitors(
+  productLabel: string,
+  existingSeeds: { keyword: string; category: string; source: string }[],
+): Promise<{ keyword: string; category: string; source: string }[]> {
+  const results: { keyword: string; category: string; source: string }[] = [];
+  const seen = new Set(existingSeeds.map((s) => s.keyword.toLowerCase().trim()));
+
+  // Get direct category seeds for query building
+  const directSeeds = existingSeeds
+    .filter((s) => s.category === 'direct')
+    .slice(0, 3)
+    .map((s) => s.keyword);
+
+  const queries = [
+    `${productLabel} alternative`,
+    `${productLabel} vs`,
+    `best ${productLabel}`,
+    ...directSeeds.map((s) => `${s} alternative`),
+    ...directSeeds.map((s) => `best ${s}`),
+    ...directSeeds.map((s) => `${s} vs`),
+  ];
+
+  for (const query of queries) {
+    try {
+      const suggestions = await fetchSuggestions(query);
+      for (const s of suggestions) {
+        const key = s.toLowerCase().trim();
+        if (!seen.has(key)) {
+          seen.add(key);
+          // Determine if it's a competitor_alt or competitor_brand
+          const isAlt = /alternative|vs |versus|compared|better than|instead of|switch from/.test(key);
+          results.push({
+            keyword: s,
+            category: isAlt ? 'competitor_alt' : 'competitor_brand',
+            source: 'autocomplete',
+          });
+        }
+      }
+    } catch {
+      // Skip on error
+    }
+    await sleep(50);
+  }
+
+  functions.logger.info(`Competitor discovery: found ${results.length} keywords from ${queries.length} queries`);
+  return results;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

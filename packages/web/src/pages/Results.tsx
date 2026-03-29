@@ -45,6 +45,42 @@ export default function Results() {
   const [sortCol, setSortCol] = useState<string>('score');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+  const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (keyword: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedKeywords((prev) => {
+      const next = new Set(prev);
+      if (next.has(keyword)) next.delete(keyword);
+      else next.add(keyword);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedKeywords.size === displayKeywords.length) {
+      // Deselect all visible
+      setSelectedKeywords((prev) => {
+        const next = new Set(prev);
+        for (const kw of displayKeywords) next.delete(kw.keyword);
+        return next;
+      });
+    } else {
+      // Select all visible
+      setSelectedKeywords((prev) => {
+        const next = new Set(prev);
+        for (const kw of displayKeywords) next.add(kw.keyword);
+        return next;
+      });
+    }
+  };
+
+  const clearSelection = () => setSelectedKeywords(new Set());
+
+  const getSelectedResults = (): KeywordResult[] => {
+    if (!result) return [];
+    return result.keywords.filter((kw) => selectedKeywords.has(kw.keyword));
+  };
   const [visibleCount, setVisibleCount] = useState(50);
   const [filterVolume, setFilterVolume] = useState<number | null>(null);
   const [filterCpc, setFilterCpc] = useState<number | null>(null);
@@ -52,6 +88,7 @@ export default function Results() {
   const [filterTrend, setFilterTrend] = useState<string | null>(null);
   const [filterScore, setFilterScore] = useState<number | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showAdsModal, setShowAdsModal] = useState(false);
   const [refineInput, setRefineInput] = useState('');
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
@@ -368,23 +405,28 @@ export default function Results() {
               <div className="absolute right-0 top-10 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px]">
                 <button
                   onClick={() => {
-                    exportAnalysisCsv(allKeywords, result.productLabel || 'keywords');
+                    const data = selectedKeywords.size > 0 ? getSelectedResults() : allKeywords;
+                    exportAnalysisCsv(data, result.productLabel || 'keywords');
                     setShowExportMenu(false);
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition"
                 >
                   <div className="font-medium">Export CSV</div>
-                  <div className="text-xs text-gray-500">All keywords with metrics</div>
+                  <div className="text-xs text-gray-500">
+                    {selectedKeywords.size > 0 ? `${selectedKeywords.size} selected keywords` : 'All keywords with metrics'}
+                  </div>
                 </button>
                 <button
                   onClick={() => {
-                    exportGoogleAdsCsv(allKeywords, result.productLabel || 'Campaign');
                     setShowExportMenu(false);
+                    setShowAdsModal(true);
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition border-t border-gray-700"
                 >
                   <div className="font-medium">Export for Google Ads</div>
-                  <div className="text-xs text-gray-500">Google Ads Editor format (paused)</div>
+                  <div className="text-xs text-gray-500">
+                    {selectedKeywords.size > 0 ? `${selectedKeywords.size} selected — Ads Editor format` : 'Google Ads Editor format (paused)'}
+                  </div>
                 </button>
               </div>
             )}
@@ -557,6 +599,14 @@ export default function Results() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-gray-400">
+                  <th className="w-10 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={displayKeywords.length > 0 && displayKeywords.every((kw) => selectedKeywords.has(kw.keyword))}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-jackpot-500 focus:ring-jackpot-500 cursor-pointer accent-amber-500"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 font-medium cursor-pointer hover:text-white select-none" onClick={() => toggleSort('keyword')}>
                     Keyword{sortIndicator('keyword')}
                   </th>
@@ -580,11 +630,23 @@ export default function Results() {
                 {displayKeywords.map((kw, i) => (
                   <React.Fragment key={i}>
                     <tr
-                      className={`border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer ${
-                        expandedKeyword === kw.keyword ? 'bg-gray-800/40' : ''
-                      }`}
+                      className={`border-b border-gray-800/50 cursor-pointer ${
+                        (scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75
+                          ? 'border-l-[3px] border-l-jackpot-500 jackpot-row hover:brightness-125'
+                          : 'hover:bg-gray-800/30'
+                      } ${expandedKeyword === kw.keyword ? 'bg-gray-800/40' : ''
+                      } ${selectedKeywords.has(kw.keyword) ? '!bg-jackpot-500/[0.07]' : ''}`}
                       onClick={() => handleKeywordClick(kw)}
                     >
+                      <td className="w-10 px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedKeywords.has(kw.keyword)}
+                          onClick={(e) => toggleSelect(kw.keyword, e)}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-jackpot-500 focus:ring-jackpot-500 cursor-pointer accent-amber-500"
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <MaskedKeyword keyword={kw.keyword} paid={paid} />
                       </td>
@@ -622,8 +684,8 @@ export default function Results() {
                     </tr>
                     {expandedKeyword === kw.keyword && paid && (
                       <tr>
-                        <td colSpan={7} className="p-0">
-                          <KeywordPanel keyword={kw} relatedKeywords={getRelatedKeywords(kw)} />
+                        <td colSpan={8} className="p-0">
+                          <KeywordPanel keyword={kw} relatedKeywords={getRelatedKeywords(kw)} selectedKeywords={selectedKeywords} onToggleSelect={(keyword) => setSelectedKeywords((prev) => { const next = new Set(prev); if (next.has(keyword)) next.delete(keyword); else next.add(keyword); return next; })} />
                         </td>
                       </tr>
                     )}
@@ -640,12 +702,21 @@ export default function Results() {
             {displayKeywords.map((kw, i) => (
               <div key={i}>
                 <div
-                  className={`bg-gray-900 border border-gray-800 rounded-xl p-4 cursor-pointer ${
-                    expandedKeyword === kw.keyword ? 'border-jackpot-500/40' : ''
-                  }`}
+                  className={`bg-gray-900 border rounded-xl p-4 cursor-pointer ${
+                    (scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75
+                      ? 'border-l-[3px] border-l-jackpot-500 border-gray-800 jackpot-row'
+                      : 'border-gray-800'
+                  } ${expandedKeyword === kw.keyword ? 'border-jackpot-500/40' : ''}`}
                   onClick={() => handleKeywordClick(kw)}
                 >
                   <div className="flex items-start justify-between mb-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedKeywords.has(kw.keyword)}
+                      onClick={(e) => toggleSelect(kw.keyword, e)}
+                      onChange={() => {}}
+                      className="w-4 h-4 mt-1 mr-3 rounded border-gray-600 bg-gray-800 cursor-pointer accent-amber-500 flex-shrink-0"
+                    />
                     <div className="flex-1 mr-3">
                       <MaskedKeyword keyword={kw.keyword} paid={paid} />
                     </div>
@@ -691,7 +762,7 @@ export default function Results() {
                   </div>
                 </div>
                 {expandedKeyword === kw.keyword && paid && (
-                  <KeywordPanel keyword={kw} relatedKeywords={getRelatedKeywords(kw)} />
+                  <KeywordPanel keyword={kw} relatedKeywords={getRelatedKeywords(kw)} selectedKeywords={selectedKeywords} onToggleSelect={(keyword) => setSelectedKeywords((prev) => { const next = new Set(prev); if (next.has(keyword)) next.delete(keyword); else next.add(keyword); return next; })} />
                 )}
               </div>
             ))}
@@ -742,6 +813,95 @@ export default function Results() {
               </Link>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Selection action bar */}
+      {selectedKeywords.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-jackpot-500/40 rounded-xl px-6 py-3 shadow-2xl flex items-center gap-4">
+          <span className="text-sm text-white font-medium">
+            {selectedKeywords.size} keyword{selectedKeywords.size !== 1 ? 's' : ''} selected
+          </span>
+          <div className="w-px h-6 bg-gray-700" />
+          <button
+            onClick={() => {
+              exportAnalysisCsv(getSelectedResults(), result?.productLabel || 'selected');
+            }}
+            className="text-sm text-gray-300 hover:text-white transition"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={() => setShowAdsModal(true)}
+            className="text-sm text-gray-300 hover:text-white transition"
+          >
+            Export Google Ads
+          </button>
+          <div className="w-px h-6 bg-gray-700" />
+          <button
+            onClick={clearSelection}
+            className="text-sm text-gray-500 hover:text-white transition"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Google Ads Export Modal */}
+      {showAdsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAdsModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-lg w-full mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-4">Export for Google Ads Editor</h3>
+            <div className="space-y-3 text-sm text-gray-400 mb-6">
+              <div className="flex gap-3">
+                <span className="text-jackpot-400 font-bold">1.</span>
+                <span>Download <span className="text-white">Google Ads Editor</span> (free) from Google</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-jackpot-400 font-bold">2.</span>
+                <span>Open Ads Editor and sign in to your Google Ads account</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-jackpot-400 font-bold">3.</span>
+                <span>Click <span className="text-white">Account &rarr; Import &rarr; From CSV</span> and select the file</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-jackpot-400 font-bold">4.</span>
+                <span>Review keywords — all set to <span className="text-jackpot-400">paused</span> for safety</span>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-jackpot-400 font-bold">5.</span>
+                <span>Set your budget, bidding strategy, and ad copy before enabling</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <Link
+                to="/help#google-ads-import"
+                onClick={() => setShowAdsModal(false)}
+                className="text-xs text-gray-500 hover:text-jackpot-400 transition"
+              >
+                Full instructions &rarr;
+              </Link>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAdsModal(false)}
+                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const data = selectedKeywords.size > 0 ? getSelectedResults() : allKeywords;
+                    exportGoogleAdsCsv(data, result?.productLabel || 'Campaign');
+                    setShowAdsModal(false);
+                  }}
+                  className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2 rounded-lg text-sm transition"
+                >
+                  Download CSV ({selectedKeywords.size > 0 ? selectedKeywords.size : totalKeywords} keywords)
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

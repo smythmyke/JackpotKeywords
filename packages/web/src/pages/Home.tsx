@@ -383,6 +383,7 @@ export default function Home() {
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
             <Link to="/validate" className="hover:text-gray-400 transition">Validate an Idea</Link>
+            <Link to="/help" className="hover:text-gray-400 transition">Help</Link>
             <Link to="/disclaimer" className="hover:text-gray-400 transition">Disclaimer</Link>
           </div>
         </div>
