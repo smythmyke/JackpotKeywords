@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions';
 import { authMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { generateSeeds } from '../services/gemini';
@@ -40,22 +41,33 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
 
   try {
     // Step 1: AI seed generation
+    functions.logger.info('Step 1: Generating seeds...');
     const seeds = await generateSeeds(description, url, mode);
+    functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
 
     // Step 2: Autocomplete expansion
+    functions.logger.info('Step 2: Expanding via autocomplete...');
     const autocompleteKeywords = await expandAutocomplete(seeds.topSeeds);
+    functions.logger.info(`Step 2 done: ${autocompleteKeywords.length} autocomplete keywords`);
 
     // Step 3: Merge and deduplicate
     const masterList = mergeAndDeduplicate(seeds.allSeeds, autocompleteKeywords);
+    functions.logger.info(`Step 3 done: ${masterList.length} unique keywords after merge`);
 
     // Step 4: Google Ads Keyword Planner enrichment
+    functions.logger.info('Step 4: Enriching via Keyword Planner...');
     const enriched = await enrichKeywords(masterList);
+    functions.logger.info(`Step 4 done: ${enriched.length} enriched keywords`);
 
     // Step 5: Google Trends overlay (top 100 by volume)
+    functions.logger.info('Step 5: Overlaying trends...');
     const withTrends = await overlayTrends(enriched);
+    functions.logger.info(`Step 5 done: ${withTrends.filter((k) => k.trendDirection).length} with trend data`);
 
     // Step 6: AI scoring and classification
+    functions.logger.info('Step 6: Scoring and classifying...');
     const scored = await scoreAndClassify(withTrends, description, mode, budget);
+    functions.logger.info(`Step 6 done: ${scored.keywords.length} scored keywords`);
 
     // Build result
     const searchId = db.collection('users').doc().id;
@@ -64,14 +76,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     const result: SearchResult = {
       id: searchId,
       query: description,
-      url: url || undefined,
+      url: url || '',
       mode,
-      budget: budget || undefined,
+      budget: budget || 0,
       createdAt: new Date().toISOString(),
       paid,
       keywords: scored.keywords,
       categories: scored.categories,
-      conceptReport: scored.conceptReport,
+      conceptReport: scored.conceptReport || undefined,
       metadata: {
         seedCount: seeds.allSeeds.length,
         autocompleteCount: autocompleteKeywords.length,
@@ -82,11 +94,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       },
     };
 
-    // Save to Firestore
-    await db.doc(`users/${userId}/searches/${searchId}`).set(result);
+    // Save to Firestore (strip undefined values)
+    const firestoreData = JSON.parse(JSON.stringify(result));
+    await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
 
     res.json(result);
   } catch (error: any) {
+    functions.logger.error('Search pipeline error:', error.stack || error.message);
     // Refund credit on pipeline failure
     await refundCredits(userId, 1, `Search failed: ${error.message}`);
     res.status(500).json({ error: 'Search pipeline failed', details: error.message });

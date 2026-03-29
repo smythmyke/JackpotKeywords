@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import * as functions from 'firebase-functions';
 import type { OperationType } from '@jackpotkeywords/shared';
 
@@ -37,6 +38,13 @@ export async function checkAndDeductCredits(
       const userDoc = await transaction.get(db.doc(`users/${userId}`));
       const userData = userDoc.data();
       const plan = userData?.plan || 'free';
+      const email = userData?.email || '';
+
+      // Admin bypass
+      const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+      if (ADMIN_EMAILS.includes(email)) {
+        return { allowed: true, newBalance: currentBalance, isFreeSearch: false };
+      }
 
       // Subscribers get unlimited
       if (plan === 'pro' || plan === 'agency') {
@@ -45,7 +53,7 @@ export async function checkAndDeductCredits(
           amount: 0,
           description: `${description} (subscription)`,
           operationType: operation,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          timestamp: FieldValue.serverTimestamp(),
         });
         return { allowed: true, newBalance: currentBalance, isFreeSearch: false };
       }
@@ -62,7 +70,7 @@ export async function checkAndDeductCredits(
           amount: 0,
           description: `${description} (free search ${freeUsed + 1}/${FREE_LIMIT})`,
           operationType: operation,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          timestamp: FieldValue.serverTimestamp(),
         });
         return { allowed: true, newBalance: currentBalance, isFreeSearch: true };
       }
@@ -84,7 +92,7 @@ export async function checkAndDeductCredits(
         amount: -creditsNeeded,
         description,
         operationType: operation,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        timestamp: FieldValue.serverTimestamp(),
       });
 
       return { allowed: true, newBalance, isFreeSearch: false };
@@ -116,7 +124,7 @@ export async function refundCredits(
       type: 'refund',
       amount: credits,
       description: `Refund: ${reason}`,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
     });
 
     return newBalance;

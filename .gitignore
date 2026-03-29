@@ -8,3 +8,5 @@ packages/functions/lib/
 packages/shared/dist/
 packages/web/dist/
 .firebase/
+*-debug.log
+hero-mockup-*.html

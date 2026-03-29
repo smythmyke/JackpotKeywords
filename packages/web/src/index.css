@@ -8,6 +8,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Hide scrollbars globally */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 /* Keyword masking blur effect */
 .keyword-masked {
   filter: blur(4px);

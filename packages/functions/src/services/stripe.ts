@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import * as functions from 'firebase-functions';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
 
@@ -87,7 +88,7 @@ export async function handleWebhook(event: Stripe.Event): Promise<void> {
             amount: creditsNum,
             description: `Purchased ${creditsNum} search credits (${packId})`,
             stripeSessionId: session.id,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            timestamp: FieldValue.serverTimestamp(),
           });
         });
 

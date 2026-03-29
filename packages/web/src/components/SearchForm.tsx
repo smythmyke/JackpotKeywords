@@ -23,11 +23,22 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() && !url.trim()) return;
-    onSearch(description, url, budget);
+    if (!description.trim() && !isValidUrl(url)) return;
+    let normalizedUrl = url.trim();
+    if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+    onSearch(description, normalizedUrl, budget);
   };
 
   const isKeywordMode = mode === 'keyword';
+
+  const isValidUrl = (val: string): boolean => {
+    const trimmed = val.trim();
+    if (!trimmed) return false;
+    // Match domain-like patterns: example.com, sub.example.com, https://example.com/path
+    return /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(trimmed);
+  };
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-4">
@@ -54,10 +65,10 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
             OR enter a URL
           </label>
           <input
-            type="url"
+            type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://your-product.com"
+            placeholder="e.g., markitup.app or https://markitup.app"
             className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500"
           />
         </div>
@@ -100,7 +111,7 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
 
       <button
         type="submit"
-        disabled={loading || (!description.trim() && !url.trim())}
+        disabled={loading || (!description.trim() && !isValidUrl(url))}
         className="w-full bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold py-3.5 rounded-xl text-lg transition"
       >
         {loading

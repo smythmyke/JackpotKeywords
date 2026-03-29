@@ -56,6 +56,7 @@ export interface KeywordResult {
   budgetFit?: BudgetFit;
   clicksPerDay?: number;
   suggestion?: string;
+  monthlyVolumes?: { month: string; volume: number }[];
 }
 
 export interface CategorySummary {

@@ -30,13 +30,14 @@ export async function generateSeeds(
   url: string | undefined,
   mode: SearchMode,
 ): Promise<SeedResult> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = mode === 'concept'
     ? `You are a market research analyst. Analyze this business concept and generate keyword seeds to assess market demand and competition.
 
-Business concept: "${description}"
-${url ? `URL: ${url}` : ''}
+${url ? `Primary source — analyze this URL to understand the business: ${url}` : ''}
+${url && description ? `Additional context from user: "${description}"` : ''}
+${!url && description ? `Business concept: "${description}"` : ''}
 
 Generate 40-65 keyword seeds across these 10 categories. Return ONLY valid JSON, no markdown.
 
@@ -61,8 +62,9 @@ Return JSON format:
 }`
     : `You are an expert keyword researcher. Generate keyword seeds for this product/service to find advertising and SEO opportunities.
 
-Product/service: "${description}"
-${url ? `URL: ${url}` : ''}
+${url ? `Primary source — analyze this URL to understand the product: ${url}` : ''}
+${url && description ? `Additional context from user: "${description}"` : ''}
+${!url && description ? `Product/service: "${description}"` : ''}
 
 Generate 40-65 keyword seeds across these 10 categories. Return ONLY valid JSON, no markdown.
 
@@ -206,7 +208,7 @@ async function generateConceptReport(
   const goldmines = keywords.filter((k) => (k.lowCpc + k.highCpc) / 2 < 1 && k.avgMonthlySearches >= 100).length;
   const expensive = keywords.filter((k) => k.adScore < 30).length;
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `You are a market analyst. Based on keyword research data, write a brief verdict (2-3 sentences) for this business concept.
 

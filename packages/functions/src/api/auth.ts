@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const router = Router();
 const db = admin.firestore();
@@ -31,7 +32,7 @@ router.post('/init', async (req, res) => {
         displayName: decoded.name || '',
         photoURL: decoded.picture || '',
         plan: 'free',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
 
       // Initialize credits
@@ -50,8 +51,9 @@ router.post('/init', async (req, res) => {
       user: userData,
       credits: creditsData,
     });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to initialize user' });
+  } catch (error: any) {
+    console.error('Auth init error:', error);
+    res.status(500).json({ error: 'Failed to initialize user', details: error.message });
   }
 });
 
