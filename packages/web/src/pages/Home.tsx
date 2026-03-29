@@ -87,7 +87,21 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user, signInWithGoogle, getToken } = useAuthContext();
+  const { user, profile, credits, signInWithGoogle, getToken } = useAuthContext();
+
+  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const plan = profile?.plan || 'free';
+
+  function getStatusLine(): string {
+    if (!user) return '3 free searches. Then $0.99/search.';
+    if (isAdmin) return 'Unlimited searches. Admin access.';
+    if (plan === 'pro') return 'Unlimited searches. Pro plan.';
+    if (plan === 'agency') return 'Unlimited searches. Agency plan.';
+    if (credits && credits.balance > 0) return `You have ${credits.balance} credit${credits.balance !== 1 ? 's' : ''} remaining.`;
+    if (credits && credits.freeSearchesUsed < 3) return `${3 - credits.freeSearchesUsed} of 3 free searches remaining.`;
+    return "You've used your free searches. Get more from $0.99.";
+  }
 
   const handleSearch = async (description: string, url: string, budget?: number) => {
     setError(null);
@@ -149,7 +163,7 @@ export default function Home() {
             Discover 1,000+ keyword opportunities across 10 intent categories —
             scored, ranked, and ready to act on.
             <br />
-            <span className="text-white font-medium">3 free searches. Then $0.99/search.</span>
+            <span className="text-white font-medium">{getStatusLine()}</span>
           </p>
         </div>
 

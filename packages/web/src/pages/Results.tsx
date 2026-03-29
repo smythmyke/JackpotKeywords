@@ -1,23 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { CATEGORY_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult } from '../services/api';
+import { getSearchResult, refineSearch } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
 import TrendArrow from '../components/TrendArrow';
 import KeywordPanel from '../components/KeywordPanel';
+import ColumnFilter from '../components/ColumnFilter';
+import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
 
 const ALL_CATEGORIES: KeywordCategory[] = [
   'direct', 'feature', 'problem', 'audience', 'competitor_brand',
   'competitor_alt', 'use_case', 'niche', 'benefit', 'adjacent',
 ];
 
+const REFINE_PLACEHOLDERS: Record<string, string> = {
+  feature: 'Describe a feature, e.g., batch image processing...',
+  problem: 'Describe a pain point, e.g., images load too slowly...',
+  audience: 'Describe your target audience, e.g., etsy shop owners...',
+  competitor_brand: 'Enter a competitor name, e.g., Canva...',
+  competitor_alt: 'What are you an alternative to, e.g., Photoshop...',
+  use_case: 'Describe a use case, e.g., creating social media posts...',
+  niche: 'Enter an industry or niche, e.g., real estate...',
+  benefit: 'Describe a benefit, e.g., saves time, increases sales...',
+  adjacent: 'Enter a related topic, e.g., email marketing...',
+};
+
+const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+
 export default function Results() {
   const { searchId } = useParams<{ searchId: string }>();
-  const { getToken } = useAuthContext();
+  const { getToken, loading: authLoading, user, profile } = useAuthContext();
   const [result, setResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +43,44 @@ export default function Results() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
+  const [filterVolume, setFilterVolume] = useState<number | null>(null);
+  const [filterCpc, setFilterCpc] = useState<number | null>(null);
+  const [filterComp, setFilterComp] = useState<string | null>(null);
+  const [filterTrend, setFilterTrend] = useState<string | null>(null);
+  const [filterScore, setFilterScore] = useState<number | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [refineInput, setRefineInput] = useState('');
+  const [refining, setRefining] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const activeFilterCount = [filterVolume, filterCpc, filterComp, filterTrend, filterScore].filter((f) => f !== null).length;
+
+  const clearAllFilters = () => {
+    setFilterVolume(null);
+    setFilterCpc(null);
+    setFilterComp(null);
+    setFilterTrend(null);
+    setFilterScore(null);
+  };
+
+  const resetAll = () => {
+    clearAllFilters();
+    setSortCol('score');
+    setSortDir('desc');
+    setVisibleCount(50);
+    setExpandedKeyword(null);
+  };
 
   const toggleSort = (col: string) => {
     if (sortCol === col) {
@@ -41,8 +95,16 @@ export default function Results() {
     sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
 
   useEffect(() => {
+    // Wait for auth to initialize before fetching
+    if (authLoading) return;
+
     async function fetchResults() {
       if (!searchId) return;
+      if (!user) {
+        setError('Please sign in to view your results');
+        setLoading(false);
+        return;
+      }
       try {
         const token = await getToken();
         if (!token) throw new Error('Not authenticated');
@@ -61,7 +123,7 @@ export default function Results() {
       }
     }
     fetchResults();
-  }, [searchId, getToken]);
+  }, [searchId, getToken, authLoading, user]);
 
   if (loading) {
     return (
@@ -86,8 +148,57 @@ export default function Results() {
   const allKeywords = result.keywords || [];
   const totalKeywords = allKeywords.length;
 
+  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const userPlan = profile?.plan || 'free';
+  const canRefine = isAdmin || userPlan === 'pro' || userPlan === 'agency';
+  const refineCount = (result as any).refineCount || 0;
+  const refinesRemaining = 5 - refineCount;
+  const showRefineBar = canRefine && activeCategory !== 'direct' && refinesRemaining > 0;
+
+  const handleRefine = async () => {
+    if (!refineInput.trim() || !searchId || refining) return;
+    setRefining(true);
+    setRefineError(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+      const res = await refineSearch(token, searchId, refineInput.trim(), activeCategory);
+      // Append new keywords to result
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          keywords: [...prev.keywords, ...res.keywords],
+          refineCount: res.refineCount,
+        } as any;
+      });
+      setRefineInput('');
+    } catch (err: any) {
+      setRefineError(err.message);
+    } finally {
+      setRefining(false);
+    }
+  };
+
   // Filter keywords by active category
-  const filteredKeywords = allKeywords.filter((kw) => kw.category === activeCategory);
+  const categoryKeywords = allKeywords.filter((kw) => kw.category === activeCategory);
+
+  // Apply column filters
+  const filteredKeywords = categoryKeywords.filter((kw) => {
+    if (filterVolume !== null && kw.avgMonthlySearches < filterVolume) return false;
+    if (filterCpc !== null && kw.highCpc > filterCpc) return false;
+    if (filterComp !== null && kw.competition !== filterComp) return false;
+    if (filterTrend !== null) {
+      if (filterTrend === 'rising' && kw.trendDirection !== 'rising' && kw.trendDirection !== 'rising_slight') return false;
+      if (filterTrend === 'stable' && kw.trendDirection !== 'stable') return false;
+      if (filterTrend === 'declining' && kw.trendDirection !== 'declining' && kw.trendDirection !== 'declining_slight') return false;
+    }
+    if (filterScore !== null) {
+      const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
+      if (score < filterScore) return false;
+    }
+    return true;
+  });
 
   // Sort
   const sortedKeywords = [...filteredKeywords].sort((a, b) => {
@@ -113,8 +224,7 @@ export default function Results() {
   });
 
   // For free users, show only top 3 per category; paginate for paid
-  const paginatedKeywords = paid ? sortedKeywords.slice(0, visibleCount) : sortedKeywords.slice(0, 3);
-  const displayKeywords = paginatedKeywords;
+  const displayKeywords = paid ? sortedKeywords.slice(0, visibleCount) : sortedKeywords.slice(0, 3);
   const hasMore = paid && visibleCount < sortedKeywords.length;
 
   // Find related keywords for expanded panel (share 2+ words)
@@ -139,7 +249,9 @@ export default function Results() {
             {totalKeywords.toLocaleString()} keywords found
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            {result.query && <span>For &ldquo;{result.query}&rdquo; &middot; </span>}
+            {(result.productLabel || result.query) && (
+              <span>For &ldquo;{result.productLabel || result.query}&rdquo; &middot; </span>
+            )}
             {result.metadata?.executionTimeMs && (
               <span>{(result.metadata.executionTimeMs / 1000).toFixed(1)}s &middot; </span>
             )}
@@ -169,17 +281,50 @@ export default function Results() {
               SEO Score
             </button>
           </div>
-          <button
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-              paid
-                ? 'bg-gray-800 text-white hover:bg-gray-700'
-                : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-            }`}
-            disabled={!paid}
-            title={paid ? 'Export CSV' : 'Export available with Pro'}
+          <Link
+            to="/"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-jackpot-500 hover:bg-jackpot-600 text-black transition"
           >
-            Export CSV
-          </button>
+            New Search
+          </Link>
+          <div className="relative" ref={exportRef}>
+            <button
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                paid
+                  ? 'bg-gray-800 text-white hover:bg-gray-700'
+                  : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+              }`}
+              disabled={!paid}
+              title={paid ? 'Export' : 'Export available with Pro'}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
+              Export {showExportMenu ? '\u25B2' : '\u25BC'}
+            </button>
+            {showExportMenu && paid && (
+              <div className="absolute right-0 top-10 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px]">
+                <button
+                  onClick={() => {
+                    exportAnalysisCsv(allKeywords, result.productLabel || 'keywords');
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition"
+                >
+                  <div className="font-medium">Export CSV</div>
+                  <div className="text-xs text-gray-500">All keywords with metrics</div>
+                </button>
+                <button
+                  onClick={() => {
+                    exportGoogleAdsCsv(allKeywords, result.productLabel || 'Campaign');
+                    setShowExportMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition border-t border-gray-700"
+                >
+                  <div className="font-medium">Export for Google Ads</div>
+                  <div className="text-xs text-gray-500">Google Ads Editor format (paused)</div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -201,11 +346,65 @@ export default function Results() {
         ))}
       </div>
 
+      {/* Refine bar */}
+      {showRefineBar && (
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={refineInput}
+              onChange={(e) => setRefineInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
+              placeholder={REFINE_PLACEHOLDERS[activeCategory] || 'Add keywords...'}
+              disabled={refining}
+              className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500 disabled:opacity-50"
+            />
+            <button
+              onClick={handleRefine}
+              disabled={refining || !refineInput.trim()}
+              className="bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-medium px-5 py-2.5 rounded-lg text-sm transition"
+            >
+              {refining ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-xs text-gray-600">
+              Add keywords to {CATEGORY_LABELS[activeCategory]} &middot; {refinesRemaining} refinement{refinesRemaining !== 1 ? 's' : ''} remaining
+            </span>
+            {refineError && (
+              <span className="text-xs text-red-400">{refineError}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Filter status */}
+      {(activeFilterCount > 0 || filteredKeywords.length !== categoryKeywords.length) && (
+        <div className="flex items-center justify-between mb-3 text-sm">
+          <span className="text-gray-400">
+            Showing {filteredKeywords.length} of {categoryKeywords.length} keywords
+            {activeFilterCount > 0 && (
+              <span className="text-jackpot-400 ml-1">({activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active)</span>
+            )}
+          </span>
+          {activeFilterCount > 0 && (
+            <div className="flex gap-3">
+              <button onClick={clearAllFilters} className="text-gray-500 hover:text-white text-xs transition">
+                Clear filters
+              </button>
+              <button onClick={resetAll} className="text-gray-500 hover:text-white text-xs transition">
+                Reset all
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Keywords */}
       <div className="space-y-2">
         {displayKeywords.length === 0 && (
           <div className="bg-gray-900 border border-gray-800 rounded-xl py-16 text-center text-gray-500">
-            No keywords in this category.
+            {activeFilterCount > 0 ? 'No keywords match your filters.' : 'No keywords in this category.'}
           </div>
         )}
 
@@ -219,18 +418,77 @@ export default function Results() {
                     Keyword{sortIndicator('keyword')}
                   </th>
                   <th className="text-left px-4 py-3 font-medium w-20">Source</th>
-                  <th className="text-right px-4 py-3 font-medium w-28 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('volume')}>
-                    Volume{sortIndicator('volume')}
+                  <th className="text-right px-4 py-3 font-medium w-32 select-none">
+                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('volume')}>Volume{sortIndicator('volume')}</span>
+                    <ColumnFilter
+                      value={filterVolume}
+                      onChange={(v) => { setFilterVolume(v as number | null); setVisibleCount(50); }}
+                      options={[
+                        { label: '100+', value: 100 },
+                        { label: '500+', value: 500 },
+                        { label: '1,000+', value: 1000 },
+                        { label: '5,000+', value: 5000 },
+                        { label: '10,000+', value: 10000 },
+                      ]}
+                      customPlaceholder="Min vol"
+                    />
                   </th>
-                  <th className="text-right px-4 py-3 font-medium w-32 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('cpc')}>
-                    CPC Range{sortIndicator('cpc')}
+                  <th className="text-right px-4 py-3 font-medium w-36 select-none">
+                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('cpc')}>CPC Range{sortIndicator('cpc')}</span>
+                    <ColumnFilter
+                      value={filterCpc}
+                      onChange={(v) => { setFilterCpc(v as number | null); setVisibleCount(50); }}
+                      options={[
+                        { label: 'Under $1', value: 1 },
+                        { label: 'Under $2', value: 2 },
+                        { label: 'Under $5', value: 5 },
+                        { label: 'Under $10', value: 10 },
+                      ]}
+                      type="max"
+                      customPlaceholder="Max CPC"
+                    />
                   </th>
-                  <th className="text-center px-4 py-3 font-medium w-20 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('comp')}>
-                    Comp{sortIndicator('comp')}
+                  <th className="text-center px-4 py-3 font-medium w-24 select-none">
+                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('comp')}>Comp{sortIndicator('comp')}</span>
+                    <ColumnFilter
+                      value={filterComp}
+                      onChange={(v) => { setFilterComp(v as string | null); setVisibleCount(50); }}
+                      options={[
+                        { label: 'LOW', value: 'LOW' },
+                        { label: 'MEDIUM', value: 'MEDIUM' },
+                        { label: 'HIGH', value: 'HIGH' },
+                      ]}
+                      type="select"
+                    />
                   </th>
-                  <th className="text-center px-4 py-3 font-medium w-16">Trend</th>
-                  <th className="text-center px-4 py-3 font-medium w-24 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('score')}>
-                    {scoreView === 'ad' ? 'Ad Score' : 'SEO Score'}{sortIndicator('score')}
+                  <th className="text-center px-4 py-3 font-medium w-20 select-none">
+                    Trend
+                    <ColumnFilter
+                      value={filterTrend}
+                      onChange={(v) => { setFilterTrend(v as string | null); setVisibleCount(50); }}
+                      options={[
+                        { label: 'Rising', value: 'rising' },
+                        { label: 'Stable', value: 'stable' },
+                        { label: 'Declining', value: 'declining' },
+                      ]}
+                      type="select"
+                    />
+                  </th>
+                  <th className="text-center px-4 py-3 font-medium w-28 select-none">
+                    <span className="cursor-pointer hover:text-white" onClick={() => toggleSort('score')}>
+                      {scoreView === 'ad' ? 'Ad Score' : 'SEO Score'}{sortIndicator('score')}
+                    </span>
+                    <ColumnFilter
+                      value={filterScore}
+                      onChange={(v) => { setFilterScore(v as number | null); setVisibleCount(50); }}
+                      options={[
+                        { label: '80+', value: 80 },
+                        { label: '70+', value: 70 },
+                        { label: '60+', value: 60 },
+                        { label: '50+', value: 50 },
+                      ]}
+                      customPlaceholder="Min score"
+                    />
                   </th>
                 </tr>
               </thead>
@@ -369,9 +627,9 @@ export default function Results() {
         )}
 
         {/* Show locked count for free users */}
-        {!paid && filteredKeywords.length > 3 && (
+        {!paid && categoryKeywords.length > 3 && (
           <div className="text-center py-4 text-gray-500 text-sm">
-            ... and {filteredKeywords.length - 3} more keywords in this category
+            ... and {categoryKeywords.length - 3} more keywords in this category
           </div>
         )}
       </div>

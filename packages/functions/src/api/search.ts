@@ -3,7 +3,8 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
-import { generateSeeds } from '../services/gemini';
+import { generateSeeds, generateRefineSeeds } from '../services/gemini';
+import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
 import { expandAutocomplete } from '../services/autocomplete';
 import { enrichKeywords } from '../services/keywordPlanner';
 import { overlayTrends } from '../services/googleTrends';
@@ -70,12 +71,20 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     functions.logger.info(`Step 6 done: ${scored.keywords.length} scored keywords`);
 
     // Build result
+    // Cap at top 1000 keywords by score to stay under Firestore 1MB doc limit
+    const MAX_KEYWORDS = 1000;
+    if (scored.keywords.length > MAX_KEYWORDS) {
+      scored.keywords.sort((a, b) => b.jackpotScore - a.jackpotScore);
+      scored.keywords = scored.keywords.slice(0, MAX_KEYWORDS);
+    }
+
     const searchId = db.collection('users').doc().id;
     const paid = !creditResult.isFreeSearch;
 
     const result: SearchResult = {
       id: searchId,
       query: description,
+      productLabel: seeds.productLabel,
       url: url || '',
       mode,
       budget: budget || 0,
@@ -94,8 +103,15 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       },
     };
 
+    // Log monthlyVolumes status before save
+    const kwWithVols = result.keywords.filter((kw) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
+    functions.logger.info(`Pre-save: ${result.keywords.length} keywords, ${kwWithVols.length} with monthlyVolumes`);
+
     // Save to Firestore (strip undefined values)
     const firestoreData = JSON.parse(JSON.stringify(result));
+    const savedWithVols = firestoreData.keywords.filter((kw: any) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
+    functions.logger.info(`Post-stringify: ${firestoreData.keywords.length} keywords, ${savedWithVols.length} with monthlyVolumes`);
+
     await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
 
     res.json(result);
@@ -139,6 +155,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   const searches = snapshot.docs.map((doc) => ({
     id: doc.id,
     query: doc.data().query,
+    productLabel: doc.data().productLabel || null,
     mode: doc.data().mode,
     paid: doc.data().paid,
     createdAt: doc.data().createdAt,
@@ -148,12 +165,115 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   res.json({ searches });
 });
 
+/**
+ * POST /api/search/:searchId/refine
+ * Add keywords to a specific category (Pro/Agency/Admin only)
+ */
+router.post('/:searchId/refine', authMiddleware, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const { searchId } = req.params;
+  const { input, category } = req.body;
+
+  if (!input?.trim() || !category) {
+    res.status(400).json({ error: 'Input and category required' });
+    return;
+  }
+
+  if (category === 'direct') {
+    res.status(400).json({ error: 'Cannot refine Direct / Head Terms' });
+    return;
+  }
+
+  // Check user plan — must be Pro, Agency, or Admin
+  const userDoc = await db.doc(`users/${userId}`).get();
+  const userData = userDoc.data();
+  const plan = userData?.plan || 'free';
+  const email = userData?.email || '';
+  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+  const isAdmin = ADMIN_EMAILS.includes(email);
+
+  if (!isAdmin && plan !== 'pro' && plan !== 'agency') {
+    res.status(403).json({ error: 'Refine is available for Pro and Agency subscribers' });
+    return;
+  }
+
+  // Load existing search
+  const searchDoc = await db.doc(`users/${userId}/searches/${searchId}`).get();
+  if (!searchDoc.exists) {
+    res.status(404).json({ error: 'Search not found' });
+    return;
+  }
+
+  const searchData = searchDoc.data() as any;
+
+  // Check refine count (max 5 per search)
+  const refineCount = searchData.refineCount || 0;
+  if (refineCount >= 5) {
+    res.status(400).json({ error: 'Maximum 5 refinements per search reached' });
+    return;
+  }
+
+  try {
+    // Step 1: Gemini generates category-specific seeds
+    functions.logger.info(`Refine: generating seeds for "${category}" with input "${input}"`);
+    const seeds = await generateRefineSeeds(input, category, searchData.query || searchData.productLabel || '');
+
+    // Step 2: Enrich via Keyword Planner
+    functions.logger.info(`Refine: enriching ${seeds.length} seeds`);
+    const enriched = await enrichKeywords(seeds);
+
+    // Step 3: Score
+    const scored = enriched.map((kw) => {
+      const { calculateAdScore, calculateSeoScore } = require('@jackpotkeywords/shared');
+      const adScore = calculateAdScore(
+        kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
+        kw.competition, kw.relevance, kw.trendDirection, searchData.budget,
+      );
+      const seoScore = calculateSeoScore(
+        kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
+        kw.competition, kw.relevance, kw.trendDirection,
+      );
+      return { ...kw, jackpotScore: adScore, adScore, seoScore };
+    });
+
+    // Step 4: Deduplicate against existing keywords
+    const existingKeys = new Set(
+      (searchData.keywords || []).map((kw: any) => kw.keyword.toLowerCase().trim()),
+    );
+    const newKeywords = scored.filter((kw) => !existingKeys.has(kw.keyword.toLowerCase().trim()));
+
+    functions.logger.info(`Refine: ${newKeywords.length} new keywords (${scored.length - newKeywords.length} duplicates removed)`);
+
+    // Step 5: Append and save
+    const updatedKeywords = [...(searchData.keywords || []), ...newKeywords];
+    await db.doc(`users/${userId}/searches/${searchId}`).update({
+      keywords: JSON.parse(JSON.stringify(updatedKeywords)),
+      refineCount: refineCount + 1,
+    });
+
+    res.json({
+      added: newKeywords.length,
+      refineCount: refineCount + 1,
+      keywords: newKeywords,
+    });
+  } catch (error: any) {
+    functions.logger.error('Refine error:', error.message);
+    res.status(500).json({ error: 'Refine failed', details: error.message });
+  }
+});
+
 function mergeAndDeduplicate(
   aiSeeds: { keyword: string; category: string; source: string }[],
-  autocompleteKeywords: { keyword: string; source: string }[],
+  autocompleteKeywords: { keyword: string; source: string; parentSeed?: string }[],
 ): { keyword: string; category: string; source: string }[] {
   const seen = new Set<string>();
   const merged: { keyword: string; category: string; source: string }[] = [];
+
+  // Build seed→category lookup for category inheritance
+  const seedCategoryMap = new Map<string, string>();
+  for (const seed of aiSeeds) {
+    seedCategoryMap.set(seed.keyword.toLowerCase().trim(), seed.category);
+  }
 
   for (const seed of aiSeeds) {
     const key = seed.keyword.toLowerCase().trim();
@@ -167,11 +287,19 @@ function mergeAndDeduplicate(
     const key = kw.keyword.toLowerCase().trim();
     if (!seen.has(key)) {
       seen.add(key);
-      merged.push({ ...kw, category: 'direct' });
+      // Inherit category: 1) from parent seed, 2) word overlap with seeds, 3) pattern matching
+      const parentCategory = kw.parentSeed
+        ? seedCategoryMap.get(kw.parentSeed.toLowerCase().trim())
+        : undefined;
+      const overlapCategory = !parentCategory
+        ? inferCategoryFromSeeds(kw.keyword, seedCategoryMap as any)
+        : null;
+      merged.push({ ...kw, category: parentCategory || overlapCategory || inferCategory(kw.keyword) });
     }
   }
 
   return merged;
 }
+
 
 export default router;

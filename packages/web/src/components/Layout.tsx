@@ -1,8 +1,23 @@
 import { Outlet, Link } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 
+const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+
 export default function Layout() {
-  const { user, profile, loading, signInWithGoogle, logout } = useAuthContext();
+  const { user, profile, credits, loading, signInWithGoogle, logout } = useAuthContext();
+
+  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const plan = profile?.plan || 'free';
+
+  function getUserBadge() {
+    if (isAdmin) return { label: 'Admin', color: 'bg-jackpot-500 text-black' };
+    if (plan === 'agency') return { label: 'Agency', color: 'bg-purple-500 text-white' };
+    if (plan === 'pro') return { label: 'Pro', color: 'bg-jackpot-500 text-black' };
+    if (credits && credits.balance > 0) return { label: `${credits.balance} credits`, color: 'bg-gray-700 text-gray-300' };
+    return null;
+  }
+
+  const badge = user ? getUserBadge() : null;
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -11,12 +26,15 @@ export default function Layout() {
           <Link to="/" className="flex items-center gap-2">
             <img src="/logo.png" alt="JackpotKeywords" className="h-10 rounded" />
           </Link>
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-4 text-sm">
             <Link to="/pricing" className="text-gray-400 hover:text-white transition">
               Pricing
             </Link>
             {user ? (
               <>
+                <Link to="/" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                  New Search
+                </Link>
                 <Link to="/account" className="text-gray-400 hover:text-white transition">
                   Account
                 </Link>
@@ -26,6 +44,11 @@ export default function Layout() {
                 >
                   Sign Out
                 </button>
+                {badge && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.color}`}>
+                    {badge.label}
+                  </span>
+                )}
                 {profile?.photoURL && (
                   <img
                     src={profile.photoURL}

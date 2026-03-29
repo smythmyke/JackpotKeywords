@@ -101,6 +101,7 @@ export interface ConceptReport {
 export interface SearchResult {
   id: string;
   query: string;
+  productLabel?: string;
   url?: string;
   mode: SearchMode;
   budget?: number;

@@ -20,6 +20,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 interface SeedResult {
   allSeeds: { keyword: string; category: string; source: string }[];
   topSeeds: string[];
+  productLabel: string;
 }
 
 /**
@@ -55,6 +56,7 @@ Categories:
 
 Return JSON format:
 {
+  "productLabel": "3-5 word descriptive label for this business concept",
   "seeds": [
     { "keyword": "example keyword", "category": "direct" },
     ...
@@ -82,6 +84,7 @@ Categories:
 
 Return JSON format:
 {
+  "productLabel": "3-5 word descriptive label for this product",
   "seeds": [
     { "keyword": "example keyword", "category": "direct" },
     ...
@@ -96,6 +99,7 @@ Return JSON format:
   if (!jsonMatch) throw new Error('Failed to parse AI seed response');
 
   const parsed = JSON.parse(jsonMatch[0]);
+  const productLabel = parsed.productLabel || 'Keyword Research';
   const allSeeds = parsed.seeds.map((s: any) => ({
     keyword: s.keyword,
     category: s.category,
@@ -108,7 +112,7 @@ Return JSON format:
     .slice(0, 10)
     .map((s: any) => s.keyword);
 
-  return { allSeeds, topSeeds };
+  return { allSeeds, topSeeds, productLabel };
 }
 
 /**
@@ -272,4 +276,59 @@ Give a demand score 0-100 and a short verdict. Return ONLY JSON:
   }
 
   return report;
+}
+
+const REFINE_PROMPTS: Record<string, string> = {
+  feature: 'Generate keyword seeds focused on this SPECIFIC FEATURE of the product. Include variations, long-tail phrases, and how-to queries related to this feature.',
+  problem: 'Generate keyword seeds focused on this SPECIFIC PAIN POINT or problem. Include "how to" queries, troubleshooting phrases, and frustration-based searches.',
+  audience: 'Generate keyword seeds that this SPECIFIC AUDIENCE would search for. Include role-based terms, industry-specific queries, and audience-intent phrases.',
+  competitor_brand: 'Generate keyword seeds related to this SPECIFIC COMPETITOR. Include "[competitor] review", "[competitor] pricing", "[competitor] alternative", and comparison queries.',
+  competitor_alt: 'Generate keyword seeds for people looking for ALTERNATIVES to this product/tool. Include "best [X] alternative", "vs", "compared to", "switch from" queries.',
+  use_case: 'Generate keyword seeds for this SPECIFIC USE CASE or scenario. Include task-based queries, workflow terms, and situation-specific searches.',
+  niche: 'Generate keyword seeds for this SPECIFIC INDUSTRY or NICHE. Include industry jargon, vertical-specific terms, and niche audience queries.',
+  benefit: 'Generate keyword seeds focused on this SPECIFIC BENEFIT or OUTCOME. Include result-oriented phrases, "best [X] for [benefit]", and value-proposition queries.',
+  adjacent: 'Generate keyword seeds for this RELATED TOPIC that shares the same target audience. Include cross-category terms, complementary tool queries, and adjacent interest keywords.',
+};
+
+/**
+ * Generate refined keyword seeds for a specific category
+ */
+export async function generateRefineSeeds(
+  userInput: string,
+  category: KeywordCategory,
+  productDescription: string,
+): Promise<{ keyword: string; category: string; source: string }[]> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const categoryPrompt = REFINE_PROMPTS[category] || 'Generate keyword seeds related to this input.';
+
+  const prompt = `You are an expert keyword researcher. The user has an existing keyword research for this product:
+
+Product: "${productDescription}"
+
+${categoryPrompt}
+
+User's input for the "${CATEGORY_LABELS[category]}" category: "${userInput}"
+
+Generate 10-20 keyword seeds. Each keyword should be directly searchable on Google — real queries people would type. Return ONLY valid JSON, no markdown.
+
+{
+  "seeds": [
+    { "keyword": "example keyword" },
+    ...
+  ]
+}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Failed to parse refine response');
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  return (parsed.seeds || []).map((s: any) => ({
+    keyword: s.keyword,
+    category,
+    source: 'ai' as const,
+  }));
 }

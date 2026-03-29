@@ -6,11 +6,13 @@ const SUGGEST_URL = 'https://suggestqueries.google.com/complete/search';
 interface AutocompleteResult {
   keyword: string;
   source: 'autocomplete';
+  parentSeed?: string;
 }
 
 /**
  * Step 2: Expand seed keywords via Google Autocomplete
  * Top 10 seeds get full a-z expansion, rest get raw suggestions only
+ * Now tracks parent seed for category inheritance
  */
 export async function expandAutocomplete(
   topSeeds: string[],
@@ -28,7 +30,7 @@ export async function expandAutocomplete(
     for (const s of rawSuggestions) {
       const key = s.toLowerCase().trim();
       if (!results.has(key)) {
-        results.set(key, { keyword: s, source: 'autocomplete' });
+        results.set(key, { keyword: s, source: 'autocomplete', parentSeed: seed });
       }
     }
 
@@ -39,7 +41,7 @@ export async function expandAutocomplete(
         for (const s of suggestions) {
           const key = s.toLowerCase().trim();
           if (!results.has(key)) {
-            results.set(key, { keyword: s, source: 'autocomplete' });
+            results.set(key, { keyword: s, source: 'autocomplete', parentSeed: seed });
           }
         }
       } catch {
@@ -58,7 +60,7 @@ export async function expandAutocomplete(
       for (const s of suggestions) {
         const key = s.toLowerCase().trim();
         if (!results.has(key)) {
-          results.set(key, { keyword: s, source: 'autocomplete' });
+          results.set(key, { keyword: s, source: 'autocomplete', parentSeed: seed });
         }
       }
     } catch {

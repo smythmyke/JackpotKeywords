@@ -39,3 +39,15 @@ export async function getSearchResult(token: string, searchId: string): Promise<
 export async function listSearches(token: string) {
   return authedFetch('/api/search', token);
 }
+
+export async function refineSearch(
+  token: string,
+  searchId: string,
+  input: string,
+  category: string,
+): Promise<{ added: number; refineCount: number; keywords: any[] }> {
+  return authedFetch(`/api/search/${searchId}/refine`, token, {
+    method: 'POST',
+    body: JSON.stringify({ input, category }),
+  });
+}

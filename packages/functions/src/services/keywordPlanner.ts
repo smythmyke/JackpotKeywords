@@ -1,6 +1,7 @@
 import { GoogleAdsApi, enums } from 'google-ads-api';
 import * as functions from 'firebase-functions';
 import type { KeywordResult, CompetitionLevel, TrendDirection } from '@jackpotkeywords/shared';
+import { inferCategory, inferCategoryFromSeeds } from './categoryInference';
 
 const CUSTOMER_ID = process.env.GOOGLE_ADS_CUSTOMER_ID || '';
 const DEV_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
@@ -80,9 +81,14 @@ export async function enrichKeywords(
 
         const seedInfo = seedLookup.get(key);
 
+        // For planner-related keywords: infer category from seed overlap or patterns
+        const inferredCategory = !seedInfo
+          ? (inferCategoryFromSeeds(keyword, seedLookup) || inferCategory(keyword))
+          : seedInfo.category;
+
         results.set(key, {
           keyword,
-          category: (seedInfo?.category || 'direct') as any,
+          category: inferredCategory as any,
           source: (seedInfo?.source || 'planner_related') as any,
           avgMonthlySearches: avgSearches,
           lowCpc,
@@ -103,8 +109,13 @@ export async function enrichKeywords(
     }
   }
 
-  functions.logger.info(`Enriched: ${results.size} unique keywords from Keyword Planner`);
-  return Array.from(results.values());
+  const allResults = Array.from(results.values());
+  const withVolumes = allResults.filter((kw) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
+  functions.logger.info(`Enriched: ${allResults.length} unique keywords from Keyword Planner (${withVolumes.length} with monthly volumes)`);
+  if (withVolumes.length > 0) {
+    functions.logger.info(`Sample monthlyVolumes: ${JSON.stringify(withVolumes[0].monthlyVolumes)}`);
+  }
+  return allResults;
 }
 
 function analyzeTrendFromVolumes(
