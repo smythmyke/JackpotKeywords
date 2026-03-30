@@ -51,12 +51,20 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
           onChange={(e) => setDescription(e.target.value)}
           placeholder={
             isKeywordMode
-              ? 'e.g., I sell a Chrome extension that helps Etsy sellers bulk upload listings with AI-generated tags and descriptions'
+              ? 'e.g., OBServe is a free desktop companion for OBS Studio that auto-detects audio devices, configures settings, and monitors stream performance. Built with Tauri/Rust, targets streamers, YouTubers, and podcasters.'
               : 'e.g., I want to sell custom pet portraits on Etsy using AI-generated art'
           }
           rows={3}
           className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500 resize-none"
         />
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs text-gray-600">
+            Describe what it does, who it's for, and what makes it different
+          </span>
+          <span className={`text-xs ${description.length > 500 ? 'text-yellow-500' : 'text-gray-600'}`}>
+            {description.length} / 500
+          </span>
+        </div>
       </div>
 
       {isKeywordMode && (

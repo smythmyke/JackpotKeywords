@@ -31,6 +31,21 @@ export const CATEGORY_LABELS: Record<KeywordCategory, string> = {
   adjacent: 'Adjacent / Tangential',
 };
 
+export interface ProductContext {
+  productName: string;
+  productLabel: string;
+  whatItDoes: string;
+  targetAudience: string[];
+  keyFeatures: string[];
+  painPoints: string[];
+  competitors: string[];
+  differentiators: string[];
+  useCases: string[];
+  industryNiche: string[];
+  benefits: string[];
+  relatedTopics: string[];
+}
+
 export interface SearchRequest {
   description: string;
   url?: string;

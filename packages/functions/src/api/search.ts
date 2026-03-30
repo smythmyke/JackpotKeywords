@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
-import { generateSeeds, generateRefineSeeds } from '../services/gemini';
+import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
 import { expandAutocomplete, discoverCompetitors } from '../services/autocomplete';
 import { enrichKeywords } from '../services/keywordPlanner';
@@ -45,9 +45,14 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   }
 
   try {
+    // Step 0: Extract structured product context
+    functions.logger.info('Step 0: Extracting product context...');
+    const context = await extractProductContext(description, url);
+    functions.logger.info(`Step 0 done: "${context.productLabel}" — ${context.keyFeatures.length} features, ${context.competitors.length} competitors, ${context.painPoints.length} pain points`);
+
     // Step 1: AI seed generation
     functions.logger.info('Step 1: Generating seeds...');
-    const seeds = await generateSeeds(description, url, mode);
+    const seeds = await generateSeeds(context, mode);
     functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
 
     // Step 1b: Autocomplete competitor discovery

@@ -189,11 +189,16 @@ export default function Results() {
       setSavingAnonymous(true);
       try {
         const token = await getToken();
-        if (!token) return;
+        if (!token) {
+          setError('Could not save results to your account. You can still view them below.');
+          setSavingAnonymous(false);
+          return;
+        }
         const { id } = await saveAnonymousResult(token, result!);
         navigate(`/results/${id}`, { replace: true });
       } catch (err: any) {
         console.error('Failed to save anonymous results:', err.message);
+        setError('Could not save results to your account. You can still view them below.');
         setSavingAnonymous(false);
       }
     }
