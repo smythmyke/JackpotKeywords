@@ -8,7 +8,7 @@ import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInfer
 import { expandAutocomplete, discoverCompetitors } from '../services/autocomplete';
 import { enrichKeywords } from '../services/keywordPlanner';
 import { overlayTrends } from '../services/googleTrends';
-import { scoreAndClassify } from '../services/gemini';
+import { scoreAndClassify, nameClustersBatch } from '../services/gemini';
 import type { SearchRequest, SearchResult, KeywordResult } from '@jackpotkeywords/shared';
 
 const router = Router();
@@ -192,6 +192,26 @@ router.post('/save', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error: any) {
     functions.logger.error('Save search error:', error.message);
     res.status(500).json({ error: 'Failed to save search' });
+  }
+});
+
+/**
+ * POST /api/search/name-clusters
+ * Name clusters via Gemini (called async from frontend after keywords load)
+ */
+router.post('/name-clusters', async (req, res) => {
+  const { clusters } = req.body;
+  if (!clusters || !Array.isArray(clusters)) {
+    res.status(400).json({ error: 'Clusters required' });
+    return;
+  }
+  try {
+    const named = await nameClustersBatch(clusters);
+    functions.logger.info(`Named ${named.length} clusters via async endpoint`);
+    res.json({ clusters: named });
+  } catch (err: any) {
+    functions.logger.error('Cluster naming error:', err.message);
+    res.status(500).json({ error: 'Naming failed', details: err.message });
   }
 });
 

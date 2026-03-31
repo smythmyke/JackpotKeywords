@@ -67,6 +67,15 @@ export async function saveSearch(
   });
 }
 
+export async function nameClusters(
+  clusters: any[],
+): Promise<{ clusters: any[] }> {
+  return apiFetch('/api/search/name-clusters', null, {
+    method: 'POST',
+    body: JSON.stringify({ clusters }),
+  });
+}
+
 export async function refineSearch(
   token: string,
   searchId: string,

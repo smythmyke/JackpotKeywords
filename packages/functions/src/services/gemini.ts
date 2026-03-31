@@ -330,44 +330,39 @@ export async function scoreAndClassify(
     });
   }
 
-  // Generate clusters
-  functions.logger.info('Clustering keywords...');
-  const rawClusters = clusterKeywords(scored);
+  // Run clustering algorithm + relevance scoring in parallel
+  functions.logger.info('Clustering + scoring relevance (parallel)...');
+  const [clusters, relevanceResult] = await Promise.all([
+    Promise.resolve(clusterKeywords(scored)),
+    (async () => {
+      try {
+        const top200Keywords = scored.slice(0, 200).map((k) => k.keyword);
+        const scores = await scoreRelevance(top200Keywords, context);
+        return scores;
+      } catch (err: any) {
+        functions.logger.warn(`Relevance scoring failed, continuing without: ${err.message}`);
+        return new Map<string, number>();
+      }
+    })(),
+  ]);
 
-  // Name clusters via Gemini
-  let clusters: KeywordCluster[] = rawClusters;
-  if (rawClusters.length > 0) {
-    try {
-      clusters = await nameClustersBatch(rawClusters);
-      functions.logger.info(`Named ${clusters.length} clusters`);
-    } catch (err: any) {
-      functions.logger.warn(`Cluster naming failed, using defaults: ${err.message}`);
+  // Apply relevance scores
+  let relevanceCount = 0;
+  for (const kw of scored) {
+    const score = relevanceResult.get(kw.keyword);
+    if (score !== undefined) {
+      kw.aiRelevance = score;
+      relevanceCount++;
     }
   }
+  functions.logger.info(`Clustered: ${clusters.length} clusters, Relevance: ${relevanceCount} keywords scored`);
 
   // Add cluster counts to category summaries
   for (const cat of categories) {
     cat.clusterCount = clusters.filter((c) => c.category === cat.category).length;
   }
 
-  // Score relevance for top 100 keywords
-  functions.logger.info('Scoring relevance for top 100 keywords...');
-  try {
-    const top100Keywords = scored.slice(0, 100).map((k) => k.keyword);
-    const relevanceScores = await scoreRelevance(top100Keywords, context);
-    let scored100 = 0;
-    for (const kw of scored) {
-      const score = relevanceScores.get(kw.keyword);
-      if (score !== undefined) {
-        kw.aiRelevance = score;
-        scored100++;
-      }
-    }
-    functions.logger.info(`Relevance scored: ${scored100} keywords`);
-  } catch (err: any) {
-    functions.logger.warn(`Relevance scoring failed, continuing without: ${err.message}`);
-  }
-
+  // Return unnamed clusters — naming happens async via /api/search/name-clusters
   return { keywords: scored, categories, clusters };
 }
 
@@ -423,7 +418,7 @@ Return ONLY valid JSON, no markdown:
 /**
  * Name all clusters in a single Gemini call
  */
-async function nameClustersBatch(
+export async function nameClustersBatch(
   clusters: KeywordCluster[],
 ): Promise<KeywordCluster[]> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });

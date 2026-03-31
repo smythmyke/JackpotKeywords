@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch, claimSearch, saveSearch } from '../services/api';
+import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -41,6 +41,7 @@ export default function Results() {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [clustersLoading, setClustersLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<KeywordCategory>('direct');
@@ -211,6 +212,21 @@ export default function Results() {
     }
     claim();
   }, [isAnonymous, user, result, getToken]);
+
+  // Background cluster naming — runs after keywords display
+  useEffect(() => {
+    if (!result?.clusters || result.clusters.length === 0) return;
+    if (result.clusters[0]?.name && !result.clusters[0].name.startsWith('Cluster ')) return;
+
+    setClustersLoading(true);
+    nameClusters(result.clusters).then(({ clusters: named }) => {
+      setResult((prev) => prev ? { ...prev, clusters: named } : prev);
+    }).catch((err) => {
+      console.error('Cluster naming failed:', err.message);
+    }).finally(() => {
+      setClustersLoading(false);
+    });
+  }, [result?.clusters?.length]);
 
   // Save handler — saves selected keywords to Firestore
   const handleSaveSearch = async () => {
@@ -455,14 +471,17 @@ export default function Results() {
                 Keywords
               </button>
               <button
-                onClick={() => setViewMode('clusters')}
+                onClick={() => !clustersLoading && setViewMode('clusters')}
+                disabled={clustersLoading}
                 className={`px-3 py-1.5 rounded-md text-sm transition ${
-                  viewMode === 'clusters'
+                  clustersLoading
+                    ? 'text-gray-600 opacity-40 cursor-wait'
+                    : viewMode === 'clusters'
                     ? 'bg-jackpot-500 text-black font-medium'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                Clusters
+                {clustersLoading ? 'Clusters...' : 'Clusters'}
               </button>
             </div>
           )}
