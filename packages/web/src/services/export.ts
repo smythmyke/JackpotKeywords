@@ -38,6 +38,7 @@ export function exportAnalysisCsv(keywords: KeywordResult[], productLabel: strin
     ...(clusters ? ['Cluster'] : []),
     'Source',
     'Intent',
+    'Relevance',
     'Avg Monthly Searches',
     'Low CPC',
     'High CPC',
@@ -55,6 +56,7 @@ export function exportAnalysisCsv(keywords: KeywordResult[], productLabel: strin
     ...(clusters ? [escapeCsv(clusterMap.get(kw.keyword) || '')] : []),
     kw.source,
     kw.intent ? INTENT_LABELS[kw.intent] : '',
+    kw.aiRelevance !== undefined ? String(kw.aiRelevance) : '',
     String(kw.avgMonthlySearches),
     kw.lowCpc.toFixed(2),
     kw.highCpc.toFixed(2),
@@ -99,7 +101,7 @@ export function exportGoogleAdsCsv(keywords: KeywordResult[], productLabel: stri
       'Broad',
       'paused',
       maxCpc,
-      `JackpotScore:${kw.jackpotScore}${kw.intent ? ';Intent:' + kw.intent : ''}`,
+      `JackpotScore:${kw.jackpotScore}${kw.intent ? ';Intent:' + kw.intent : ''}${kw.aiRelevance ? ';Rel:' + kw.aiRelevance : ''}`,
     ];
   });
 

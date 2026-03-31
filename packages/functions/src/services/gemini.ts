@@ -262,6 +262,7 @@ Return ONLY valid JSON, no markdown:
  */
 export async function scoreAndClassify(
   keywords: KeywordResult[],
+  context: ProductContext,
   budget?: number,
 ): Promise<{
   keywords: KeywordResult[];
@@ -349,7 +350,74 @@ export async function scoreAndClassify(
     cat.clusterCount = clusters.filter((c) => c.category === cat.category).length;
   }
 
+  // Score relevance for top 100 keywords
+  functions.logger.info('Scoring relevance for top 100 keywords...');
+  try {
+    const top100Keywords = scored.slice(0, 100).map((k) => k.keyword);
+    const relevanceScores = await scoreRelevance(top100Keywords, context);
+    let scored100 = 0;
+    for (const kw of scored) {
+      const score = relevanceScores.get(kw.keyword);
+      if (score !== undefined) {
+        kw.aiRelevance = score;
+        scored100++;
+      }
+    }
+    functions.logger.info(`Relevance scored: ${scored100} keywords`);
+  } catch (err: any) {
+    functions.logger.warn(`Relevance scoring failed, continuing without: ${err.message}`);
+  }
+
   return { keywords: scored, categories, clusters };
+}
+
+/**
+ * Score keyword relevance to the product using Gemini
+ */
+async function scoreRelevance(
+  keywords: string[],
+  context: ProductContext,
+): Promise<Map<string, number>> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const keywordList = keywords.map((k, i) => `${i + 1}. "${k}"`).join('\n');
+
+  const prompt = `You are evaluating keyword relevance for a specific product.
+
+Product: "${context.productName}" — ${context.whatItDoes}
+Key features: ${context.keyFeatures.join(', ')}
+Target audience: ${context.targetAudience.join(', ')}
+Competitors: ${context.competitors.join(', ')}
+
+Rate each keyword's relevance to THIS SPECIFIC product on a scale of 1-10:
+- 10: Directly describes what this product does or a core feature
+- 8-9: Highly relevant — someone searching this would want this product
+- 6-7: Moderately relevant — related to the product's space
+- 4-5: Tangentially related — same industry but not a direct match
+- 1-3: Not relevant — different product category or unrelated
+
+Keywords:
+${keywordList}
+
+Return ONLY valid JSON, no markdown:
+[
+  { "keyword": "example", "relevance": 8 },
+  ...
+]`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return new Map();
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  const map = new Map<string, number>();
+  for (const entry of parsed) {
+    if (entry.keyword && typeof entry.relevance === 'number') {
+      map.set(entry.keyword, Math.min(10, Math.max(1, Math.round(entry.relevance))));
+    }
+  }
+  return map;
 }
 
 /**

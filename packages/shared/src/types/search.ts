@@ -78,6 +78,7 @@ export interface KeywordResult {
   suggestion?: string;
   monthlyVolumes?: { month: string; volume: number }[];
   intent?: SearchIntent;
+  aiRelevance?: number;
 }
 
 export interface CategorySummary {

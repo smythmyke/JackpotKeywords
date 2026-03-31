@@ -90,6 +90,7 @@ export default function Results() {
   const [filterTrend, setFilterTrend] = useState<string | null>(null);
   const [filterScore, setFilterScore] = useState<number | null>(null);
   const [filterIntent, setFilterIntent] = useState<SearchIntent | null>(null);
+  const [filterRelevance, setFilterRelevance] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'keywords' | 'clusters'>('keywords');
   const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -110,7 +111,7 @@ export default function Results() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const activeFilterCount = [filterVolume, filterCpc, filterComp, filterTrend, filterScore, filterIntent].filter((f) => f !== null).length;
+  const activeFilterCount = [filterVolume, filterCpc, filterComp, filterTrend, filterScore, filterIntent, filterRelevance].filter((f) => f !== null).length;
 
   const clearAllFilters = () => {
     setFilterVolume(null);
@@ -119,6 +120,7 @@ export default function Results() {
     setFilterTrend(null);
     setFilterScore(null);
     setFilterIntent(null);
+    setFilterRelevance(null);
   };
 
   const resetAll = () => {
@@ -322,6 +324,10 @@ export default function Results() {
       if (score < filterScore) return false;
     }
     if (filterIntent !== null && kw.intent !== filterIntent) return false;
+    if (filterRelevance !== null) {
+      if (kw.aiRelevance === undefined) return false;
+      if (kw.aiRelevance < filterRelevance) return false;
+    }
     return true;
   });
 
@@ -335,6 +341,7 @@ export default function Results() {
       case 'cpc': av = a.highCpc; bv = b.highCpc; break;
       case 'comp': av = a.competition; bv = b.competition; break;
       case 'intent': av = a.intent || ''; bv = b.intent || ''; break;
+      case 'relevance': av = a.aiRelevance ?? -1; bv = b.aiRelevance ?? -1; break;
       case 'score': av = scoreView === 'ad' ? a.adScore : a.seoScore; bv = scoreView === 'ad' ? b.adScore : b.seoScore; break;
       default: av = scoreView === 'ad' ? a.adScore : a.seoScore; bv = scoreView === 'ad' ? b.adScore : b.seoScore;
     }
@@ -343,10 +350,35 @@ export default function Results() {
     return 0;
   });
 
-  // Category counts
+  // Category counts (total and filtered)
   const categoryCounts: Record<string, number> = {};
+  const categoryFilteredCounts: Record<string, number> = {};
+  const hasActiveFilters = activeFilterCount > 0;
   ALL_CATEGORIES.forEach((c) => {
-    categoryCounts[c] = allKeywords.filter((kw) => kw.category === c).length;
+    const catKws = allKeywords.filter((kw) => kw.category === c);
+    categoryCounts[c] = catKws.length;
+    if (hasActiveFilters) {
+      categoryFilteredCounts[c] = catKws.filter((kw) => {
+        if (filterVolume !== null && kw.avgMonthlySearches < filterVolume) return false;
+        if (filterCpc !== null && kw.highCpc > filterCpc) return false;
+        if (filterComp !== null && kw.competition !== filterComp) return false;
+        if (filterTrend !== null) {
+          if (filterTrend === 'rising' && kw.trendDirection !== 'rising' && kw.trendDirection !== 'rising_slight') return false;
+          if (filterTrend === 'stable' && kw.trendDirection !== 'stable') return false;
+          if (filterTrend === 'declining' && kw.trendDirection !== 'declining' && kw.trendDirection !== 'declining_slight') return false;
+        }
+        if (filterScore !== null) {
+          const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
+          if (score < filterScore) return false;
+        }
+        if (filterIntent !== null && kw.intent !== filterIntent) return false;
+        if (filterRelevance !== null) {
+          if (kw.aiRelevance === undefined) return false;
+          if (kw.aiRelevance < filterRelevance) return false;
+        }
+        return true;
+      }).length;
+    }
   });
 
   // For free users, show only top 3 per category; paginate for paid
@@ -511,12 +543,23 @@ export default function Results() {
             className={`px-3 py-2.5 rounded-lg text-sm transition text-left ${
               activeCategory === cat
                 ? 'bg-jackpot-500/15 text-jackpot-400 border border-jackpot-500/40 font-medium'
-                : 'bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-300'
+                : hasActiveFilters && categoryFilteredCounts[cat] === 0
+                  ? 'bg-gray-900 text-gray-500 border border-gray-800 opacity-40'
+                  : hasActiveFilters && categoryFilteredCounts[cat] > 0
+                    ? 'bg-gray-900 text-gray-300 border border-jackpot-500/40 hover:border-jackpot-500/60'
+                    : 'bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-gray-300'
             }`}
           >
             <div className="truncate">{CATEGORY_LABELS[cat]}</div>
             <div className="text-xs opacity-60 mt-0.5">
-              {categoryCounts[cat]} keywords
+              {hasActiveFilters ? (
+                <span className={categoryFilteredCounts[cat] === 0 ? 'text-gray-600' : ''}>
+                  <span className={categoryFilteredCounts[cat] > 0 ? 'text-jackpot-400 font-medium opacity-100' : ''}>{categoryFilteredCounts[cat]}</span>
+                  {' '}of {categoryCounts[cat]}
+                </span>
+              ) : (
+                <span>{categoryCounts[cat]} keywords</span>
+              )}
               {result.clusters && result.clusters.filter((c) => c.category === cat).length > 0 && (
                 <span> &middot; {result.clusters.filter((c) => c.category === cat).length} clusters</span>
               )}
@@ -629,6 +672,18 @@ export default function Results() {
           <option value="transactional">Transactional</option>
           <option value="informational">Informational</option>
           <option value="navigational">Navigational</option>
+        </select>
+        <div className="w-px h-6 bg-gray-700" />
+        <select
+          value={filterRelevance ?? ''}
+          onChange={(e) => { setFilterRelevance(e.target.value ? Number(e.target.value) : null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterRelevance !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">Rel: Any</option>
+          <option value="8">8+</option>
+          <option value="6">6+</option>
+          <option value="4">4+</option>
+          <option value="1">Scored</option>
         </select>
         {activeFilterCount > 0 && (
           <button onClick={resetAll} className="ml-auto text-xs text-gray-500 hover:text-white transition">
@@ -902,6 +957,9 @@ export default function Results() {
                   <th className="text-center px-4 py-3 font-medium w-20 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('intent')}>
                     Intent{sortIndicator('intent')}
                   </th>
+                  <th className="text-center px-3 py-3 font-medium w-16 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('relevance')}>
+                    Rel{sortIndicator('relevance')}
+                  </th>
                   <th className="text-right px-4 py-3 font-medium w-28 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('volume')}>
                     Volume{sortIndicator('volume')}
                   </th>
@@ -947,6 +1005,13 @@ export default function Results() {
                       <td className="px-4 py-3 text-center">
                         {kw.intent && <IntentBadge intent={kw.intent} />}
                       </td>
+                      <td className="px-3 py-3 text-center">
+                        {kw.aiRelevance !== undefined ? (
+                          <span className={`text-xs font-bold ${kw.aiRelevance >= 8 ? 'text-score-green' : kw.aiRelevance >= 5 ? 'text-score-yellow' : 'text-score-red'}`}>{kw.aiRelevance}</span>
+                        ) : (
+                          <span className="text-gray-700">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right text-white font-mono">
                         {kw.avgMonthlySearches.toLocaleString()}/mo
                       </td>
@@ -978,7 +1043,7 @@ export default function Results() {
                     </tr>
                     {expandedKeyword === kw.keyword && paid && (
                       <tr>
-                        <td colSpan={9} className="p-0">
+                        <td colSpan={10} className="p-0">
                           <KeywordPanel keyword={kw} relatedKeywords={getRelatedKeywords(kw)} selectedKeywords={selectedKeywords} onToggleSelect={(keyword) => setSelectedKeywords((prev) => { const next = new Set(prev); if (next.has(keyword)) next.delete(keyword); else next.add(keyword); return next; })} />
                         </td>
                       </tr>
@@ -1050,6 +1115,11 @@ export default function Results() {
                         <div className="flex items-center gap-1">
                           <SourceBadge source={kw.source} />
                           {kw.intent && <IntentBadge intent={kw.intent} />}
+                          {kw.aiRelevance !== undefined && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${kw.aiRelevance >= 8 ? 'bg-score-green/10 text-score-green border-score-green/20' : kw.aiRelevance >= 5 ? 'bg-score-yellow/10 text-score-yellow border-score-yellow/20' : 'bg-score-red/10 text-score-red border-score-red/20'}`}>
+                              R:{kw.aiRelevance}
+                            </span>
+                          )}
                         </div>
                       </div>
                       {kw.trendDirection && (

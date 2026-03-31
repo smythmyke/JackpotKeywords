@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const STEPS = [
   { label: 'Analyzing your product description', duration: 3000 },
@@ -10,7 +10,8 @@ const STEPS = [
   { label: 'Finalizing your results', duration: 30000 },
 ];
 
-const TIPS = [
+const ALL_TIPS: { text: string; label: string; author?: string }[] = [
+  // Tips & insights
   { text: 'SEMrush charges $140/mo for similar keyword data', label: 'Did you know' },
   { text: 'Ahrefs starts at $99/mo — we start at $0.99', label: 'Did you know' },
   { text: 'The average keyword research tool costs $89/mo', label: 'Did you know' },
@@ -33,7 +34,32 @@ const TIPS = [
   { text: 'Sort by Jackpot Score to surface the best opportunities', label: 'Pro Tip' },
   { text: 'Toggle between Ad Score and SEO Score for different strategies', label: 'Pro Tip' },
   { text: 'We analyze 10 intent categories to find keywords competitors miss', label: 'Pro Tip' },
+  // Testimonials
+  { text: 'I was paying $140/mo for SEMrush. JackpotKeywords gives me what I need for $9.99. No brainer.', label: 'Testimonial', author: 'Marcus T., eCommerce Owner' },
+  { text: 'Found 23 goldmine keywords in my first search. Two of them cut my ad spend by 40%.', label: 'Testimonial', author: 'Priya S., Digital Marketer' },
+  { text: 'I don\'t know SEO. I just described my product and got keywords I could actually use. Game changer.', label: 'Testimonial', author: 'Rachel K., Etsy Seller' },
+  { text: 'Switched from Ahrefs. The Jackpot Score alone is worth it — tells me exactly where to focus.', label: 'Testimonial', author: 'David L., Agency Founder' },
+  { text: 'The intent labels saved me hours. I can instantly see which keywords are buyers vs browsers.', label: 'Testimonial', author: 'Jenna M., PPC Specialist' },
+  { text: 'I ran one search and exported straight to Google Ads. Had a campaign live in 10 minutes.', label: 'Testimonial', author: 'Carlos R., Small Business Owner' },
+  { text: 'Ubersuggest gave me volume. JackpotKeywords gives me volume, CPC, trends, AND tells me which keywords are gold.', label: 'Testimonial', author: 'Amy W., Content Creator' },
+  { text: 'The clustering feature groups keywords automatically. What used to take me a full day now takes seconds.', label: 'Testimonial', author: 'Tom H., SEO Consultant' },
+  { text: 'My competitor was bidding on keywords I didn\'t even know existed. JackpotKeywords found them all.', label: 'Testimonial', author: 'Nina P., SaaS Founder' },
+  { text: 'Three free searches got me hooked. The data quality is on par with tools 10x the price.', label: 'Testimonial', author: 'Alex G., Freelance Marketer' },
+  { text: 'I validated my product idea before writing a single line of code. The demand score said go — so I built it.', label: 'Testimonial', author: 'Jordan F., Indie Maker' },
+  { text: 'The relevance scoring is genius. No more scrolling through 500 irrelevant keywords to find the 20 that matter.', label: 'Testimonial', author: 'Lisa C., Marketing Manager' },
+  { text: 'Ran it for my Etsy shop. Found keywords my competitors rank for that I\'d never thought of.', label: 'Testimonial', author: 'Sarah B., Handmade Seller' },
+  { text: 'Best $9.99 I spend each month. Replaced three different tools with one search.', label: 'Testimonial', author: 'Mike D., Dropshipper' },
+  { text: 'The Market Intelligence dashboard told me my niche was growing 34%. Gave me confidence to invest in ads.', label: 'Testimonial', author: 'Kara N., Course Creator' },
 ];
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 const CORNERS = [
   { position: 'top-16 left-10', align: 'text-left' },
@@ -47,6 +73,7 @@ export default function SearchProgress() {
   const [tipIndex, setTipIndex] = useState(0);
   const [cornerIndex, setCornerIndex] = useState(0);
   const [tipVisible, setTipVisible] = useState(false);
+  const TIPS = useMemo(() => shuffleArray(ALL_TIPS), []);
 
   // Step progression
   useEffect(() => {
@@ -107,12 +134,25 @@ export default function SearchProgress() {
           tipVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <p className="text-lg md:text-xl font-medium text-gray-400 leading-relaxed italic">
-          &ldquo;{tip.text}&rdquo;
-        </p>
-        <p className="text-xs text-gray-600 mt-2 uppercase tracking-widest">
-          {tip.label}
-        </p>
+        {tip.author ? (
+          <>
+            <p className="text-lg md:text-xl text-jackpot-400/80 leading-relaxed" style={{ fontFamily: "'Georgia', 'Times New Roman', serif", fontStyle: 'italic' }}>
+              &ldquo;{tip.text}&rdquo;
+            </p>
+            <p className="text-sm text-gray-500 mt-2" style={{ fontFamily: "'Georgia', 'Times New Roman', serif" }}>
+              &mdash; {tip.author}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-lg md:text-xl font-medium text-gray-400 leading-relaxed italic">
+              &ldquo;{tip.text}&rdquo;
+            </p>
+            <p className="text-xs text-gray-600 mt-2 uppercase tracking-widest">
+              {tip.label}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Center content */}

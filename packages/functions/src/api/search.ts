@@ -83,7 +83,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 
     // Step 6: AI scoring and classification
     functions.logger.info('Step 6: Scoring and classifying...');
-    const scored = await scoreAndClassify(withTrends, budget);
+    const scored = await scoreAndClassify(withTrends, context, budget);
     functions.logger.info(`Step 6 done: ${scored.keywords.length} scored keywords`);
 
     // Build result
