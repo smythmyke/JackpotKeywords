@@ -30,7 +30,7 @@ export default function Layout() {
       <nav className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-[1400px] mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo-option2.png" alt="JackpotKeywords" className="h-[60px]" />
+            <img src="/logo-header.png" alt="JackpotKeywords" className="h-[50px]" />
           </Link>
           <div className="flex items-center gap-6 text-base">
             <Link to="/pricing" className="text-gray-400 hover:text-white transition">

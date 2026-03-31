@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch, saveAnonymousResult } from '../services/api';
+import { getSearchResult, refineSearch, claimSearch, saveSearch } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -38,8 +38,9 @@ export default function Results() {
   const navigate = useNavigate();
   const { getToken, loading: authLoading, user, profile, signInWithGoogle } = useAuthContext();
   const isAnonymous = searchId === 'anonymous';
-  const [savingAnonymous, setSavingAnonymous] = useState(false);
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<KeywordCategory>('direct');
@@ -145,13 +146,8 @@ export default function Results() {
 
   useEffect(() => {
     const stateResult = (location.state as any)?.result;
-    const stateHasResult = !!stateResult;
-    console.log('[FetchResults] Check:', { hasResult: !!result, stateHasResult, isAnonymous, authLoading, hasUser: !!user, searchId, loading });
-
-    // Check for results passed via location state (anonymous or redirected after save)
-    // Always prefer state result if it has a different ID or paid status than current
+    // Check for results passed via location state
     if (stateResult && (!result || result.id !== stateResult.id || result.paid !== stateResult.paid)) {
-      console.log('[FetchResults] Loading result from state:', { id: stateResult.id, paid: stateResult.paid });
       setResult(stateResult);
       const firstWithData = ALL_CATEGORIES.find(
         (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
@@ -200,48 +196,61 @@ export default function Results() {
     fetchResults();
   }, [searchId, getToken, authLoading, user, isAnonymous, location.state, result]);
 
-  // Reset savingAnonymous after successful redirect (isAnonymous becomes false)
+  // When anonymous user signs in, claim the search to check credits and unblur
   useEffect(() => {
-    if (!isAnonymous && savingAnonymous) {
-      console.log('[ResetSaving] Resetting savingAnonymous — redirect complete');
-      setSavingAnonymous(false);
-    }
-  }, [isAnonymous, savingAnonymous]);
-
-  // When user signs in on anonymous page, save results and redirect
-  useEffect(() => {
-    console.log('[SaveAnon] Check:', { isAnonymous, hasUser: !!user, hasResult: !!result, savingAnonymous, searchId });
-    if (!isAnonymous || !user || !result || savingAnonymous) return;
-
-    async function saveAndRedirect() {
-      console.log('[SaveAnon] Starting save...');
-      setSavingAnonymous(true);
+    if (!isAnonymous || !user || !result || result.paid) return;
+    async function claim() {
       try {
-        console.log('[SaveAnon] Getting token...');
         const token = await getToken();
-        console.log('[SaveAnon] Token:', token ? 'received' : 'null');
-        if (!token) {
-          console.log('[SaveAnon] No token, showing error');
-          setError('Could not save results to your account. You can still view them below.');
-          setSavingAnonymous(false);
-          return;
-        }
-        console.log('[SaveAnon] Saving anonymous result...');
-        const { id, paid: isPaid } = await saveAnonymousResult(token, result!);
-        console.log('[SaveAnon] Saved! Navigating to', id, 'paid:', isPaid);
-        navigate(`/results/${id}`, { replace: true, state: { result: { ...result!, id, paid: isPaid } } });
+        if (!token) return;
+        const { paid } = await claimSearch(token);
+        setResult((prev) => prev ? { ...prev, paid } : prev);
       } catch (err: any) {
-        console.error('[SaveAnon] Failed:', err.message);
-        setError('Could not save results to your account. You can still view them below.');
-        setSavingAnonymous(false);
+        console.error('Claim failed:', err.message);
       }
     }
-    saveAndRedirect();
-  }, [isAnonymous, user, result, savingAnonymous, getToken, navigate]);
+    claim();
+  }, [isAnonymous, user, result, getToken]);
 
-  console.log('[RenderGate]', { loading, savingAnonymous, hasResult: !!result, hasError: !!error });
+  // Save handler — saves selected keywords to Firestore
+  const handleSaveSearch = async () => {
+    if (!result || !user || selectedKeywords.size === 0) return;
+    if (selectedKeywords.size > 200) {
+      setError('Save up to 200 keywords. Use filters to narrow down your best keywords.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const selectedKws = result.keywords.filter((kw) => selectedKeywords.has(kw.keyword));
+      const savedClusters = result.clusters?.filter((c) =>
+        c.keywordKeys.some((k) => selectedKeywords.has(k))
+      ).map((c) => ({
+        ...c,
+        keywordKeys: c.keywordKeys.filter((k) => selectedKeywords.has(k)),
+      }));
+      const { id } = await saveSearch(token, {
+        query: result.query,
+        productLabel: result.productLabel,
+        url: result.url,
+        budget: result.budget,
+        keywords: selectedKws,
+        categories: result.categories,
+        clusters: savedClusters,
+        metadata: result.metadata,
+      });
+      setIsSaved(true);
+      window.history.replaceState(null, '', `/results/${id}`);
+    } catch (err: any) {
+      setError('Failed to save search: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  if (loading || savingAnonymous) {
+  if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-gray-400 text-lg">Loading results...</div>
@@ -269,7 +278,7 @@ export default function Results() {
   const canRefine = isAdmin || userPlan === 'pro' || userPlan === 'agency';
   const refineCount = (result as any).refineCount || 0;
   const refinesRemaining = 5 - refineCount;
-  const showRefineBar = canRefine && activeCategory !== 'direct' && refinesRemaining > 0;
+  const showRefineBar = isSaved && canRefine && activeCategory !== 'direct' && refinesRemaining > 0;
 
   const handleKeywordClick = (kw: KeywordResult) => {
     if (!paid && !isAdmin) {
@@ -1204,6 +1213,27 @@ export default function Results() {
           >
             Export Google Ads
           </button>
+          {!isSaved && user && paid && (
+            <>
+              <div className="w-px h-6 bg-gray-700" />
+              <button
+                onClick={handleSaveSearch}
+                disabled={saving}
+                className="text-sm text-jackpot-400 hover:text-jackpot-300 font-medium transition"
+              >
+                {saving ? 'Saving...' : 'Save Search'}
+              </button>
+              {selectedKeywords.size > 200 && (
+                <span className="text-xs text-score-yellow">Max 200</span>
+              )}
+            </>
+          )}
+          {isSaved && (
+            <>
+              <div className="w-px h-6 bg-gray-700" />
+              <span className="text-xs text-score-green font-medium">Saved</span>
+            </>
+          )}
           <div className="w-px h-6 bg-gray-700" />
           <button
             onClick={clearSelection}

@@ -13,6 +13,7 @@
     "node": "20"
   },
   "dependencies": {
+    "@jackpotkeywords/shared": "file:./jackpotkeywords-shared-1.0.0.tgz",
     "@google-ai/generativelanguage": "^2.0.0",
     "@google/generative-ai": "^0.21.0",
     "cors": "^2.8.5",

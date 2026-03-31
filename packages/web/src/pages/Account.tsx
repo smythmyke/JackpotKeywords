@@ -142,10 +142,20 @@ export default function Account() {
                       {search.productLabel || search.query || 'Keyword Search'}
                     </div>
                     <div className="text-sm text-gray-500 mt-1">
-                      {formatDate(search.createdAt)} &middot; {search.totalKeywords} keywords
+                      {formatDate(search.createdAt)} &middot; {search.totalKeywords} keywords saved
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    {search.query && (
+                      <Link
+                        to="/"
+                        state={{ prefillQuery: search.query }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs bg-gray-800 text-gray-400 hover:text-white px-2 py-1 rounded transition"
+                      >
+                        Re-run
+                      </Link>
+                    )}
                     {search.paid && (
                       <span className="text-xs bg-jackpot-500/20 text-jackpot-400 px-2 py-1 rounded">Full</span>
                     )}

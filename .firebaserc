@@ -1,0 +1,22 @@
+{
+  "projects": {
+    "default": "simonsays-aa50b"
+  },
+  "targets": {
+    "simonsays-aa50b": {
+      "hosting": {
+        "jackpotkeywords": [
+          "simonsays-aa50b"
+        ]
+      }
+    },
+    "even-plate-378520": {
+      "hosting": {
+        "jackpotkeywords": [
+          "jackpotkeywords"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

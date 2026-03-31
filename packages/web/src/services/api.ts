@@ -43,13 +43,27 @@ export async function listSearches(token: string) {
   return apiFetch('/api/search', token);
 }
 
-export async function saveAnonymousResult(
+export async function claimSearch(token: string): Promise<{ paid: boolean }> {
+  return apiFetch('/api/search/claim', token, { method: 'POST' });
+}
+
+export async function saveSearch(
   token: string,
-  result: SearchResult,
-): Promise<{ id: string; paid: boolean }> {
-  return apiFetch('/api/search/save-anonymous', token, {
+  data: {
+    query: string;
+    productLabel?: string;
+    url?: string;
+    budget?: number;
+    keywords: any[];
+    categories?: any[];
+    clusters?: any[];
+    marketIntelligence?: any;
+    metadata?: any;
+  },
+): Promise<{ id: string }> {
+  return apiFetch('/api/search/save', token, {
     method: 'POST',
-    body: JSON.stringify({ result }),
+    body: JSON.stringify(data),
   });
 }
 

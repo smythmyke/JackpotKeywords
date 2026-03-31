@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { runSearch } from '../services/api';
 import SearchForm from '../components/SearchForm';
@@ -87,6 +87,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefillQuery = (location.state as any)?.prefillQuery || '';
   const { user, profile, credits, signInWithGoogle, getToken } = useAuthContext();
 
   const ADMIN_EMAILS = ['smythmyke@gmail.com'];
@@ -115,12 +117,8 @@ export default function Home() {
         budget,
       });
 
-      if (result.id && user) {
-        navigate(`/results/${result.id}`);
-      } else {
-        // Anonymous search — pass results via state since they're not saved
-        navigate('/results/anonymous', { state: { result } });
-      }
+      // Results not saved to Firestore — pass via state for both auth and anonymous
+      navigate('/results/anonymous', { state: { result } });
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -165,7 +163,7 @@ export default function Home() {
           </div>
         )}
 
-        <SearchForm onSearch={handleSearch} loading={loading} />
+        <SearchForm onSearch={handleSearch} loading={loading} initialDescription={prefillQuery} />
 
         {/* Stats bar */}
         <div className="mt-12 flex items-center gap-8 md:gap-12 text-center text-sm text-gray-500">

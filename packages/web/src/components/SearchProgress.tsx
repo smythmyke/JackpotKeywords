@@ -108,7 +108,7 @@ export default function SearchProgress() {
           // Pause before next tip
           timeout = setTimeout(cycle, 1000);
         }, 700);
-      }, 3500);
+      }, 5500);
     }
 
     // Start first tip after 1.5s delay

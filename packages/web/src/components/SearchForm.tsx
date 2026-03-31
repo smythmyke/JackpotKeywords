@@ -3,6 +3,7 @@ import { useState } from 'react';
 interface SearchFormProps {
   onSearch: (description: string, url: string, budget?: number) => void;
   loading?: boolean;
+  initialDescription?: string;
 }
 
 const BUDGET_PRESETS = [
@@ -13,8 +14,8 @@ const BUDGET_PRESETS = [
   { label: '$1000+/mo', value: 1500 },
 ];
 
-export default function SearchForm({ onSearch, loading }: SearchFormProps) {
-  const [description, setDescription] = useState('');
+export default function SearchForm({ onSearch, loading, initialDescription }: SearchFormProps) {
+  const [description, setDescription] = useState(initialDescription || '');
   const [url, setUrl] = useState('');
   const [budget, setBudget] = useState<number | undefined>();
   const [showBudget, setShowBudget] = useState(false);

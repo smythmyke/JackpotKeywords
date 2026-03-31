@@ -119,16 +119,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       },
     };
 
-    // Save to Firestore for authenticated users only
-    if (!isAnonymous) {
-      const kwWithVols = result.keywords.filter((kw) => kw.monthlyVolumes && kw.monthlyVolumes.length > 0);
-      functions.logger.info(`Saving: ${result.keywords.length} keywords, ${kwWithVols.length} with monthlyVolumes`);
-      const firestoreData = JSON.parse(JSON.stringify(result));
-      await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
-    } else {
-      functions.logger.info(`Anonymous search: ${result.keywords.length} keywords (not saved)`);
-    }
-
+    functions.logger.info(`Search complete: ${result.keywords.length} keywords (not saved — user selects and saves later)`);
     res.json(result);
   } catch (error: any) {
     functions.logger.error('Search pipeline error:', error.stack || error.message);
@@ -141,39 +132,68 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 });
 
 /**
- * POST /api/search/save-anonymous
- * Save anonymous search results to authenticated user's account
+ * POST /api/search/claim
+ * Claim a search — deducts credit and returns paid status (no Firestore save)
  */
-router.post('/save-anonymous', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId!;
-  const { result } = req.body;
+  try {
+    const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'claimed search');
+    if (!creditResult.allowed) {
+      res.status(402).json({ error: 'Insufficient credits', balance: creditResult.newBalance });
+      return;
+    }
+    const paid = !creditResult.isFreeSearch;
+    functions.logger.info(`Search claimed by user ${userId} (paid: ${paid})`);
+    res.json({ paid });
+  } catch (error: any) {
+    functions.logger.error('Claim error:', error.message);
+    res.status(500).json({ error: 'Failed to claim search' });
+  }
+});
 
-  if (!result || !result.keywords) {
-    res.status(400).json({ error: 'Invalid result data' });
+/**
+ * POST /api/search/save
+ * Save user-selected keywords to Firestore (max 200)
+ */
+router.post('/save', authMiddleware, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const { query, productLabel, url, budget, keywords, categories, clusters, marketIntelligence, metadata } = req.body;
+
+  if (!keywords || !Array.isArray(keywords)) {
+    res.status(400).json({ error: 'Keywords required' });
+    return;
+  }
+  if (keywords.length > 200) {
+    res.status(400).json({ error: 'Maximum 200 keywords per save' });
     return;
   }
 
   try {
-    // Deduct a free search
-    const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'saved anonymous search');
-    const paid = creditResult.allowed && !creditResult.isFreeSearch;
-
     const searchId = db.collection('users').doc().id;
     const savedResult = {
-      ...result,
       id: searchId,
-      paid,
+      query: query || '',
+      productLabel: productLabel || '',
+      url: url || '',
+      budget: budget || 0,
       createdAt: new Date().toISOString(),
+      paid: true,
+      keywords,
+      categories: categories || [],
+      clusters: clusters || [],
+      marketIntelligence: marketIntelligence || null,
+      metadata: { ...(metadata || {}), savedKeywordCount: keywords.length },
     };
 
     const firestoreData = JSON.parse(JSON.stringify(savedResult));
     await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
 
-    functions.logger.info(`Saved anonymous result: ${searchId} for user ${userId} (paid: ${paid})`);
-    res.json({ id: searchId, paid });
+    functions.logger.info(`Saved search: ${searchId} for user ${userId} (${keywords.length} keywords)`);
+    res.json({ id: searchId });
   } catch (error: any) {
-    functions.logger.error('Save anonymous error:', error.message);
-    res.status(500).json({ error: 'Failed to save results' });
+    functions.logger.error('Save search error:', error.message);
+    res.status(500).json({ error: 'Failed to save search' });
   }
 });
 
