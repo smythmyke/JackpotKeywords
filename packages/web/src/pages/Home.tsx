@@ -168,7 +168,7 @@ export default function Home() {
 
         <SearchForm mode="keyword" onSearch={handleSearch} loading={loading} />
 
-        {!user && (
+        {false && !user && (
           <p className="mt-3 text-gray-500 text-xs">
             No sign-up required. See results in 30 seconds.
           </p>

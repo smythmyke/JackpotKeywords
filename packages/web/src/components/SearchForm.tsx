@@ -43,7 +43,7 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-4">
       <div>
-        <label className="block text-sm text-gray-400 mb-2">
+        <label className="block text-base font-semibold text-white mb-2">
           {isKeywordMode ? 'Describe your product or service' : 'Describe your business idea'}
         </label>
         <textarea
@@ -69,7 +69,7 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
 
       {isKeywordMode && (
         <div>
-          <label className="block text-sm text-gray-400 mb-2">
+          <label className="block text-base font-semibold text-white mb-2">
             OR enter a URL
           </label>
           <input

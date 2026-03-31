@@ -47,7 +47,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   try {
     // Step 0: Extract structured product context
     functions.logger.info('Step 0: Extracting product context...');
-    const context = await extractProductContext(description, url);
+    const context = await extractProductContext(description, url, mode);
     functions.logger.info(`Step 0 done: "${context.productLabel}" — ${context.keyFeatures.length} features, ${context.competitors.length} competitors, ${context.painPoints.length} pain points`);
 
     // Step 1: AI seed generation
@@ -109,6 +109,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       paid,
       keywords: scored.keywords,
       categories: scored.categories,
+      clusters: scored.clusters,
       conceptReport: scored.conceptReport || undefined,
       metadata: {
         seedCount: seeds.allSeeds.length,

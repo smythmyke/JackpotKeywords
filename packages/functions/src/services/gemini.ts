@@ -8,7 +8,10 @@ import type {
   SearchMode,
   CompetitionLevel,
   ProductContext,
+  KeywordCluster,
 } from '@jackpotkeywords/shared';
+import { classifyIntent } from './intentClassifier';
+import { clusterKeywords } from './clustering';
 import {
   calculateAdScore,
   calculateSeoScore,
@@ -45,35 +48,40 @@ const EMPTY_CONTEXT: ProductContext = {
 export async function extractProductContext(
   description: string,
   url: string | undefined,
+  mode: SearchMode = 'keyword',
 ): Promise<ProductContext> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const prompt = `You are a product analyst. Extract structured information from the user's input about their product or service. If the user provides limited information, INFER what you can based on context — do not leave fields empty unless truly impossible to determine.
+  const isConcept = mode === 'concept';
 
-${url ? `Product URL: ${url}` : ''}
+  const prompt = `You are a product analyst. ${isConcept
+    ? 'The user is describing a BUSINESS IDEA or CONCEPT that may not exist yet. Infer as much as possible about what this product would look like, who would use it, and what already exists in this space.'
+    : 'Extract structured information from the user\'s input about their product or service.'} If the user provides limited information, INFER what you can based on context — do not leave fields empty unless truly impossible to determine.
+
+${url ? `${isConcept ? 'Reference URL' : 'Product URL'}: ${url}` : ''}
 ${description ? `User's description: "${description}"` : ''}
 
 Extract the following and return ONLY valid JSON, no markdown:
 
 {
-  "productName": "The product's name if mentioned, otherwise a short descriptive name",
-  "productLabel": "3-5 word label describing what this product is",
-  "whatItDoes": "1-2 sentence summary of the product's core function",
-  "targetAudience": ["who uses this — roles, job titles, or user types"],
-  "keyFeatures": ["each distinct feature as a short phrase"],
-  "painPoints": ["specific problems/frustrations this product solves — what users struggled with BEFORE this product"],
-  "competitors": ["names of REAL products/tools that solve the same core problem — search your knowledge thoroughly, these must be actual products that exist"],
-  "differentiators": ["what makes this product different from competitors"],
-  "useCases": ["specific scenarios or workflows where someone would use this"],
-  "industryNiche": ["industries, verticals, or sub-niches this serves"],
-  "benefits": ["outcomes and results users get — not features, but the VALUE of features"],
+  "productName": "${isConcept ? 'A short name for this concept/idea (invent one if not provided)' : 'The product\'s name if mentioned, otherwise a short descriptive name'}",
+  "productLabel": "3-5 word label describing what this ${isConcept ? 'concept' : 'product'} is",
+  "whatItDoes": "1-2 sentence summary of ${isConcept ? 'what this product would do' : 'the product\'s core function'}",
+  "targetAudience": ["who ${isConcept ? 'would use' : 'uses'} this — roles, job titles, or user types"],
+  "keyFeatures": ["${isConcept ? 'features this product would likely need' : 'each distinct feature as a short phrase'}"],
+  "painPoints": ["specific problems/frustrations this ${isConcept ? 'idea' : 'product'} solves — what users ${isConcept ? 'currently struggle with' : 'struggled with BEFORE this product'}"],
+  "competitors": ["names of REAL products/tools that ${isConcept ? 'already exist in this space or solve similar problems' : 'solve the same core problem'} — search your knowledge thoroughly, these must be actual products that exist"],
+  "differentiators": ["${isConcept ? 'what would make this concept unique vs existing solutions' : 'what makes this product different from competitors'}"],
+  "useCases": ["specific scenarios or workflows where someone would ${isConcept ? 'need this type of tool' : 'use this'}"],
+  "industryNiche": ["industries, verticals, or sub-niches this ${isConcept ? 'would serve' : 'serves'}"],
+  "benefits": ["outcomes and results users ${isConcept ? 'would get' : 'get'} — not features, but the VALUE of features"],
   "relatedTopics": ["adjacent topics, complementary tools, or related interests the same audience has"]
 }
 
 RULES:
 - Every array should have at least 2-3 items. Infer from context if the user didn't explicitly state them.
-- For competitors: find tools that solve the SAME specific problem, not general-purpose tools. These must be real products you know exist.
-- For painPoints: think about what the user experienced BEFORE this product existed — the frustration that drives someone to search.
+- For competitors: find tools that solve the SAME specific problem, not general-purpose tools. These must be real products you know exist.${isConcept ? ' For a new concept, find ALL existing products that overlap with this idea — this is critical for market validation.' : ''}
+- For painPoints: think about what the user ${isConcept ? 'would be solving — what frustration drives someone to search for this type of solution' : 'experienced BEFORE this product existed — the frustration that drives someone to search'}.
 - For benefits: translate features into outcomes. "auto-detects audio" → "never go live with broken audio".
 - For relatedTopics: what else does this audience search for? Complementary tools, adjacent workflows.`;
 
@@ -294,9 +302,10 @@ export async function scoreAndClassify(
 ): Promise<{
   keywords: KeywordResult[];
   categories: CategorySummary[];
+  clusters: KeywordCluster[];
   conceptReport?: ConceptReport;
 }> {
-  // Score each keyword
+  // Score each keyword and classify intent
   const scored = keywords.map((kw) => {
     const adScore = calculateAdScore(
       kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
@@ -322,6 +331,7 @@ export async function scoreAndClassify(
       seoScore,
       budgetFit,
       clicksPerDay,
+      intent: classifyIntent(kw.keyword, kw.category as KeywordCategory),
     };
   });
 
@@ -356,13 +366,68 @@ export async function scoreAndClassify(
     });
   }
 
+  // Generate clusters
+  functions.logger.info('Clustering keywords...');
+  const rawClusters = clusterKeywords(scored);
+
+  // Name clusters via Gemini
+  let clusters: KeywordCluster[] = rawClusters;
+  if (rawClusters.length > 0) {
+    try {
+      clusters = await nameClustersBatch(rawClusters);
+      functions.logger.info(`Named ${clusters.length} clusters`);
+    } catch (err: any) {
+      functions.logger.warn(`Cluster naming failed, using defaults: ${err.message}`);
+    }
+  }
+
+  // Add cluster counts to category summaries
+  for (const cat of categories) {
+    cat.clusterCount = clusters.filter((c) => c.category === cat.category).length;
+  }
+
   // Generate concept report if in concept mode
   let conceptReport: ConceptReport | undefined;
   if (mode === 'concept') {
     conceptReport = await generateConceptReport(scored, description, budget);
   }
 
-  return { keywords: scored, categories, conceptReport };
+  return { keywords: scored, categories, clusters, conceptReport };
+}
+
+/**
+ * Name all clusters in a single Gemini call
+ */
+async function nameClustersBatch(
+  clusters: KeywordCluster[],
+): Promise<KeywordCluster[]> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const groupList = clusters.map((c, i) =>
+    `Group ${i}: [${c.keywordKeys.slice(0, 8).map((k) => `"${k}"`).join(', ')}]`,
+  ).join('\n');
+
+  const prompt = `Name each keyword group with a short descriptive label (2-4 words). The name should describe the common topic/theme. Return ONLY valid JSON, no markdown.
+
+${groupList}
+
+Return JSON format:
+[
+  { "id": 0, "name": "Example Topic Name" },
+  ...
+]`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+
+  if (!jsonMatch) return clusters;
+
+  const names = JSON.parse(jsonMatch[0]);
+  return clusters.map((c, i) => ({
+    ...c,
+    name: names.find((n: any) => n.id === i)?.name || c.name,
+  }));
 }
 
 async function generateConceptReport(

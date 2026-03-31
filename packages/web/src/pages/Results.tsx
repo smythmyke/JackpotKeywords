@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
-import { CATEGORY_LABELS } from '@jackpotkeywords/shared';
-import type { KeywordCategory, KeywordResult, SearchResult } from '@jackpotkeywords/shared';
+import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
+import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
 import { getSearchResult, refineSearch, saveAnonymousResult } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
@@ -9,6 +9,7 @@ import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
 import TrendArrow from '../components/TrendArrow';
 import KeywordPanel from '../components/KeywordPanel';
+import IntentBadge from '../components/IntentBadge';
 import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
 
 const ALL_CATEGORIES: KeywordCategory[] = [
@@ -87,6 +88,9 @@ export default function Results() {
   const [filterComp, setFilterComp] = useState<string | null>(null);
   const [filterTrend, setFilterTrend] = useState<string | null>(null);
   const [filterScore, setFilterScore] = useState<number | null>(null);
+  const [filterIntent, setFilterIntent] = useState<SearchIntent | null>(null);
+  const [viewMode, setViewMode] = useState<'keywords' | 'clusters'>('keywords');
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showAdsModal, setShowAdsModal] = useState(false);
   const [refineInput, setRefineInput] = useState('');
@@ -105,7 +109,7 @@ export default function Results() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const activeFilterCount = [filterVolume, filterCpc, filterComp, filterTrend, filterScore].filter((f) => f !== null).length;
+  const activeFilterCount = [filterVolume, filterCpc, filterComp, filterTrend, filterScore, filterIntent].filter((f) => f !== null).length;
 
   const clearAllFilters = () => {
     setFilterVolume(null);
@@ -113,6 +117,7 @@ export default function Results() {
     setFilterComp(null);
     setFilterTrend(null);
     setFilterScore(null);
+    setFilterIntent(null);
   };
 
   const resetAll = () => {
@@ -136,18 +141,21 @@ export default function Results() {
     sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
 
   useEffect(() => {
-    // Anonymous results — load from location state
+    // Check for results passed via location state (anonymous or redirected after save)
+    const stateResult = (location.state as any)?.result;
+    if (stateResult) {
+      setResult(stateResult);
+      const firstWithData = ALL_CATEGORIES.find(
+        (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
+      );
+      if (firstWithData) setActiveCategory(firstWithData);
+      setLoading(false);
+      return;
+    }
+
+    // Anonymous with no state — results expired
     if (isAnonymous) {
-      const stateResult = (location.state as any)?.result;
-      if (stateResult) {
-        setResult(stateResult);
-        const firstWithData = ALL_CATEGORIES.find(
-          (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
-        );
-        if (firstWithData) setActiveCategory(firstWithData);
-      } else {
-        setError('Results expired. Please run a new search.');
-      }
+      setError('Results expired. Please run a new search.');
       setLoading(false);
       return;
     }
@@ -195,7 +203,7 @@ export default function Results() {
           return;
         }
         const { id } = await saveAnonymousResult(token, result!);
-        navigate(`/results/${id}`, { replace: true });
+        navigate(`/results/${id}`, { replace: true, state: { result: { ...result!, id, paid: true } } });
       } catch (err: any) {
         console.error('Failed to save anonymous results:', err.message);
         setError('Could not save results to your account. You can still view them below.');
@@ -287,6 +295,7 @@ export default function Results() {
       const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
       if (score < filterScore) return false;
     }
+    if (filterIntent !== null && kw.intent !== filterIntent) return false;
     return true;
   });
 
@@ -299,6 +308,7 @@ export default function Results() {
       case 'volume': av = a.avgMonthlySearches; bv = b.avgMonthlySearches; break;
       case 'cpc': av = a.highCpc; bv = b.highCpc; break;
       case 'comp': av = a.competition; bv = b.competition; break;
+      case 'intent': av = a.intent || ''; bv = b.intent || ''; break;
       case 'score': av = scoreView === 'ad' ? a.adScore : a.seoScore; bv = scoreView === 'ad' ? b.adScore : b.seoScore; break;
       default: av = scoreView === 'ad' ? a.adScore : a.seoScore; bv = scoreView === 'ad' ? b.adScore : b.seoScore;
     }
@@ -365,6 +375,30 @@ export default function Results() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {result.clusters && result.clusters.length > 0 && (
+            <div className="flex bg-gray-800 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('keywords')}
+                className={`px-3 py-1.5 rounded-md text-sm transition ${
+                  viewMode === 'keywords'
+                    ? 'bg-jackpot-500 text-black font-medium'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Keywords
+              </button>
+              <button
+                onClick={() => setViewMode('clusters')}
+                className={`px-3 py-1.5 rounded-md text-sm transition ${
+                  viewMode === 'clusters'
+                    ? 'bg-jackpot-500 text-black font-medium'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Clusters
+              </button>
+            </div>
+          )}
           <div className="flex bg-gray-800 rounded-lg p-0.5">
             <button
               onClick={() => setScoreView('ad')}
@@ -452,7 +486,12 @@ export default function Results() {
             }`}
           >
             <div className="truncate">{CATEGORY_LABELS[cat]}</div>
-            <div className="text-xs opacity-60 mt-0.5">{categoryCounts[cat]} keywords</div>
+            <div className="text-xs opacity-60 mt-0.5">
+              {categoryCounts[cat]} keywords
+              {result.clusters && result.clusters.filter((c) => c.category === cat).length > 0 && (
+                <span> &middot; {result.clusters.filter((c) => c.category === cat).length} clusters</span>
+              )}
+            </div>
           </button>
         ))}
       </div>
@@ -550,6 +589,18 @@ export default function Results() {
           <option value="60">60+</option>
           <option value="50">50+</option>
         </select>
+        <div className="w-px h-6 bg-gray-700" />
+        <select
+          value={filterIntent ?? ''}
+          onChange={(e) => { setFilterIntent(e.target.value ? e.target.value as SearchIntent : null); setVisibleCount(50); }}
+          className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterIntent !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
+        >
+          <option value="">Intent: Any</option>
+          <option value="commercial">Commercial</option>
+          <option value="transactional">Transactional</option>
+          <option value="informational">Informational</option>
+          <option value="navigational">Navigational</option>
+        </select>
         {activeFilterCount > 0 && (
           <button onClick={resetAll} className="ml-auto text-xs text-gray-500 hover:text-white transition">
             Clear all ({activeFilterCount} active)
@@ -590,8 +641,211 @@ export default function Results() {
         </div>
       )}
 
+      {/* Cluster View */}
+      {viewMode === 'clusters' && result.clusters && (
+        <div className="space-y-3">
+          {(() => {
+            const categoryClusters = result.clusters
+              .filter((c) => c.category === activeCategory)
+              .map((cluster) => {
+                // Get keywords for this cluster and apply filters
+                const clusterKws = allKeywords.filter(
+                  (kw) => cluster.keywordKeys.includes(kw.keyword) && kw.category === activeCategory,
+                );
+                const filtered = clusterKws.filter((kw) => {
+                  if (filterVolume !== null && kw.avgMonthlySearches < filterVolume) return false;
+                  if (filterCpc !== null && kw.highCpc > filterCpc) return false;
+                  if (filterComp !== null && kw.competition !== filterComp) return false;
+                  if (filterTrend !== null) {
+                    if (filterTrend === 'rising' && kw.trendDirection !== 'rising' && kw.trendDirection !== 'rising_slight') return false;
+                    if (filterTrend === 'stable' && kw.trendDirection !== 'stable') return false;
+                    if (filterTrend === 'declining' && kw.trendDirection !== 'declining' && kw.trendDirection !== 'declining_slight') return false;
+                  }
+                  if (filterScore !== null) {
+                    const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
+                    if (score < filterScore) return false;
+                  }
+                  if (filterIntent !== null && kw.intent !== filterIntent) return false;
+                  return true;
+                });
+                const sorted = [...filtered].sort((a, b) => {
+                  const av = scoreView === 'ad' ? a.adScore : a.seoScore;
+                  const bv = scoreView === 'ad' ? b.adScore : b.seoScore;
+                  return bv - av;
+                });
+                const totalVol = filtered.reduce((s, k) => s + k.avgMonthlySearches, 0);
+                const avgCpc = filtered.length > 0
+                  ? filtered.reduce((s, k) => s + (k.lowCpc + k.highCpc) / 2, 0) / filtered.length
+                  : 0;
+                const bestScore = filtered.length > 0
+                  ? Math.max(...filtered.map((k) => scoreView === 'ad' ? k.adScore : k.seoScore))
+                  : 0;
+                return { cluster, keywords: sorted, totalVol, avgCpc, bestScore, visibleCount: filtered.length };
+              })
+              .filter((c) => c.visibleCount > 0)
+              .sort((a, b) => {
+                // Jackpot clusters first, then by best score
+                if (a.cluster.isJackpot !== b.cluster.isJackpot) return a.cluster.isJackpot ? -1 : 1;
+                return b.bestScore - a.bestScore;
+              });
+
+            if (categoryClusters.length === 0) {
+              return (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl py-16 text-center text-gray-500">
+                  {activeFilterCount > 0 ? 'No clusters match your filters.' : 'No clusters in this category.'}
+                </div>
+              );
+            }
+
+            const isExpanded = (id: string) => expandedClusters.has(id);
+            const toggleCluster = (id: string) => {
+              setExpandedClusters((prev) => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              });
+            };
+            const toggleClusterSelect = (keywords: KeywordResult[]) => {
+              const kwNames = keywords.map((k) => k.keyword);
+              const allSelected = kwNames.every((k) => selectedKeywords.has(k));
+              setSelectedKeywords((prev) => {
+                const next = new Set(prev);
+                for (const k of kwNames) {
+                  if (allSelected) next.delete(k);
+                  else next.add(k);
+                }
+                return next;
+              });
+            };
+
+            return categoryClusters.map(({ cluster, keywords: clusterKws, totalVol, avgCpc, bestScore }) => (
+              <div
+                key={cluster.id}
+                className={`bg-gray-900 border rounded-xl overflow-hidden ${
+                  cluster.isJackpot
+                    ? 'border-l-[3px] border-l-jackpot-500 border-gray-800'
+                    : 'border-gray-800'
+                }`}
+              >
+                {/* Cluster header */}
+                <div
+                  className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-800/30 transition ${
+                    cluster.isJackpot ? 'bg-gradient-to-r from-jackpot-500/[0.04] to-transparent' : ''
+                  }`}
+                  onClick={() => toggleCluster(cluster.id)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={clusterKws.length > 0 && clusterKws.every((k) => selectedKeywords.has(k.keyword))}
+                      onClick={(e) => { e.stopPropagation(); toggleClusterSelect(clusterKws); }}
+                      onChange={() => {}}
+                      className="w-4 h-4 rounded border-gray-600 bg-gray-800 cursor-pointer accent-amber-500 flex-shrink-0"
+                    />
+                    <span className="font-semibold text-white text-sm truncate">{cluster.name}</span>
+                    <span className="text-[11px] text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full flex-shrink-0">
+                      {clusterKws.length} keywords
+                    </span>
+                    {cluster.dominantIntent && <IntentBadge intent={cluster.dominantIntent} />}
+                  </div>
+                  <div className="flex items-center gap-5 text-xs text-gray-400 flex-shrink-0 ml-4">
+                    <div className="hidden sm:block">Vol: <span className="text-white font-medium font-mono">{totalVol.toLocaleString()}/mo</span></div>
+                    <div className="hidden sm:block">CPC: <span className="text-white font-medium font-mono">${avgCpc.toFixed(2)}</span></div>
+                    <JackpotScore score={bestScore} size="sm" />
+                    <span className={`text-lg transition-transform ${isExpanded(cluster.id) ? 'rotate-180' : ''}`}>
+                      &#9660;
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expanded cluster body */}
+                {isExpanded(cluster.id) && (
+                  <div className="border-t border-gray-800">
+                    {/* Desktop table */}
+                    <div className="hidden md:block">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-800 text-gray-500">
+                            <th className="w-10 px-3 py-2"><input type="checkbox" checked={clusterKws.every((k) => selectedKeywords.has(k.keyword))} onChange={() => toggleClusterSelect(clusterKws)} className="w-4 h-4 rounded border-gray-600 bg-gray-800 cursor-pointer accent-amber-500" /></th>
+                            <th className="text-left px-4 py-2 font-medium text-xs">Keyword</th>
+                            <th className="text-center px-3 py-2 font-medium text-xs w-16">Intent</th>
+                            <th className="text-right px-4 py-2 font-medium text-xs w-24">Volume</th>
+                            <th className="text-right px-4 py-2 font-medium text-xs w-28">CPC Range</th>
+                            <th className="text-center px-3 py-2 font-medium text-xs w-16">Comp</th>
+                            <th className="text-center px-3 py-2 font-medium text-xs w-20">Trend</th>
+                            <th className="text-center px-3 py-2 font-medium text-xs w-20">Score</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {clusterKws.map((kw, i) => (
+                            <tr
+                              key={i}
+                              className={`border-b border-gray-800/30 hover:bg-gray-800/30 ${
+                                (scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75
+                                  ? 'border-l-[3px] border-l-jackpot-500 jackpot-row'
+                                  : ''
+                              } ${selectedKeywords.has(kw.keyword) ? '!bg-jackpot-500/[0.07]' : ''}`}
+                            >
+                              <td className="w-10 px-3 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedKeywords.has(kw.keyword)}
+                                  onClick={(e) => toggleSelect(kw.keyword, e)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 cursor-pointer accent-amber-500"
+                                />
+                              </td>
+                              <td className="px-4 py-2"><MaskedKeyword keyword={kw.keyword} paid={paid} /></td>
+                              <td className="px-3 py-2 text-center">{kw.intent && <IntentBadge intent={kw.intent} />}</td>
+                              <td className="px-4 py-2 text-right text-white font-mono text-xs">{kw.avgMonthlySearches.toLocaleString()}/mo</td>
+                              <td className="px-4 py-2 text-right text-gray-300 font-mono text-xs">${kw.lowCpc.toFixed(2)}-${kw.highCpc.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`text-xs font-medium ${kw.competition === 'LOW' ? 'text-score-green' : kw.competition === 'MEDIUM' ? 'text-score-yellow' : 'text-score-red'}`}>{kw.competition}</span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {kw.trendDirection ? <TrendArrow direction={kw.trendDirection} info={kw.trendInfo} /> : <span className="text-gray-600">-</span>}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <JackpotScore score={scoreView === 'ad' ? kw.adScore : kw.seoScore} size="sm" />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Mobile cards */}
+                    <div className="md:hidden space-y-1 p-2">
+                      {clusterKws.map((kw, i) => (
+                        <div key={i} className={`bg-gray-800/30 rounded-lg p-3 ${(scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75 ? 'border-l-[3px] border-l-jackpot-500' : ''}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <MaskedKeyword keyword={kw.keyword} paid={paid} />
+                            <JackpotScore score={scoreView === 'ad' ? kw.adScore : kw.seoScore} size="sm" />
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            <span className="font-mono">{kw.avgMonthlySearches.toLocaleString()}/mo</span>
+                            <span className={`font-medium ${kw.competition === 'LOW' ? 'text-score-green' : kw.competition === 'MEDIUM' ? 'text-score-yellow' : 'text-score-red'}`}>{kw.competition}</span>
+                            {kw.intent && <IntentBadge intent={kw.intent} />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Cluster summary */}
+                    <div className="flex gap-6 px-4 py-2.5 bg-gray-950/50 border-t border-gray-800 text-xs text-gray-500">
+                      <div>Combined volume: <span className="text-jackpot-400 font-medium">{totalVol.toLocaleString()}/mo</span></div>
+                      <div>Avg CPC: <span className="text-white font-medium">${avgCpc.toFixed(2)}</span></div>
+                      <div>{clusterKws.filter((k) => k.competition === 'LOW').length} LOW / {clusterKws.filter((k) => k.competition === 'MEDIUM').length} MED / {clusterKws.filter((k) => k.competition === 'HIGH').length} HIGH</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ));
+          })()}
+        </div>
+      )}
+
       {/* Keywords */}
-      <div className="space-y-2">
+      {viewMode === 'keywords' && <div className="space-y-2">
         {displayKeywords.length === 0 && (
           <div className="bg-gray-900 border border-gray-800 rounded-xl py-16 text-center text-gray-500">
             {activeFilterCount > 0 ? 'No keywords match your filters.' : 'No keywords in this category.'}
@@ -616,6 +870,9 @@ export default function Results() {
                     Keyword{sortIndicator('keyword')}
                   </th>
                   <th className="text-left px-4 py-3 font-medium w-20">Source</th>
+                  <th className="text-center px-4 py-3 font-medium w-20 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('intent')}>
+                    Intent{sortIndicator('intent')}
+                  </th>
                   <th className="text-right px-4 py-3 font-medium w-28 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('volume')}>
                     Volume{sortIndicator('volume')}
                   </th>
@@ -658,6 +915,9 @@ export default function Results() {
                       <td className="px-4 py-3">
                         <SourceBadge source={kw.source} />
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {kw.intent && <IntentBadge intent={kw.intent} />}
+                      </td>
                       <td className="px-4 py-3 text-right text-white font-mono">
                         {kw.avgMonthlySearches.toLocaleString()}/mo
                       </td>
@@ -689,7 +949,7 @@ export default function Results() {
                     </tr>
                     {expandedKeyword === kw.keyword && paid && (
                       <tr>
-                        <td colSpan={8} className="p-0">
+                        <td colSpan={9} className="p-0">
                           <KeywordPanel keyword={kw} relatedKeywords={getRelatedKeywords(kw)} selectedKeywords={selectedKeywords} onToggleSelect={(keyword) => setSelectedKeywords((prev) => { const next = new Set(prev); if (next.has(keyword)) next.delete(keyword); else next.add(keyword); return next; })} />
                         </td>
                       </tr>
@@ -757,8 +1017,11 @@ export default function Results() {
                     </div>
                     <div className="flex items-end gap-2">
                       <div>
-                        <span className="text-gray-500 text-xs">Source</span>
-                        <div><SourceBadge source={kw.source} /></div>
+                        <span className="text-gray-500 text-xs">Source / Intent</span>
+                        <div className="flex items-center gap-1">
+                          <SourceBadge source={kw.source} />
+                          {kw.intent && <IntentBadge intent={kw.intent} />}
+                        </div>
                       </div>
                       {kw.trendDirection && (
                         <TrendArrow direction={kw.trendDirection} info={kw.trendInfo} />
@@ -786,7 +1049,7 @@ export default function Results() {
           </div>
         )}
 
-      </div>
+      </div>}
 
       {/* Paywall CTA for free/anonymous users */}
       {!paid && !isAdmin && (

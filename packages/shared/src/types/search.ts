@@ -17,6 +17,14 @@ export type TrendDirection = 'rising' | 'rising_slight' | 'stable' | 'declining_
 export type CompetitionLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
 export type OpportunityType = 'quick_win' | 'long_term_seo' | 'ad_goldmine' | 'content_play' | 'expensive';
 export type BudgetFit = 'great' | 'tight' | 'over';
+export type SearchIntent = 'informational' | 'commercial' | 'transactional' | 'navigational';
+
+export const INTENT_LABELS: Record<SearchIntent, string> = {
+  informational: 'Info',
+  commercial: 'Comm',
+  transactional: 'Txn',
+  navigational: 'Nav',
+};
 
 export const CATEGORY_LABELS: Record<KeywordCategory, string> = {
   direct: 'Direct / Head Terms',
@@ -72,6 +80,7 @@ export interface KeywordResult {
   clicksPerDay?: number;
   suggestion?: string;
   monthlyVolumes?: { month: string; volume: number }[];
+  intent?: SearchIntent;
 }
 
 export interface CategorySummary {
@@ -86,6 +95,20 @@ export interface CategorySummary {
     medium: number;
     high: number;
   };
+  clusterCount?: number;
+}
+
+export interface KeywordCluster {
+  id: string;
+  name: string;
+  category: KeywordCategory;
+  keywordKeys: string[];
+  totalVolume: number;
+  avgCpc: number;
+  bestAdScore: number;
+  bestSeoScore: number;
+  dominantIntent: SearchIntent;
+  isJackpot: boolean;
 }
 
 export interface ConceptReport {
@@ -124,6 +147,7 @@ export interface SearchResult {
   paid: boolean;
   keywords: KeywordResult[];
   categories: CategorySummary[];
+  clusters?: KeywordCluster[];
   conceptReport?: ConceptReport;
   metadata: {
     seedCount: number;

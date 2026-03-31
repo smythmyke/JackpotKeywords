@@ -1,19 +1,35 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../contexts/AuthContext';
+import { runSearch } from '../services/api';
 import SearchForm from '../components/SearchForm';
 import SearchProgress from '../components/SearchProgress';
 
 export default function Validate() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user, getToken } = useAuthContext();
 
   const handleSearch = async (description: string, _url: string, budget?: number) => {
+    setError(null);
     setLoading(true);
     try {
-      // TODO: Call backend API with mode: 'concept'
-      await new Promise((r) => setTimeout(r, 5000));
-      navigate('/results/demo');
-    } catch {
+      const token = user ? await getToken() : null;
+
+      const result = await runSearch(token, {
+        description,
+        mode: 'concept',
+        budget,
+      });
+
+      if (result.id && user) {
+        navigate(`/results/${result.id}`);
+      } else {
+        navigate('/results/anonymous', { state: { result } });
+      }
+    } catch (err: any) {
+      setError(err.message);
       setLoading(false);
     }
   };
@@ -40,6 +56,12 @@ export default function Validate() {
           competition analysis, and related niches.
         </p>
       </div>
+
+      {error && (
+        <div className="w-full max-w-2xl mb-4 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm text-center">
+          {error}
+        </div>
+      )}
 
       <SearchForm mode="concept" onSearch={handleSearch} loading={loading} />
 
