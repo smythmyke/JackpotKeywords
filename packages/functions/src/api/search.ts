@@ -22,7 +22,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   const startTime = Date.now();
   const userId = req.userId;
   const isAnonymous = !userId;
-  const { description, url, mode, budget } = req.body as SearchRequest;
+  const { description, url, budget } = req.body as SearchRequest;
 
   if (!description?.trim() && !url?.trim()) {
     res.status(400).json({ error: 'Description or URL required' });
@@ -32,8 +32,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   // Step 0: Check and deduct credits (skip for anonymous)
   let creditResult = { allowed: true, newBalance: 0, isFreeSearch: true };
   if (!isAnonymous) {
-    const operation = mode === 'concept' ? 'concept_search' : 'keyword_search';
-    creditResult = await checkAndDeductCredits(userId, 1, operation, `${mode} search`);
+    creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'keyword search');
 
     if (!creditResult.allowed) {
       res.status(402).json({
@@ -47,12 +46,12 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   try {
     // Step 0: Extract structured product context
     functions.logger.info('Step 0: Extracting product context...');
-    const context = await extractProductContext(description, url, mode);
+    const context = await extractProductContext(description, url);
     functions.logger.info(`Step 0 done: "${context.productLabel}" — ${context.keyFeatures.length} features, ${context.competitors.length} competitors, ${context.painPoints.length} pain points`);
 
     // Step 1: AI seed generation
     functions.logger.info('Step 1: Generating seeds...');
-    const seeds = await generateSeeds(context, mode);
+    const seeds = await generateSeeds(context);
     functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
 
     // Step 1b: Autocomplete competitor discovery
@@ -84,7 +83,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 
     // Step 6: AI scoring and classification
     functions.logger.info('Step 6: Scoring and classifying...');
-    const scored = await scoreAndClassify(withTrends, description, mode, budget);
+    const scored = await scoreAndClassify(withTrends, budget);
     functions.logger.info(`Step 6 done: ${scored.keywords.length} scored keywords`);
 
     // Build result
@@ -103,14 +102,13 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       query: description,
       productLabel: seeds.productLabel,
       url: url || '',
-      mode,
+      mode: 'keyword',
       budget: budget || 0,
       createdAt: new Date().toISOString(),
       paid,
       keywords: scored.keywords,
       categories: scored.categories,
       clusters: scored.clusters,
-      conceptReport: scored.conceptReport || undefined,
       metadata: {
         seedCount: seeds.allSeeds.length,
         autocompleteCount: autocompleteKeywords.length,
@@ -171,8 +169,8 @@ router.post('/save-anonymous', authMiddleware, async (req: AuthRequest, res) => 
     const firestoreData = JSON.parse(JSON.stringify(savedResult));
     await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
 
-    functions.logger.info(`Saved anonymous result: ${searchId} for user ${userId}`);
-    res.json({ id: searchId });
+    functions.logger.info(`Saved anonymous result: ${searchId} for user ${userId} (paid: ${paid})`);
+    res.json({ id: searchId, paid });
   } catch (error: any) {
     functions.logger.error('Save anonymous error:', error.message);
     res.status(500).json({ error: 'Failed to save results' });

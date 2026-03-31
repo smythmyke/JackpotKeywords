@@ -1,5 +1,3 @@
-export type SearchMode = 'keyword' | 'concept';
-
 export type KeywordCategory =
   | 'direct'
   | 'feature'
@@ -57,7 +55,6 @@ export interface ProductContext {
 export interface SearchRequest {
   description: string;
   url?: string;
-  mode: SearchMode;
   budget?: number;
 }
 
@@ -141,7 +138,7 @@ export interface SearchResult {
   query: string;
   productLabel?: string;
   url?: string;
-  mode: SearchMode;
+  mode?: string;
   budget?: number;
   createdAt: string;
   paid: boolean;

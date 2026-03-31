@@ -27,7 +27,7 @@ export async function initUser(token: string) {
 
 export async function runSearch(
   token: string | null,
-  params: { description: string; url?: string; mode: 'keyword' | 'concept'; budget?: number },
+  params: { description: string; url?: string; budget?: number },
 ): Promise<SearchResult> {
   return apiFetch('/api/search', token, {
     method: 'POST',
@@ -46,7 +46,7 @@ export async function listSearches(token: string) {
 export async function saveAnonymousResult(
   token: string,
   result: SearchResult,
-): Promise<{ id: string }> {
+): Promise<{ id: string; paid: boolean }> {
   return apiFetch('/api/search/save-anonymous', token, {
     method: 'POST',
     body: JSON.stringify({ result }),

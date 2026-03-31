@@ -4,8 +4,6 @@ import type {
   KeywordCategory,
   KeywordResult,
   CategorySummary,
-  ConceptReport,
-  SearchMode,
   CompetitionLevel,
   ProductContext,
   KeywordCluster,
@@ -48,40 +46,35 @@ const EMPTY_CONTEXT: ProductContext = {
 export async function extractProductContext(
   description: string,
   url: string | undefined,
-  mode: SearchMode = 'keyword',
 ): Promise<ProductContext> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const isConcept = mode === 'concept';
+  const prompt = `You are a product analyst. The user is describing a product, service, or business idea. It may be an existing product or an early-stage concept that doesn't exist yet. Extract as much structured information as possible, inferring where the user hasn't been explicit — do not leave fields empty unless truly impossible to determine.
 
-  const prompt = `You are a product analyst. ${isConcept
-    ? 'The user is describing a BUSINESS IDEA or CONCEPT that may not exist yet. Infer as much as possible about what this product would look like, who would use it, and what already exists in this space.'
-    : 'Extract structured information from the user\'s input about their product or service.'} If the user provides limited information, INFER what you can based on context — do not leave fields empty unless truly impossible to determine.
-
-${url ? `${isConcept ? 'Reference URL' : 'Product URL'}: ${url}` : ''}
+${url ? `Product/Reference URL: ${url}` : ''}
 ${description ? `User's description: "${description}"` : ''}
 
 Extract the following and return ONLY valid JSON, no markdown:
 
 {
-  "productName": "${isConcept ? 'A short name for this concept/idea (invent one if not provided)' : 'The product\'s name if mentioned, otherwise a short descriptive name'}",
-  "productLabel": "3-5 word label describing what this ${isConcept ? 'concept' : 'product'} is",
-  "whatItDoes": "1-2 sentence summary of ${isConcept ? 'what this product would do' : 'the product\'s core function'}",
-  "targetAudience": ["who ${isConcept ? 'would use' : 'uses'} this — roles, job titles, or user types"],
-  "keyFeatures": ["${isConcept ? 'features this product would likely need' : 'each distinct feature as a short phrase'}"],
-  "painPoints": ["specific problems/frustrations this ${isConcept ? 'idea' : 'product'} solves — what users ${isConcept ? 'currently struggle with' : 'struggled with BEFORE this product'}"],
-  "competitors": ["names of REAL products/tools that ${isConcept ? 'already exist in this space or solve similar problems' : 'solve the same core problem'} — search your knowledge thoroughly, these must be actual products that exist"],
-  "differentiators": ["${isConcept ? 'what would make this concept unique vs existing solutions' : 'what makes this product different from competitors'}"],
-  "useCases": ["specific scenarios or workflows where someone would ${isConcept ? 'need this type of tool' : 'use this'}"],
-  "industryNiche": ["industries, verticals, or sub-niches this ${isConcept ? 'would serve' : 'serves'}"],
-  "benefits": ["outcomes and results users ${isConcept ? 'would get' : 'get'} — not features, but the VALUE of features"],
+  "productName": "The product's name if mentioned, otherwise invent a short descriptive name",
+  "productLabel": "3-5 word label describing what this product/concept is",
+  "whatItDoes": "1-2 sentence summary of what this product does or would do",
+  "targetAudience": ["who uses or would use this — roles, job titles, or user types"],
+  "keyFeatures": ["each distinct feature as a short phrase — infer likely features if not stated"],
+  "painPoints": ["specific problems/frustrations this solves — what users struggle with without this product"],
+  "competitors": ["names of REAL products/tools that already exist in this space or solve similar problems — search your knowledge thoroughly, find ALL overlapping products"],
+  "differentiators": ["what makes or would make this product different from competitors"],
+  "useCases": ["specific scenarios or workflows where someone would need this"],
+  "industryNiche": ["industries, verticals, or sub-niches this serves"],
+  "benefits": ["outcomes and results users get — not features, but the VALUE of features"],
   "relatedTopics": ["adjacent topics, complementary tools, or related interests the same audience has"]
 }
 
 RULES:
 - Every array should have at least 2-3 items. Infer from context if the user didn't explicitly state them.
-- For competitors: find tools that solve the SAME specific problem, not general-purpose tools. These must be real products you know exist.${isConcept ? ' For a new concept, find ALL existing products that overlap with this idea — this is critical for market validation.' : ''}
-- For painPoints: think about what the user ${isConcept ? 'would be solving — what frustration drives someone to search for this type of solution' : 'experienced BEFORE this product existed — the frustration that drives someone to search'}.
+- For competitors: find tools that solve the SAME specific problem, not general-purpose tools. These must be real products you know exist.
+- For painPoints: think about what users experience WITHOUT this product — the frustration that drives someone to search for a solution.
 - For benefits: translate features into outcomes. "auto-detects audio" → "never go live with broken audio".
 - For relatedTopics: what else does this audience search for? Complementary tools, adjacent workflows.`;
 
@@ -122,7 +115,6 @@ RULES:
  */
 export async function generateSeeds(
   context: ProductContext,
-  mode: SearchMode,
 ): Promise<SeedResult> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -137,33 +129,7 @@ Industry/niche: ${context.industryNiche.join(', ') || 'not specified'}
 Benefits/outcomes: ${context.benefits.join(', ') || 'not specified'}
 Related topics: ${context.relatedTopics.join(', ') || 'not specified'}`;
 
-  const prompt = mode === 'concept'
-    ? `You are a market research analyst. Analyze this product and generate keyword seeds to assess market demand and competition.
-
-${contextBlock}
-
-Generate 40-65 keyword seeds across these 10 categories. Return ONLY valid JSON, no markdown.
-
-Categories:
-1. direct (3-5 seeds) - Short head terms describing the product/service category
-2. feature (5-10 seeds) - Keywords for specific features listed above — generate a searchable phrase for EACH feature
-3. problem (5-8 seeds) - How-to and pain-point queries from the pain points listed above
-4. audience (3-5 seeds) - Keywords identifying each target user type listed above
-5. competitor_brand (5-10 seeds) - The competitors listed above PLUS any others you know of
-6. competitor_alt (3-5 seeds) - "[competitor] alternative", "vs", "best" comparison terms using competitors above
-7. use_case (3-5 seeds) - Keywords for each use case listed above
-8. niche (3-5 seeds) - Industry-specific terms from the niches listed above
-9. benefit (3-5 seeds) - Outcome-focused keywords from the benefits listed above
-10. adjacent (3-5 seeds) - Keywords for the related topics listed above
-
-Return JSON format:
-{
-  "seeds": [
-    { "keyword": "example keyword", "category": "direct" },
-    ...
-  ]
-}`
-    : `You are an expert keyword researcher. Your job is to generate HIGHLY RELEVANT keyword seeds based on the structured product analysis below.
+  const prompt = `You are an expert keyword researcher. Your job is to generate HIGHLY RELEVANT keyword seeds based on the structured product analysis below. The product may be an existing tool or a business idea/concept — either way, generate keywords that real people would search for.
 
 ${contextBlock}
 
@@ -296,14 +262,11 @@ Return ONLY valid JSON, no markdown:
  */
 export async function scoreAndClassify(
   keywords: KeywordResult[],
-  description: string,
-  mode: SearchMode,
   budget?: number,
 ): Promise<{
   keywords: KeywordResult[];
   categories: CategorySummary[];
   clusters: KeywordCluster[];
-  conceptReport?: ConceptReport;
 }> {
   // Score each keyword and classify intent
   const scored = keywords.map((kw) => {
@@ -386,13 +349,7 @@ export async function scoreAndClassify(
     cat.clusterCount = clusters.filter((c) => c.category === cat.category).length;
   }
 
-  // Generate concept report if in concept mode
-  let conceptReport: ConceptReport | undefined;
-  if (mode === 'concept') {
-    conceptReport = await generateConceptReport(scored, description, budget);
-  }
-
-  return { keywords: scored, categories, clusters, conceptReport };
+  return { keywords: scored, categories, clusters };
 }
 
 /**
@@ -428,87 +385,6 @@ Return JSON format:
     ...c,
     name: names.find((n: any) => n.id === i)?.name || c.name,
   }));
-}
-
-async function generateConceptReport(
-  keywords: KeywordResult[],
-  description: string,
-  budget?: number,
-): Promise<ConceptReport> {
-  const totalVolume = keywords.reduce((sum, k) => sum + k.avgMonthlySearches, 0);
-  const avgCpc = keywords.reduce((sum, k) => sum + (k.lowCpc + k.highCpc) / 2, 0) / keywords.length;
-  const lowComp = keywords.filter((k) => k.competition === 'LOW').length;
-  const medComp = keywords.filter((k) => k.competition === 'MEDIUM').length;
-  const highComp = keywords.filter((k) => k.competition === 'HIGH').length;
-  const quickWins = keywords.filter((k) => k.adScore >= 75).length;
-  const contentPlays = keywords.filter((k) => k.seoScore >= 60 && k.adScore < 75).length;
-  const goldmines = keywords.filter((k) => (k.lowCpc + k.highCpc) / 2 < 1 && k.avgMonthlySearches >= 100).length;
-  const expensive = keywords.filter((k) => k.adScore < 30).length;
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-  const prompt = `You are a market analyst. Based on keyword research data, write a brief verdict (2-3 sentences) for this business concept.
-
-Concept: "${description}"
-Total keywords found: ${keywords.length}
-Total addressable monthly searches: ${totalVolume.toLocaleString()}
-Average CPC: $${avgCpc.toFixed(2)}
-Competition: ${lowComp} LOW, ${medComp} MEDIUM, ${highComp} HIGH
-Quick win keywords (score 75+): ${quickWins}
-Ad goldmines (< $1 CPC, 100+ vol): ${goldmines}
-
-Give a demand score 0-100 and a short verdict. Return ONLY JSON:
-{
-  "demandScore": 78,
-  "verdict": "Your verdict here",
-  "relatedNiches": [
-    { "name": "related niche name", "volume": 1000, "cpc": 0.50 }
-  ]
-}`;
-
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { demandScore: 50, verdict: 'Analysis unavailable', relatedNiches: [] };
-
-  const report: ConceptReport = {
-    demandScore: parsed.demandScore,
-    totalAddressableSearches: totalVolume,
-    competitionAssessment: `${Math.round(lowComp / keywords.length * 100)}% LOW, ${Math.round(medComp / keywords.length * 100)}% MEDIUM, ${Math.round(highComp / keywords.length * 100)}% HIGH`,
-    opportunityBreakdown: {
-      quickWins,
-      contentOpportunities: contentPlays,
-      adGoldmines: goldmines,
-      expensiveSaturated: expensive,
-    },
-    relatedNiches: parsed.relatedNiches || [],
-    verdict: parsed.verdict,
-  };
-
-  if (budget) {
-    const affordable = keywords.filter((k) => {
-      const avgCpc = (k.lowCpc + k.highCpc) / 2;
-      const dailyBudget = budget / 30;
-      return avgCpc > 0 && dailyBudget / avgCpc >= 10;
-    }).length;
-    const affordableGoldmines = keywords.filter((k) => {
-      const avgCpc = (k.lowCpc + k.highCpc) / 2;
-      const dailyBudget = budget / 30;
-      return k.adScore >= 80 && avgCpc > 0 && dailyBudget / avgCpc >= 10;
-    }).length;
-
-    report.budgetAnalysis = {
-      affordableKeywords: affordable,
-      totalKeywords: keywords.length,
-      affordableGoldmines,
-      bestValueKeyword: keywords.filter((k) => k.adScore >= 80)[0]?.keyword || 'N/A',
-      budgetVerdict: affordable > keywords.length * 0.3
-        ? 'Strong ROI potential — many goldmine keywords are affordable at this budget level'
-        : 'Budget is tight — focus on the top goldmine keywords for maximum impact',
-    };
-  }
-
-  return report;
 }
 
 const REFINE_PROMPTS: Record<string, string> = {

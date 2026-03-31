@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import type { SearchMode } from '@jackpotkeywords/shared';
 
 interface SearchFormProps {
-  mode: SearchMode;
   onSearch: (description: string, url: string, budget?: number) => void;
   loading?: boolean;
 }
@@ -15,7 +13,7 @@ const BUDGET_PRESETS = [
   { label: '$1000+/mo', value: 1500 },
 ];
 
-export default function SearchForm({ mode, onSearch, loading }: SearchFormProps) {
+export default function SearchForm({ onSearch, loading }: SearchFormProps) {
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
   const [budget, setBudget] = useState<number | undefined>();
@@ -31,12 +29,9 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
     onSearch(description, normalizedUrl, budget);
   };
 
-  const isKeywordMode = mode === 'keyword';
-
   const isValidUrl = (val: string): boolean => {
     const trimmed = val.trim();
     if (!trimmed) return false;
-    // Match domain-like patterns: example.com, sub.example.com, https://example.com/path
     return /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(trimmed);
   };
 
@@ -44,16 +39,12 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto space-y-4">
       <div>
         <label className="block text-base font-semibold text-white mb-2">
-          {isKeywordMode ? 'Describe your product or service' : 'Describe your business idea'}
+          Describe your product, service, or idea
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={
-            isKeywordMode
-              ? 'e.g., OBServe is a free desktop companion for OBS Studio that auto-detects audio devices, configures settings, and monitors stream performance. Built with Tauri/Rust, targets streamers, YouTubers, and podcasters.'
-              : 'e.g., I want to sell custom pet portraits on Etsy using AI-generated art'
-          }
+          placeholder="e.g., OBServe is a free desktop companion for OBS Studio that auto-detects audio devices, configures settings, and monitors stream performance. Built with Tauri/Rust, targets streamers, YouTubers, and podcasters."
           rows={3}
           className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500 resize-none"
         />
@@ -67,20 +58,18 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
         </div>
       </div>
 
-      {isKeywordMode && (
-        <div>
-          <label className="block text-base font-semibold text-white mb-2">
-            OR enter a URL
-          </label>
-          <input
-            type="text"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="e.g., markitup.app or https://markitup.app"
-            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500"
-          />
-        </div>
-      )}
+      <div>
+        <label className="block text-base font-semibold text-white mb-2">
+          OR enter a URL
+        </label>
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="e.g., markitup.app or https://markitup.app"
+          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500"
+        />
+      </div>
 
       <div>
         <button
@@ -122,11 +111,7 @@ export default function SearchForm({ mode, onSearch, loading }: SearchFormProps)
         disabled={loading || (!description.trim() && !isValidUrl(url))}
         className="w-full bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold py-3.5 rounded-xl text-lg transition"
       >
-        {loading
-          ? 'Searching...'
-          : isKeywordMode
-            ? 'Find Goldmine Keywords'
-            : 'Check Demand'}
+        {loading ? 'Searching...' : 'Find Goldmine Keywords'}
       </button>
     </form>
   );

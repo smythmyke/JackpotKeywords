@@ -9,6 +9,7 @@ import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
 import TrendArrow from '../components/TrendArrow';
 import KeywordPanel from '../components/KeywordPanel';
+import MarketIntelligence from '../components/MarketIntelligence';
 import IntentBadge from '../components/IntentBadge';
 import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
 
@@ -141,9 +142,14 @@ export default function Results() {
     sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
 
   useEffect(() => {
-    // Check for results passed via location state (anonymous or redirected after save)
     const stateResult = (location.state as any)?.result;
-    if (stateResult) {
+    const stateHasResult = !!stateResult;
+    console.log('[FetchResults] Check:', { hasResult: !!result, stateHasResult, isAnonymous, authLoading, hasUser: !!user, searchId, loading });
+
+    // Check for results passed via location state (anonymous or redirected after save)
+    // Always prefer state result if it has a different ID or paid status than current
+    if (stateResult && (!result || result.id !== stateResult.id || result.paid !== stateResult.paid)) {
+      console.log('[FetchResults] Loading result from state:', { id: stateResult.id, paid: stateResult.paid });
       setResult(stateResult);
       const firstWithData = ALL_CATEGORIES.find(
         (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
@@ -152,6 +158,9 @@ export default function Results() {
       setLoading(false);
       return;
     }
+
+    // If we already have results loaded, don't re-fetch on auth changes
+    if (result) return;
 
     // Anonymous with no state — results expired
     if (isAnonymous) {
@@ -187,31 +196,48 @@ export default function Results() {
       }
     }
     fetchResults();
-  }, [searchId, getToken, authLoading, user, isAnonymous, location.state]);
+  }, [searchId, getToken, authLoading, user, isAnonymous, location.state, result]);
+
+  // Reset savingAnonymous after successful redirect (isAnonymous becomes false)
+  useEffect(() => {
+    if (!isAnonymous && savingAnonymous) {
+      console.log('[ResetSaving] Resetting savingAnonymous — redirect complete');
+      setSavingAnonymous(false);
+    }
+  }, [isAnonymous, savingAnonymous]);
 
   // When user signs in on anonymous page, save results and redirect
   useEffect(() => {
+    console.log('[SaveAnon] Check:', { isAnonymous, hasUser: !!user, hasResult: !!result, savingAnonymous, searchId });
     if (!isAnonymous || !user || !result || savingAnonymous) return;
 
     async function saveAndRedirect() {
+      console.log('[SaveAnon] Starting save...');
       setSavingAnonymous(true);
       try {
+        console.log('[SaveAnon] Getting token...');
         const token = await getToken();
+        console.log('[SaveAnon] Token:', token ? 'received' : 'null');
         if (!token) {
+          console.log('[SaveAnon] No token, showing error');
           setError('Could not save results to your account. You can still view them below.');
           setSavingAnonymous(false);
           return;
         }
-        const { id } = await saveAnonymousResult(token, result!);
-        navigate(`/results/${id}`, { replace: true, state: { result: { ...result!, id, paid: true } } });
+        console.log('[SaveAnon] Saving anonymous result...');
+        const { id, paid: isPaid } = await saveAnonymousResult(token, result!);
+        console.log('[SaveAnon] Saved! Navigating to', id, 'paid:', isPaid);
+        navigate(`/results/${id}`, { replace: true, state: { result: { ...result!, id, paid: isPaid } } });
       } catch (err: any) {
-        console.error('Failed to save anonymous results:', err.message);
+        console.error('[SaveAnon] Failed:', err.message);
         setError('Could not save results to your account. You can still view them below.');
         setSavingAnonymous(false);
       }
     }
     saveAndRedirect();
   }, [isAnonymous, user, result, savingAnonymous, getToken, navigate]);
+
+  console.log('[RenderGate]', { loading, savingAnonymous, hasResult: !!result, hasError: !!error });
 
   if (loading || savingAnonymous) {
     return (
@@ -472,6 +498,9 @@ export default function Results() {
           </div>
         </div>
       </div>
+
+      {/* Market Intelligence Dashboard */}
+      <MarketIntelligence keywords={allKeywords} productLabel={result.productLabel} />
 
       {/* Category grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">

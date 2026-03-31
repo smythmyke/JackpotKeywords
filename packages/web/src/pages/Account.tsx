@@ -143,7 +143,6 @@ export default function Account() {
                     </div>
                     <div className="text-sm text-gray-500 mt-1">
                       {formatDate(search.createdAt)} &middot; {search.totalKeywords} keywords
-                      {search.mode === 'concept' && ' &middot; Concept Report'}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

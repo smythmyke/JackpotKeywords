@@ -112,7 +112,6 @@ export default function Home() {
       const result = await runSearch(token, {
         description,
         url: url || undefined,
-        mode: 'keyword',
         budget,
       });
 
@@ -166,22 +165,7 @@ export default function Home() {
           </div>
         )}
 
-        <SearchForm mode="keyword" onSearch={handleSearch} loading={loading} />
-
-        {false && !user && (
-          <p className="mt-3 text-gray-500 text-xs">
-            No sign-up required. See results in 30 seconds.
-          </p>
-        )}
-
-        <div className="mt-6 text-center">
-          <Link
-            to="/validate"
-            className="text-gray-500 hover:text-jackpot-400 transition text-sm"
-          >
-            Just exploring an idea? Validate demand before you build &rarr;
-          </Link>
-        </div>
+        <SearchForm onSearch={handleSearch} loading={loading} />
 
         {/* Stats bar */}
         <div className="mt-12 flex items-center gap-8 md:gap-12 text-center text-sm text-gray-500">
@@ -382,7 +366,6 @@ export default function Home() {
           <div>&copy; {new Date().getFullYear()} JackpotKeywords. All rights reserved.</div>
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
-            <Link to="/validate" className="hover:text-gray-400 transition">Validate an Idea</Link>
             <Link to="/help" className="hover:text-gray-400 transition">Help</Link>
             <Link to="/disclaimer" className="hover:text-gray-400 transition">Disclaimer</Link>
           </div>

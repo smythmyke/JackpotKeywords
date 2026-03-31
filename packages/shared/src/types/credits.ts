@@ -69,6 +69,5 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 
 export const OPERATION_COSTS: OperationCost[] = [
   { operation: 'keyword_search', name: 'Keyword Search', credits: 1 },
-  { operation: 'concept_search', name: 'Concept Validation', credits: 1 },
   { operation: 'pdf_report', name: 'PDF Goldmine Report', credits: 1 },
 ];

@@ -1,10 +1,16 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 
 const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 export default function Layout() {
   const { user, profile, credits, loading, signInWithGoogle, logout } = useAuthContext();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
   const plan = profile?.plan || 'free';
@@ -39,7 +45,7 @@ export default function Layout() {
                   Account
                 </Link>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="text-gray-400 hover:text-white transition"
                 >
                   Sign Out
