@@ -54,18 +54,16 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     const seeds = await generateSeeds(context);
     functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
 
-    // Step 1b: Autocomplete competitor discovery
-    functions.logger.info('Step 1b: Discovering competitors via autocomplete...');
-    const competitorSeeds = await discoverCompetitors(seeds.productLabel, seeds.allSeeds);
+    // Steps 1b + 2: Run competitor discovery and autocomplete expansion in parallel
+    functions.logger.info('Steps 1b+2: Discovering competitors + expanding autocomplete (parallel)...');
+    const [competitorSeeds, autocompleteKeywords] = await Promise.all([
+      discoverCompetitors(seeds.productLabel, seeds.allSeeds),
+      expandAutocomplete(seeds.topSeeds),
+    ]);
     if (competitorSeeds.length > 0) {
       seeds.allSeeds.push(...competitorSeeds);
-      functions.logger.info(`Step 1b done: discovered ${competitorSeeds.length} additional competitor seeds`);
     }
-
-    // Step 2: Autocomplete expansion
-    functions.logger.info('Step 2: Expanding via autocomplete...');
-    const autocompleteKeywords = await expandAutocomplete(seeds.topSeeds);
-    functions.logger.info(`Step 2 done: ${autocompleteKeywords.length} autocomplete keywords`);
+    functions.logger.info(`Steps 1b+2 done: ${competitorSeeds.length} competitor seeds, ${autocompleteKeywords.length} autocomplete keywords`);
 
     // Step 3: Merge and deduplicate
     const masterList = mergeAndDeduplicate(seeds.allSeeds, autocompleteKeywords);

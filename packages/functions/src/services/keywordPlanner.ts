@@ -10,7 +10,8 @@ const CLIENT_SECRET = process.env.GOOGLE_ADS_CLIENT_SECRET || '';
 const REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || '';
 
 const BATCH_SIZE = 20;
-const CONCURRENCY = 5;
+const CONCURRENCY = 3;
+const MAX_RETRIES = 2;
 
 // Generic words to exclude from seed word matching
 // These are too common to be meaningful for filtering KP related keywords
@@ -88,14 +89,29 @@ export async function enrichKeywords(
     const group = batches.slice(g, g + CONCURRENCY);
     const settled = await Promise.allSettled(
       group.map(async (batch) => {
-        const response: any = await customer.keywordPlanIdeas.generateKeywordIdeas({
-          customer_id: CUSTOMER_ID,
-          language: 'languageConstants/1000',
-          geo_target_constants: ['geoTargetConstants/2840'],
-          keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
-          keyword_seed: { keywords: batch },
-        } as any);
-        return response || [];
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const response: any = await customer.keywordPlanIdeas.generateKeywordIdeas({
+              customer_id: CUSTOMER_ID,
+              language: 'languageConstants/1000',
+              geo_target_constants: ['geoTargetConstants/2840'],
+              keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
+              keyword_seed: { keywords: batch },
+            } as any);
+            return response || [];
+          } catch (err: any) {
+            const errStr = JSON.stringify(err)?.substring(0, 200) || '';
+            const isRateLimit = errStr.includes('RESOURCE_EXHAUSTED') || errStr.includes('Too many requests');
+            if (isRateLimit && attempt < MAX_RETRIES) {
+              const delay = (attempt + 1) * 5000;
+              functions.logger.info(`Rate limited, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+              await new Promise((r) => setTimeout(r, delay));
+              continue;
+            }
+            throw err;
+          }
+        }
+        return [];
       }),
     );
 
@@ -103,7 +119,8 @@ export async function enrichKeywords(
       if (result.status === 'fulfilled') {
         allResponses.push(result.value);
       } else {
-        functions.logger.warn(`Batch enrichment error: ${result.reason?.message}`);
+        const err = result.reason;
+        functions.logger.warn(`Batch enrichment error: ${err?.message || err?.statusMessage || JSON.stringify(err)?.substring(0, 500)}`);
       }
     }
   }

@@ -19,54 +19,60 @@ export async function expandAutocomplete(
 ): Promise<AutocompleteResult[]> {
   const results = new Map<string, AutocompleteResult>();
 
-  // Top 10 seeds: full a-z expansion
   const topExpansions = topSeeds.slice(0, 10);
   const restSeeds = topSeeds.slice(10);
 
-  // Batch a-z queries for top seeds
-  for (const seed of topExpansions) {
-    // Raw suggestion (no suffix)
-    const rawSuggestions = await fetchSuggestions(seed);
-    for (const s of rawSuggestions) {
-      const key = s.toLowerCase().trim();
-      if (!results.has(key)) {
-        results.set(key, { keyword: s, source: 'autocomplete', parentSeed: seed });
-      }
-    }
+  // Process all seeds in parallel — each seed expands a-z concurrently
+  const seedResults = await Promise.allSettled(
+    topExpansions.map(async (seed) => {
+      const seedHits: AutocompleteResult[] = [];
 
-    // A-Z expansion
-    for (const letter of ALPHABET) {
-      try {
-        const suggestions = await fetchSuggestions(`${seed} ${letter}`);
-        for (const s of suggestions) {
-          const key = s.toLowerCase().trim();
-          if (!results.has(key)) {
-            results.set(key, { keyword: s, source: 'autocomplete', parentSeed: seed });
+      // Build all queries for this seed: raw + a-z
+      const queries = [seed, ...ALPHABET.map((l) => `${seed} ${l}`)];
+
+      // Run all 27 queries in groups of 9 to avoid overwhelming
+      for (let i = 0; i < queries.length; i += 9) {
+        const group = queries.slice(i, i + 9);
+        const settled = await Promise.allSettled(
+          group.map((q) => fetchSuggestions(q)),
+        );
+        for (const result of settled) {
+          if (result.status === 'fulfilled') {
+            for (const s of result.value) {
+              seedHits.push({ keyword: s, source: 'autocomplete', parentSeed: seed });
+            }
           }
         }
-      } catch {
-        // Rate limited, skip this letter
+        if (i + 9 < queries.length) await sleep(100);
       }
+      return seedHits;
+    }),
+  );
 
-      // Small delay to avoid rate limiting
-      await sleep(50);
+  for (const result of seedResults) {
+    if (result.status === 'fulfilled') {
+      for (const hit of result.value) {
+        const key = hit.keyword.toLowerCase().trim();
+        if (!results.has(key)) results.set(key, hit);
+      }
     }
   }
 
-  // Rest: raw suggestions only
-  for (const seed of restSeeds) {
-    try {
-      const suggestions = await fetchSuggestions(seed);
-      for (const s of suggestions) {
-        const key = s.toLowerCase().trim();
-        if (!results.has(key)) {
-          results.set(key, { keyword: s, source: 'autocomplete', parentSeed: seed });
+  // Rest: raw suggestions in parallel
+  if (restSeeds.length > 0) {
+    const restResults = await Promise.allSettled(
+      restSeeds.map((seed) => fetchSuggestions(seed).then((suggestions) =>
+        suggestions.map((s) => ({ keyword: s, source: 'autocomplete' as const, parentSeed: seed }))
+      )),
+    );
+    for (const result of restResults) {
+      if (result.status === 'fulfilled') {
+        for (const hit of result.value) {
+          const key = hit.keyword.toLowerCase().trim();
+          if (!results.has(key)) results.set(key, hit);
         }
       }
-    } catch {
-      // Skip on error
     }
-    await sleep(50);
   }
 
   functions.logger.info(`Autocomplete expanded: ${results.size} unique keywords`);
