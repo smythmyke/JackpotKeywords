@@ -68,7 +68,7 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
           <span className="text-sm font-semibold text-white uppercase tracking-wider">Budget Calculator</span>
           {forecast && (
             <span className="text-xs text-gray-500">
-              ${forecast.totals.cost.toLocaleString()}/mo est.
+              ${forecast.totals.cost.toFixed(2)}/mo est.
             </span>
           )}
         </div>
@@ -168,7 +168,7 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
                       <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Est. Impressions</div>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-jackpot-400">${forecast.totals.cost.toLocaleString()}</div>
+                      <div className="text-lg font-bold text-jackpot-400">${forecast.totals.cost.toFixed(2)}</div>
                       <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Est. Monthly Cost</div>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-3 text-center">
@@ -207,11 +207,21 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
                             <td className="px-3 py-2 text-right text-white font-mono">{kw.clicks.toLocaleString()}</td>
                             <td className="px-3 py-2 text-right text-gray-400 font-mono">{kw.impressions.toLocaleString()}</td>
                             <td className="px-3 py-2 text-right text-gray-300 font-mono">${kw.cpc.toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right text-jackpot-400 font-mono">${kw.cost.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right text-jackpot-400 font-mono">${kw.cost.toFixed(2)}</td>
                             <td className="px-3 py-2 text-right text-gray-400 font-mono">{kw.ctr.toFixed(1)}%</td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot>
+                        <tr className="border-t border-gray-700 font-semibold">
+                          <td className="px-3 py-2 text-white">Total</td>
+                          <td className="px-3 py-2 text-right text-white font-mono">{forecast.totals.clicks.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-gray-300 font-mono">{forecast.totals.impressions.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-gray-300 font-mono">${forecast.totals.avgCpc.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right text-jackpot-400 font-mono">${forecast.totals.cost.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right text-gray-300 font-mono">{forecast.totals.avgCtr.toFixed(1)}%</td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
 
@@ -223,7 +233,7 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
                         <div className="flex items-center gap-4 text-xs text-gray-400">
                           <span>{kw.clicks.toLocaleString()} clicks</span>
                           <span>${kw.cpc.toFixed(2)} CPC</span>
-                          <span className="text-jackpot-400">${kw.cost.toLocaleString()}/mo</span>
+                          <span className="text-jackpot-400">${kw.cost.toFixed(2)}/mo</span>
                         </div>
                       </div>
                     ))}
