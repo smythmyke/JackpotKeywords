@@ -6,7 +6,7 @@ import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
 import { expandAutocomplete, discoverCompetitors } from '../services/autocomplete';
-import { enrichKeywords } from '../services/keywordPlanner';
+import { enrichKeywords, forecastKeywords } from '../services/keywordPlanner';
 import { overlayTrends } from '../services/googleTrends';
 import { scoreAndClassify, nameClustersBatch, scoreRelevance } from '../services/gemini';
 import type { SearchRequest, SearchResult, KeywordResult } from '@jackpotkeywords/shared';
@@ -248,6 +248,50 @@ router.post('/score-relevance', async (req, res) => {
   } catch (err: any) {
     functions.logger.error('Relevance scoring error:', err.message);
     res.status(500).json({ error: 'Scoring failed', details: err.message });
+  }
+});
+
+/**
+ * POST /api/search/forecast
+ * Forecast keyword performance (paid users only)
+ */
+router.post('/forecast', authMiddleware, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const { keywords, dailyBudget } = req.body;
+
+  if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+    res.status(400).json({ error: 'Keywords required' });
+    return;
+  }
+  if (keywords.length > 50) {
+    res.status(400).json({ error: 'Maximum 50 keywords per forecast' });
+    return;
+  }
+  if (!dailyBudget || dailyBudget <= 0) {
+    res.status(400).json({ error: 'Valid daily budget required' });
+    return;
+  }
+
+  // Check paid status
+  const userDoc = await db.doc(`users/${userId}`).get();
+  const userData = userDoc.data();
+  const plan = userData?.plan || 'free';
+  const email = userData?.email || '';
+  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+  const isAdmin = ADMIN_EMAILS.includes(email);
+
+  if (!isAdmin && plan !== 'pro' && plan !== 'agency') {
+    res.status(403).json({ error: 'Budget Calculator is available for Pro and Agency subscribers' });
+    return;
+  }
+
+  try {
+    const forecast = await forecastKeywords(keywords, dailyBudget);
+    functions.logger.info(`Forecast: ${keywords.length} keywords, budget $${dailyBudget}/day, estimate: ${forecast.isEstimate}`);
+    res.json(forecast);
+  } catch (error: any) {
+    functions.logger.error('Forecast error:', error.message);
+    res.status(500).json({ error: 'Forecast failed', details: error.message });
   }
 });
 

@@ -10,6 +10,7 @@ import SourceBadge from '../components/SourceBadge';
 import TrendArrow from '../components/TrendArrow';
 import KeywordPanel from '../components/KeywordPanel';
 import MarketIntelligence from '../components/MarketIntelligence';
+import BudgetCalculator from '../components/BudgetCalculator';
 import IntentBadge from '../components/IntentBadge';
 import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
 
@@ -588,6 +589,14 @@ export default function Results() {
 
       {/* Market Intelligence Dashboard */}
       <MarketIntelligence keywords={allKeywords} productLabel={result.productLabel} />
+      <BudgetCalculator
+        keywords={allKeywords}
+        selectedKeywords={selectedKeywords}
+        paid={paid}
+        user={user}
+        signInWithGoogle={signInWithGoogle}
+        getToken={getToken}
+      />
 
       {/* Category grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">

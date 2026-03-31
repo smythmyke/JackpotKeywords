@@ -67,6 +67,17 @@ export async function saveSearch(
   });
 }
 
+export async function forecastKeywords(
+  token: string,
+  keywords: { keyword: string; lowCpc?: number; highCpc?: number; avgMonthlySearches?: number }[],
+  dailyBudget: number,
+) {
+  return apiFetch('/api/search/forecast', token, {
+    method: 'POST',
+    body: JSON.stringify({ keywords, dailyBudget }),
+  });
+}
+
 export async function scoreKeywordRelevance(
   keywords: string[],
   context: any,

@@ -251,3 +251,133 @@ function mapCompetition(competition: any): CompetitionLevel {
   if (str === 'HIGH' || str === '4') return 'HIGH';
   return 'UNSPECIFIED';
 }
+
+export interface ForecastResult {
+  keywords: { keyword: string; clicks: number; impressions: number; cost: number; cpc: number; ctr: number }[];
+  totals: { clicks: number; impressions: number; cost: number; avgCpc: number; avgCtr: number };
+  isEstimate: boolean;
+}
+
+/**
+ * Forecast keyword performance using Google Ads GenerateKeywordForecastMetrics
+ * Falls back to local estimation if API fails
+ */
+export async function forecastKeywords(
+  keywords: { keyword: string; lowCpc?: number; highCpc?: number; avgMonthlySearches?: number }[],
+  dailyBudget: number,
+): Promise<ForecastResult> {
+  const customer = getClient();
+
+  try {
+    const biddableKeywords = keywords.map((kw) => ({
+      keyword: { text: kw.keyword, match_type: enums.KeywordMatchType.BROAD },
+      max_cpc_bid_micros: Math.round(dailyBudget * 1_000_000),
+    }));
+
+    const response: any = await customer.keywordPlanIdeas.generateKeywordForecastMetrics({
+      customer_id: CUSTOMER_ID,
+      campaign: {
+        keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
+        geo_targets: [{ geo_target_constant: 'geoTargetConstants/2840' }],
+        language_constants: ['languageConstants/1000'],
+        biddable_keywords: biddableKeywords,
+      },
+      forecast_period: {
+        date_range: {
+          start_date: getDateString(0),
+          end_date: getDateString(30),
+        },
+      },
+    } as any);
+
+    const forecasts = response?.campaign_forecast_metrics
+      ? [response.campaign_forecast_metrics]
+      : response?.keyword_forecasts || [];
+
+    if (forecasts.length > 0 && response?.keyword_forecasts) {
+      // Per-keyword forecasts available
+      const kwResults = response.keyword_forecasts.map((f: any, i: number) => {
+        const metrics = f.keyword_forecast || {};
+        const clicks = Number(metrics.clicks) || 0;
+        const impressions = Number(metrics.impressions) || 0;
+        const costMicros = Number(metrics.cost_micros) || 0;
+        const cost = costMicros / 1_000_000;
+        return {
+          keyword: keywords[i]?.keyword || '',
+          clicks: Math.round(clicks * 30),
+          impressions: Math.round(impressions * 30),
+          cost: Math.round(cost * 30 * 100) / 100,
+          cpc: clicks > 0 ? Math.round((cost / clicks) * 100) / 100 : 0,
+          ctr: impressions > 0 ? Math.round((clicks / impressions) * 10000) / 100 : 0,
+        };
+      });
+
+      const totals = kwResults.reduce(
+        (t: any, k: any) => ({
+          clicks: t.clicks + k.clicks,
+          impressions: t.impressions + k.impressions,
+          cost: Math.round((t.cost + k.cost) * 100) / 100,
+        }),
+        { clicks: 0, impressions: 0, cost: 0 },
+      );
+
+      return {
+        keywords: kwResults,
+        totals: {
+          ...totals,
+          avgCpc: totals.clicks > 0 ? Math.round((totals.cost / totals.clicks) * 100) / 100 : 0,
+          avgCtr: totals.impressions > 0 ? Math.round((totals.clicks / totals.impressions) * 10000) / 100 : 0,
+        },
+        isEstimate: false,
+      };
+    }
+
+    // Fall through to local estimation
+    throw new Error('No forecast data returned');
+  } catch (err: any) {
+    functions.logger.warn(`Forecast API failed, using local estimation: ${err.message}`);
+    return localForecast(keywords, dailyBudget);
+  }
+}
+
+function localForecast(
+  keywords: { keyword: string; lowCpc?: number; highCpc?: number; avgMonthlySearches?: number }[],
+  dailyBudget: number,
+): ForecastResult {
+  const kwResults = keywords.map((kw) => {
+    const avgCpc = ((kw.lowCpc || 0) + (kw.highCpc || 0)) / 2;
+    const dailyClicks = avgCpc > 0 ? Math.min(dailyBudget / avgCpc, (kw.avgMonthlySearches || 0) / 30) : 0;
+    const monthlyClicks = Math.round(dailyClicks * 30);
+    const monthlyImpressions = kw.avgMonthlySearches || 0;
+    const monthlyCost = Math.round(monthlyClicks * avgCpc * 100) / 100;
+    return {
+      keyword: kw.keyword,
+      clicks: monthlyClicks,
+      impressions: monthlyImpressions,
+      cost: monthlyCost,
+      cpc: avgCpc > 0 ? Math.round(avgCpc * 100) / 100 : 0,
+      ctr: monthlyImpressions > 0 ? Math.round((monthlyClicks / monthlyImpressions) * 10000) / 100 : 0,
+    };
+  });
+
+  const totals = kwResults.reduce(
+    (t, k) => ({ clicks: t.clicks + k.clicks, impressions: t.impressions + k.impressions, cost: Math.round((t.cost + k.cost) * 100) / 100 }),
+    { clicks: 0, impressions: 0, cost: 0 },
+  );
+
+  return {
+    keywords: kwResults,
+    totals: {
+      ...totals,
+      avgCpc: totals.clicks > 0 ? Math.round((totals.cost / totals.clicks) * 100) / 100 : 0,
+      avgCtr: totals.impressions > 0 ? Math.round((totals.clicks / totals.impressions) * 10000) / 100 : 0,
+    },
+    isEstimate: true,
+  };
+}
+
+function getDateString(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split('T')[0];
+}
