@@ -330,26 +330,24 @@ export async function scoreAndClassify(
     });
   }
 
-  // Run clustering algorithm + relevance scoring in parallel
-  functions.logger.info('Clustering + scoring relevance (parallel)...');
-  const [clusters, relevanceResult] = await Promise.all([
+  // Run clustering algorithm + relevance scoring (2 batches of 100) in parallel
+  functions.logger.info('Clustering + scoring relevance (parallel, 2x100)...');
+  const [clusters, relBatch1, relBatch2] = await Promise.all([
     Promise.resolve(clusterKeywords(scored)),
-    (async () => {
-      try {
-        const top200Keywords = scored.slice(0, 200).map((k) => k.keyword);
-        const scores = await scoreRelevance(top200Keywords, context);
-        return scores;
-      } catch (err: any) {
-        functions.logger.warn(`Relevance scoring failed, continuing without: ${err.message}`);
-        return new Map<string, number>();
-      }
-    })(),
+    scoreRelevance(scored.slice(0, 100).map((k) => k.keyword), context).catch((err) => {
+      functions.logger.warn(`Relevance batch 1 failed: ${err.message}`);
+      return new Map<string, number>();
+    }),
+    scoreRelevance(scored.slice(100, 200).map((k) => k.keyword), context).catch((err) => {
+      functions.logger.warn(`Relevance batch 2 failed: ${err.message}`);
+      return new Map<string, number>();
+    }),
   ]);
 
-  // Apply relevance scores
+  // Merge and apply relevance scores
   let relevanceCount = 0;
   for (const kw of scored) {
-    const score = relevanceResult.get(kw.keyword);
+    const score = relBatch1.get(kw.keyword) ?? relBatch2.get(kw.keyword);
     if (score !== undefined) {
       kw.aiRelevance = score;
       relevanceCount++;
