@@ -200,20 +200,31 @@ export default function Results() {
   }, [searchId, getToken, authLoading, user, isAnonymous, location.state, result]);
 
   // When anonymous user signs in, claim the search to check credits and unblur
+  // Skip for admin/subscribers — they get access via profile check, not claim
+  const [claimed, setClaimed] = useState(false);
   useEffect(() => {
-    if (!isAnonymous || !user || !result || result.paid) return;
+    if (!isAnonymous || !user || !result || claimed) return;
+    // Admin and subscribers don't need to claim — paid is computed from profile
+    const isAdminOrSub = (profile?.email && ADMIN_EMAILS.includes(profile.email)) ||
+      profile?.plan === 'pro' || profile?.plan === 'agency';
+    if (isAdminOrSub) {
+      setClaimed(true);
+      return;
+    }
+    // Free users: claim to deduct a free search credit
     async function claim() {
+      setClaimed(true);
       try {
         const token = await getToken();
         if (!token) return;
-        const { paid } = await claimSearch(token);
-        setResult((prev) => prev ? { ...prev, paid } : prev);
+        const { paid: claimedPaid } = await claimSearch(token);
+        setResult((prev) => prev ? { ...prev, paid: claimedPaid } : prev);
       } catch (err: any) {
         console.error('Claim failed:', err.message);
       }
     }
     claim();
-  }, [isAnonymous, user, result, getToken]);
+  }, [isAnonymous, user, result, profile, claimed, getToken]);
 
   // Background cluster naming — runs after keywords display
   useEffect(() => {
