@@ -410,7 +410,7 @@ export default function Results() {
   return (
     <div className="max-w-[1400px] mx-auto px-4 py-8">
       {/* Anonymous user banner */}
-      {isAnonymous && (
+      {isAnonymous && !user && (
         <div className="bg-jackpot-500/10 border border-jackpot-500/30 rounded-xl px-5 py-3 mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-sm">
             <span className="text-jackpot-400 font-medium">These results disappear on refresh.</span>

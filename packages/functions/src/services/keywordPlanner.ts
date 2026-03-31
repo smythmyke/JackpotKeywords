@@ -10,6 +10,7 @@ const CLIENT_SECRET = process.env.GOOGLE_ADS_CLIENT_SECRET || '';
 const REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || '';
 
 const BATCH_SIZE = 20;
+const CONCURRENCY = 5;
 
 // Generic words to exclude from seed word matching
 // These are too common to be meaningful for filtering KP related keywords
@@ -80,75 +81,91 @@ export async function enrichKeywords(
   let kpKept = 0;
   let kpDropped = 0;
 
-  for (const batch of batches) {
-    try {
-      const response: any = await customer.keywordPlanIdeas.generateKeywordIdeas({
-        customer_id: CUSTOMER_ID,
-        language: 'languageConstants/1000',
-        geo_target_constants: ['geoTargetConstants/2840'],
-        keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
-        keyword_seed: { keywords: batch },
-      } as any);
+  // Process batches in parallel groups for speed
+  const allResponses: any[][] = [];
 
-      for (const idea of response || []) {
-        const keyword = idea.text || '';
-        const key = keyword.toLowerCase().trim();
-        if (!key || results.has(key)) continue;
+  for (let g = 0; g < batches.length; g += CONCURRENCY) {
+    const group = batches.slice(g, g + CONCURRENCY);
+    const settled = await Promise.allSettled(
+      group.map(async (batch) => {
+        const response: any = await customer.keywordPlanIdeas.generateKeywordIdeas({
+          customer_id: CUSTOMER_ID,
+          language: 'languageConstants/1000',
+          geo_target_constants: ['geoTargetConstants/2840'],
+          keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
+          keyword_seed: { keywords: batch },
+        } as any);
+        return response || [];
+      }),
+    );
 
-        const metrics = idea.keyword_idea_metrics || {} as any;
-        const avgSearches = Number(metrics.avg_monthly_searches) || 0;
-        const competition = mapCompetition(metrics.competition);
-        const lowCpc = Number(metrics.low_top_of_page_bid_micros) / 1_000_000 || 0;
-        const highCpc = Number(metrics.high_top_of_page_bid_micros) / 1_000_000 || 0;
-
-        const seedInfo = seedLookup.get(key);
-        const isSeed = !!seedInfo;
-
-        // For KP-related keywords: only keep if they have volume AND share a meaningful word with seeds
-        if (!isSeed) {
-          const words = key.split(/\s+/).filter((w: string) => w.length > 2);
-          const matchCount = words.filter((w: string) => meaningfulSeedWords.has(w)).length;
-          if (avgSearches === 0 || matchCount < 1) {
-            kpDropped++;
-            continue;
-          }
-          kpKept++;
-        }
-
-        // Calculate trend from monthly_search_volumes
-        const trend = analyzeTrendFromVolumes(metrics.monthly_search_volumes);
-
-        // Extract monthly volumes for charts
-        const monthlyVolumes = (metrics.monthly_search_volumes || []).map((m: any) => ({
-          month: String(m.month || '').substring(0, 3),
-          volume: Number(m.monthly_searches) || 0,
-        }));
-
-        // Infer category for KP-related keywords
-        const inferredCategory = !isSeed
-          ? (inferCategoryFromSeeds(keyword, seedLookup) || inferCategory(keyword))
-          : seedInfo!.category;
-
-        results.set(key, {
-          keyword,
-          category: inferredCategory as any,
-          source: (isSeed ? seedInfo!.source : 'planner_related') as any,
-          avgMonthlySearches: avgSearches,
-          lowCpc,
-          highCpc,
-          competition,
-          jackpotScore: 0,
-          adScore: 0,
-          seoScore: 0,
-          relevance: isSeed ? 4 : 3,
-          opportunityType: 'quick_win',
-          trendDirection: trend?.direction,
-          trendInfo: trend?.info,
-          monthlyVolumes: monthlyVolumes.length > 0 ? monthlyVolumes : undefined,
-        });
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        allResponses.push(result.value);
+      } else {
+        functions.logger.warn(`Batch enrichment error: ${result.reason?.message}`);
       }
-    } catch (error: any) {
-      functions.logger.warn(`Batch enrichment error: ${error.message}`);
+    }
+  }
+
+  // Process all responses
+  for (const response of allResponses) {
+    for (const idea of response) {
+      const keyword = idea.text || '';
+      const key = keyword.toLowerCase().trim();
+      if (!key || results.has(key)) continue;
+
+      const metrics = idea.keyword_idea_metrics || {} as any;
+      const avgSearches = Number(metrics.avg_monthly_searches) || 0;
+      const competition = mapCompetition(metrics.competition);
+      const lowCpc = Number(metrics.low_top_of_page_bid_micros) / 1_000_000 || 0;
+      const highCpc = Number(metrics.high_top_of_page_bid_micros) / 1_000_000 || 0;
+
+      const seedInfo = seedLookup.get(key);
+      const isSeed = !!seedInfo;
+
+      // For KP-related keywords: only keep if they have volume AND share a meaningful word with seeds
+      if (!isSeed) {
+        const words = key.split(/\s+/).filter((w: string) => w.length > 2);
+        const matchCount = words.filter((w: string) => meaningfulSeedWords.has(w)).length;
+        if (avgSearches === 0 || matchCount < 1) {
+          kpDropped++;
+          continue;
+        }
+        kpKept++;
+      }
+
+      // Calculate trend from monthly_search_volumes
+      const trend = analyzeTrendFromVolumes(metrics.monthly_search_volumes);
+
+      // Extract monthly volumes for charts
+      const monthlyVolumes = (metrics.monthly_search_volumes || []).map((m: any) => ({
+        month: String(m.month || '').substring(0, 3),
+        volume: Number(m.monthly_searches) || 0,
+      }));
+
+      // Infer category for KP-related keywords
+      const inferredCategory = !isSeed
+        ? (inferCategoryFromSeeds(keyword, seedLookup) || inferCategory(keyword))
+        : seedInfo!.category;
+
+      results.set(key, {
+        keyword,
+        category: inferredCategory as any,
+        source: (isSeed ? seedInfo!.source : 'planner_related') as any,
+        avgMonthlySearches: avgSearches,
+        lowCpc,
+        highCpc,
+        competition,
+        jackpotScore: 0,
+        adScore: 0,
+        seoScore: 0,
+        relevance: isSeed ? 4 : 3,
+        opportunityType: 'quick_win',
+        trendDirection: trend?.direction,
+        trendInfo: trend?.info,
+        monthlyVolumes: monthlyVolumes.length > 0 ? monthlyVolumes : undefined,
+      });
     }
   }
 
