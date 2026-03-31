@@ -19,6 +19,34 @@ import {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+const GEMINI_MAX_RETRIES = 2;
+const GEMINI_RETRY_DELAY = 3000;
+
+/**
+ * Wrapper for Gemini generateContent with automatic retry on 503/overload
+ */
+async function geminiGenerate(model: any, prompt: string): Promise<string> {
+  for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (err: any) {
+      const msg = err.message || '';
+      const isOverloaded = msg.includes('503') || msg.includes('high demand') || msg.includes('Service Unavailable') || msg.includes('RESOURCE_EXHAUSTED');
+      if (isOverloaded && attempt < GEMINI_MAX_RETRIES) {
+        functions.logger.info(`Gemini overloaded, retrying in ${GEMINI_RETRY_DELAY / 1000}s (attempt ${attempt + 1}/${GEMINI_MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, GEMINI_RETRY_DELAY));
+        continue;
+      }
+      if (isOverloaded) {
+        throw new Error('All servers are busy. Please try again in 30 seconds.');
+      }
+      throw err;
+    }
+  }
+  throw new Error('Gemini retry exhausted');
+}
+
 interface SeedResult {
   allSeeds: { keyword: string; category: string; source: string }[];
   topSeeds: string[];
@@ -78,8 +106,7 @@ RULES:
 - For benefits: translate features into outcomes. "auto-detects audio" → "never go live with broken audio".
 - For relatedTopics: what else does this audience search for? Complementary tools, adjacent workflows.`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = await geminiGenerate(model, prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -163,8 +190,7 @@ Return JSON format:
   ]
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = await geminiGenerate(model, prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Failed to parse AI seed response');
@@ -240,8 +266,7 @@ Return ONLY valid JSON, no markdown:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = await geminiGenerate(model, prompt);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return [];
 
@@ -378,8 +403,7 @@ Return ONLY valid JSON, no markdown:
   ...
 ]`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = await geminiGenerate(model, prompt);
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return new Map();
 
@@ -415,8 +439,7 @@ Return JSON format:
   ...
 ]`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = await geminiGenerate(model, prompt);
   const jsonMatch = text.match(/\[[\s\S]*\]/);
 
   if (!jsonMatch) return clusters;
@@ -469,8 +492,7 @@ Generate 10-20 keyword seeds. Each keyword should be directly searchable on Goog
   ]
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = await geminiGenerate(model, prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Failed to parse refine response');
