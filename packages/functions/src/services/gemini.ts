@@ -330,30 +330,10 @@ export async function scoreAndClassify(
     });
   }
 
-  // Run clustering algorithm + relevance scoring (2 batches of 100) in parallel
-  functions.logger.info('Clustering + scoring relevance (parallel, 2x100)...');
-  const [clusters, relBatch1, relBatch2] = await Promise.all([
-    Promise.resolve(clusterKeywords(scored)),
-    scoreRelevance(scored.slice(0, 100).map((k) => k.keyword), context).catch((err) => {
-      functions.logger.warn(`Relevance batch 1 failed: ${err.message}`);
-      return new Map<string, number>();
-    }),
-    scoreRelevance(scored.slice(100, 200).map((k) => k.keyword), context).catch((err) => {
-      functions.logger.warn(`Relevance batch 2 failed: ${err.message}`);
-      return new Map<string, number>();
-    }),
-  ]);
-
-  // Merge and apply relevance scores
-  let relevanceCount = 0;
-  for (const kw of scored) {
-    const score = relBatch1.get(kw.keyword) ?? relBatch2.get(kw.keyword);
-    if (score !== undefined) {
-      kw.aiRelevance = score;
-      relevanceCount++;
-    }
-  }
-  functions.logger.info(`Clustered: ${clusters.length} clusters, Relevance: ${relevanceCount} keywords scored`);
+  // Run clustering algorithm (instant — relevance scoring moved to async endpoint)
+  functions.logger.info('Clustering keywords...');
+  const clusters = clusterKeywords(scored);
+  functions.logger.info(`Clustered: ${clusters.length} clusters`);
 
   // Add cluster counts to category summaries
   for (const cat of categories) {
@@ -367,7 +347,7 @@ export async function scoreAndClassify(
 /**
  * Score keyword relevance to the product using Gemini
  */
-async function scoreRelevance(
+export async function scoreRelevance(
   keywords: string[],
   context: ProductContext,
 ): Promise<Map<string, number>> {

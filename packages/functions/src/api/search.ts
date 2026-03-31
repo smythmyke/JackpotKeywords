@@ -8,7 +8,7 @@ import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInfer
 import { expandAutocomplete, discoverCompetitors } from '../services/autocomplete';
 import { enrichKeywords } from '../services/keywordPlanner';
 import { overlayTrends } from '../services/googleTrends';
-import { scoreAndClassify, nameClustersBatch } from '../services/gemini';
+import { scoreAndClassify, nameClustersBatch, scoreRelevance } from '../services/gemini';
 import type { SearchRequest, SearchResult, KeywordResult } from '@jackpotkeywords/shared';
 
 const router = Router();
@@ -95,7 +95,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     const searchId = db.collection('users').doc().id;
     const paid = !creditResult.isFreeSearch;
 
-    const result: SearchResult = {
+    const result: any = {
       id: searchId,
       query: description,
       productLabel: seeds.productLabel,
@@ -107,6 +107,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       keywords: scored.keywords,
       categories: scored.categories,
       clusters: scored.clusters,
+      productContext: context,
       metadata: {
         seedCount: seeds.allSeeds.length,
         autocompleteCount: autocompleteKeywords.length,
@@ -212,6 +213,41 @@ router.post('/name-clusters', async (req, res) => {
   } catch (err: any) {
     functions.logger.error('Cluster naming error:', err.message);
     res.status(500).json({ error: 'Naming failed', details: err.message });
+  }
+});
+
+/**
+ * POST /api/search/score-relevance
+ * Score keyword relevance via Gemini (called async from frontend after keywords load)
+ */
+router.post('/score-relevance', async (req, res) => {
+  const { keywords, context } = req.body;
+  if (!keywords || !Array.isArray(keywords) || !context) {
+    res.status(400).json({ error: 'Keywords and context required' });
+    return;
+  }
+  try {
+    // Split into 2 parallel batches of 100
+    const batch1 = keywords.slice(0, 100);
+    const batch2 = keywords.slice(100, 200);
+
+    const [scores1, scores2] = await Promise.all([
+      scoreRelevance(batch1, context).catch(() => new Map<string, number>()),
+      batch2.length > 0
+        ? scoreRelevance(batch2, context).catch(() => new Map<string, number>())
+        : Promise.resolve(new Map<string, number>()),
+    ]);
+
+    // Merge into a single object
+    const scores: Record<string, number> = {};
+    for (const [k, v] of scores1) scores[k] = v;
+    for (const [k, v] of scores2) scores[k] = v;
+
+    functions.logger.info(`Relevance scored ${Object.keys(scores).length} keywords via async endpoint`);
+    res.json({ scores });
+  } catch (err: any) {
+    functions.logger.error('Relevance scoring error:', err.message);
+    res.status(500).json({ error: 'Scoring failed', details: err.message });
   }
 });
 

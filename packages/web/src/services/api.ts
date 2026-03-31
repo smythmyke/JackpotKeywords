@@ -67,6 +67,16 @@ export async function saveSearch(
   });
 }
 
+export async function scoreKeywordRelevance(
+  keywords: string[],
+  context: any,
+): Promise<{ scores: Record<string, number> }> {
+  return apiFetch('/api/search/score-relevance', null, {
+    method: 'POST',
+    body: JSON.stringify({ keywords, context }),
+  });
+}
+
 export async function nameClusters(
   clusters: any[],
 ): Promise<{ clusters: any[] }> {

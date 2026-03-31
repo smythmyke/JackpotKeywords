@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters } from '../services/api';
+import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -42,6 +42,7 @@ export default function Results() {
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clustersLoading, setClustersLoading] = useState(false);
+  const [relevanceLoading, setRelevanceLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<KeywordCategory>('direct');
@@ -227,6 +228,32 @@ export default function Results() {
       setClustersLoading(false);
     });
   }, [result?.clusters?.length]);
+
+  // Background relevance scoring — runs after keywords display
+  useEffect(() => {
+    if (!result?.keywords || result.keywords.length === 0) return;
+    const ctx = (result as any).productContext;
+    if (!ctx) return;
+    // Skip if keywords already have relevance scores
+    if (result.keywords[0]?.aiRelevance !== undefined) return;
+
+    setRelevanceLoading(true);
+    const top200 = result.keywords.slice(0, 200).map((k) => k.keyword);
+    scoreKeywordRelevance(top200, ctx).then(({ scores }) => {
+      setResult((prev) => {
+        if (!prev) return prev;
+        const updated = prev.keywords.map((kw) => {
+          const score = scores[kw.keyword];
+          return score !== undefined ? { ...kw, aiRelevance: score } : kw;
+        });
+        return { ...prev, keywords: updated };
+      });
+    }).catch((err) => {
+      console.error('Relevance scoring failed:', err.message);
+    }).finally(() => {
+      setRelevanceLoading(false);
+    });
+  }, [result?.keywords?.length]);
 
   // Save handler — saves selected keywords to Firestore
   const handleSaveSearch = async () => {
@@ -1036,6 +1063,8 @@ export default function Results() {
                       <td className="px-3 py-3 text-center">
                         {kw.aiRelevance !== undefined ? (
                           <span className={`text-xs font-bold ${kw.aiRelevance >= 8 ? 'text-score-green' : kw.aiRelevance >= 5 ? 'text-score-yellow' : 'text-score-red'}`}>{kw.aiRelevance}</span>
+                        ) : relevanceLoading ? (
+                          <span className="text-gray-600 text-xs animate-pulse">...</span>
                         ) : (
                           <span className="text-gray-700">-</span>
                         )}
