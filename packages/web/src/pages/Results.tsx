@@ -313,12 +313,12 @@ export default function Results() {
     );
   }
 
-  const paid = result.paid;
   const allKeywords = result.keywords || [];
   const totalKeywords = allKeywords.length;
 
   const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
   const userPlan = profile?.plan || 'free';
+  const paid = result.paid || isAdmin || userPlan === 'pro' || userPlan === 'agency';
   const canRefine = isAdmin || userPlan === 'pro' || userPlan === 'agency';
   const refineCount = (result as any).refineCount || 0;
   const refinesRemaining = 5 - refineCount;
@@ -594,6 +594,7 @@ export default function Results() {
         selectedKeywords={selectedKeywords}
         paid={paid}
         user={user}
+        profile={profile}
         signInWithGoogle={signInWithGoogle}
         getToken={getToken}
       />

@@ -2,11 +2,14 @@ import { useState } from 'react';
 import type { KeywordResult } from '@jackpotkeywords/shared';
 import { forecastKeywords } from '../services/api';
 
+const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+
 interface BudgetCalculatorProps {
   keywords: KeywordResult[];
   selectedKeywords: Set<string>;
   paid: boolean;
   user: any;
+  profile: any;
   signInWithGoogle: () => void;
   getToken: () => Promise<string | null>;
 }
@@ -17,7 +20,10 @@ interface ForecastData {
   isEstimate: boolean;
 }
 
-export default function BudgetCalculator({ keywords, selectedKeywords, paid, user, signInWithGoogle, getToken }: BudgetCalculatorProps) {
+export default function BudgetCalculator({ keywords, selectedKeywords, paid, user, profile, signInWithGoogle, getToken }: BudgetCalculatorProps) {
+  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const userPlan = profile?.plan || 'free';
+  const hasAccess = paid || isAdmin || userPlan === 'pro' || userPlan === 'agency';
   const [expanded, setExpanded] = useState(false);
   const [budgetType, setBudgetType] = useState<'daily' | 'monthly'>('monthly');
   const [budgetAmount, setBudgetAmount] = useState<number>(500);
@@ -28,7 +34,7 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
 
   const selectedCount = selectedKeywords.size;
   const needsRecalculate = forecast && selectedCount !== forecastedCount;
-  const canCalculate = selectedCount > 0 && selectedCount <= 50 && budgetAmount > 0 && paid;
+  const canCalculate = selectedCount > 0 && selectedCount <= 50 && budgetAmount > 0 && hasAccess;
   const dailyBudget = budgetType === 'monthly' ? Math.round((budgetAmount / 30) * 100) / 100 : budgetAmount;
 
   const handleCalculate = async () => {
@@ -80,7 +86,7 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
                 Sign In
               </button>
             </div>
-          ) : !paid ? (
+          ) : !hasAccess ? (
             <div className="text-center py-4">
               <p className="text-gray-400 text-sm mb-2">Budget Calculator is available for Pro subscribers</p>
               <a href="/pricing" className="text-jackpot-400 hover:text-jackpot-300 text-sm font-medium transition">
