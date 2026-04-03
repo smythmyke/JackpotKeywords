@@ -1,16 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
-import Results from './pages/Results';
-import Account from './pages/Account';
 import Pricing from './pages/Pricing';
-import Disclaimer from './pages/Disclaimer';
-import Help from './pages/Help';
-import Blog from './pages/Blog';
-import BlogPost from './pages/BlogPost';
-import Admin from './pages/Admin';
 import Layout from './components/Layout';
 import { trackPageView } from './services/analytics';
+
+// Lazy-loaded routes
+const Results = lazy(() => import('./pages/Results'));
+const Account = lazy(() => import('./pages/Account'));
+const Blog = lazy(() => import('./pages/Blog'));
+const BlogPost = lazy(() => import('./pages/BlogPost'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Help = lazy(() => import('./pages/Help'));
+const Disclaimer = lazy(() => import('./pages/Disclaimer'));
 
 export default function App() {
   const location = useLocation();
@@ -20,19 +22,21 @@ export default function App() {
   }, [location.pathname]);
 
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/validate" element={<Navigate to="/" replace />} />
-        <Route path="/results/:searchId" element={<Results />} />
-        <Route path="/account" element={<Account />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/disclaimer" element={<Disclaimer />} />
-        <Route path="/help" element={<Help />} />
-        <Route path="/blog" element={<Blog />} />
-        <Route path="/blog/:slug" element={<BlogPost />} />
-        <Route path="/admin" element={<Admin />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<div className="min-h-[50vh] flex items-center justify-center text-gray-500">Loading...</div>}>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/validate" element={<Navigate to="/" replace />} />
+          <Route path="/results/:searchId" element={<Results />} />
+          <Route path="/account" element={<Account />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/disclaimer" element={<Disclaimer />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          <Route path="/admin" element={<Admin />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }

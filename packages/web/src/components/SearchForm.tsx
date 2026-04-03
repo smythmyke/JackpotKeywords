@@ -83,13 +83,20 @@ export default function SearchForm({ onSearch, loading, initialDescription }: Se
       </div>
 
       <div>
-        <button
-          type="button"
-          onClick={() => setShowBudget(!showBudget)}
-          className="text-sm text-gray-500 hover:text-gray-300 transition"
-        >
-          {showBudget ? 'Hide budget options' : 'Set ad budget (optional)'}
-        </button>
+        <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-500 hover:text-gray-300 transition">
+          <input
+            type="checkbox"
+            checked={showBudget}
+            onChange={(e) => {
+              setShowBudget(e.target.checked);
+              if (!e.target.checked) {
+                setBudget(undefined);
+              }
+            }}
+            className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-jackpot-500 focus:ring-jackpot-500 focus:ring-offset-0 cursor-pointer"
+          />
+          Set ad budget
+        </label>
         {showBudget && (
           <div className="mt-2 flex flex-wrap gap-2">
             {BUDGET_PRESETS.map((preset) => (

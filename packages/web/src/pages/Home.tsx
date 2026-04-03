@@ -160,7 +160,7 @@ export default function Home() {
       </Helmet>
     <div>
       {/* Hero */}
-      <section className="min-h-[100vh] flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
+      <section className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-4 pt-6 pb-12 relative overflow-hidden">
         <div
           className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-[0.18] pointer-events-none"
           style={{ backgroundImage: "url('/logo-hero.png')" }}
@@ -172,9 +172,8 @@ export default function Home() {
             <span className="text-jackpot-400">Find your goldmine.</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            AI-powered keyword research with real advertiser-grade data.
-            Discover 1,000+ keyword opportunities across 12 intent categories —
-            scored, ranked, and ready to act on.
+            AI-powered keyword research with real Google Ads data.
+            1,000+ keywords across 12 intent categories — scored and ranked.
             <br />
             <span className="text-white font-medium">{getStatusLine()}</span>
           </p>
