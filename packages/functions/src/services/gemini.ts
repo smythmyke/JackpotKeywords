@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import type {
   KeywordCategory,
@@ -17,7 +17,8 @@ import {
   CATEGORY_LABELS,
 } from '@jackpotkeywords/shared';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const GEMINI_MAX_RETRIES = 2;
 const GEMINI_RETRY_DELAY = 3000;
@@ -25,11 +26,15 @@ const GEMINI_RETRY_DELAY = 3000;
 /**
  * Wrapper for Gemini generateContent with automatic retry on 503/overload
  */
-async function geminiGenerate(model: any, prompt: string): Promise<string> {
+async function geminiGenerate(prompt: string, config?: Record<string, any>): Promise<string> {
   for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
     try {
-      const result = await model.generateContent(prompt);
-      return result.response.text();
+      const result = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+        ...config,
+      });
+      return result.text || '';
     } catch (err: any) {
       const msg = err.message || '';
       const isOverloaded = msg.includes('503') || msg.includes('high demand') || msg.includes('Service Unavailable') || msg.includes('RESOURCE_EXHAUSTED');
@@ -51,6 +56,39 @@ interface SeedResult {
   allSeeds: { keyword: string; category: string; source: string }[];
   topSeeds: string[];
   productLabel: string;
+}
+
+const MAJOR_HOLIDAYS = [
+  { name: "Valentine's Day", month: 2, day: 14, keywords: ['valentines', 'valentine gift', 'romantic'] },
+  { name: 'Easter', month: 4, day: 20, keywords: ['easter', 'spring'] },
+  { name: "Mother's Day", month: 5, day: 11, keywords: ['mothers day', 'mom gift', 'gift for mom'] },
+  { name: "Father's Day", month: 6, day: 15, keywords: ['fathers day', 'dad gift', 'gift for dad'] },
+  { name: 'Back to School', month: 8, day: 1, keywords: ['back to school', 'school supplies', 'student'] },
+  { name: 'Halloween', month: 10, day: 31, keywords: ['halloween', 'costume', 'spooky'] },
+  { name: 'Black Friday', month: 11, day: 28, keywords: ['black friday', 'deals', 'cyber monday', 'black friday deals'] },
+  { name: 'Christmas', month: 12, day: 25, keywords: ['christmas', 'holiday gift', 'xmas', 'gift guide'] },
+  { name: "New Year's", month: 1, day: 1, keywords: ['new year', 'new years', 'resolution'] },
+];
+
+/**
+ * Detect the next major holiday within a 2-month lookahead window.
+ * Returns the holiday name or null if none upcoming.
+ */
+function getUpcomingHoliday(): { name: string; keywords: string[] } | null {
+  const now = new Date();
+  const lookaheadMs = 60 * 24 * 60 * 60 * 1000; // 60 days
+
+  for (const holiday of MAJOR_HOLIDAYS) {
+    // Check current year and next year
+    for (const yearOffset of [0, 1]) {
+      const holidayDate = new Date(now.getFullYear() + yearOffset, holiday.month - 1, holiday.day);
+      const diff = holidayDate.getTime() - now.getTime();
+      if (diff > 0 && diff <= lookaheadMs) {
+        return { name: holiday.name, keywords: holiday.keywords };
+      }
+    }
+  }
+  return null;
 }
 
 const EMPTY_CONTEXT: ProductContext = {
@@ -75,8 +113,6 @@ export async function extractProductContext(
   description: string,
   url: string | undefined,
 ): Promise<ProductContext> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
   const prompt = `You are a product analyst. The user is describing a product, service, or business idea. It may be an existing product or an early-stage concept that doesn't exist yet. Extract as much structured information as possible, inferring where the user hasn't been explicit — do not leave fields empty unless truly impossible to determine.
 
 ${url ? `Product/Reference URL: ${url}` : ''}
@@ -106,7 +142,9 @@ RULES:
 - For benefits: translate features into outcomes. "auto-detects audio" → "never go live with broken audio".
 - For relatedTopics: what else does this audience search for? Complementary tools, adjacent workflows.`;
 
-  const text = await geminiGenerate(model, prompt);
+  // Use URL context tool when a URL is provided so Gemini reads the actual page
+  const config = url ? { config: { tools: [{ urlContext: {} }] } } : undefined;
+  const text = await geminiGenerate(prompt, config);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -138,13 +176,13 @@ RULES:
 }
 
 /**
- * Step 1: Generate keyword seeds across 10 intent categories using structured context
+ * Step 1: Generate keyword seeds across intent categories using structured context
  */
 export async function generateSeeds(
   context: ProductContext,
+  location?: string,
 ): Promise<SeedResult> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
+  const upcomingHoliday = getUpcomingHoliday();
   const contextBlock = `Product: "${context.productName}" — ${context.whatItDoes}
 Key features: ${context.keyFeatures.join(', ') || 'not specified'}
 Target audience: ${context.targetAudience.join(', ') || 'not specified'}
@@ -154,7 +192,7 @@ Differentiators: ${context.differentiators.join(', ') || 'not specified'}
 Use cases: ${context.useCases.join(', ') || 'not specified'}
 Industry/niche: ${context.industryNiche.join(', ') || 'not specified'}
 Benefits/outcomes: ${context.benefits.join(', ') || 'not specified'}
-Related topics: ${context.relatedTopics.join(', ') || 'not specified'}`;
+Related topics: ${context.relatedTopics.join(', ') || 'not specified'}${location ? `\nBusiness location: ${location}` : ''}${upcomingHoliday ? `\nUpcoming holiday (within 2 months): ${upcomingHoliday.name}` : ''}`;
 
   const prompt = `You are an expert keyword researcher. Your job is to generate HIGHLY RELEVANT keyword seeds based on the structured product analysis below. The product may be an existing tool or a business idea/concept — either way, generate keywords that real people would search for.
 
@@ -167,8 +205,9 @@ IMPORTANT RULES:
 - For each pain point, generate a "how to" or problem query
 - For competitors, use the names listed AND add any others you know that solve the same problem
 - Keywords should be what a potential BUYER would search, not a developer or researcher
+- For EVERY category, include at least 1 long-tail variant (4+ words). Example: "keyword research tool" AND "best free keyword research tool for small business"
 
-Generate 50-70 keyword seeds across these 10 categories. Return ONLY valid JSON, no markdown.
+${`Generate 50-70+ keyword seeds across the categories below. Return ONLY valid JSON, no markdown.`}
 
 Categories:
 1. direct (4-6 seeds) - Short head terms for this product category. What would someone type to find this exact type of tool?
@@ -176,11 +215,13 @@ Categories:
 3. problem (5-8 seeds) - A search query for EACH pain point listed above. "how to [fix problem]", "[problem] solution".
 4. audience (4-6 seeds) - Keywords for EACH target audience listed above. "[role] tools", "[audience] software".
 5. competitor_brand (5-8 seeds) - The competitors listed above. Add any real products you know that solve the same problem.
-6. competitor_alt (4-6 seeds) - "[competitor] alternative", "best [product type]", "[competitor] vs [competitor]" using competitors above.
+6. competitor_alt (5-8 seeds) - "[competitor] alternative", "[competitor] vs [competitor]", "[competitor] pricing", "best [product type]", "cheaper than [competitor]" using competitors above.
 7. use_case (4-6 seeds) - A keyword for EACH use case listed above. "[task] tool", "how to [workflow]".
 8. niche (3-5 seeds) - Terms for EACH industry/niche listed above. Industry-specific jargon.
 9. benefit (4-6 seeds) - Outcome keywords for EACH benefit listed above. "save time [doing X]", "best tool for [result]".
 10. adjacent (3-5 seeds) - Keywords for EACH related topic listed above. Complementary tools, adjacent needs.
+${upcomingHoliday ? `11. seasonal (3-5 seeds) - Keywords related to ${upcomingHoliday.name}. ONLY generate if this product has genuine seasonal relevance (e.g., gifts, retail, services with holiday demand). Examples: "[product] ${upcomingHoliday.keywords[0]} deals", "best [product] for ${upcomingHoliday.keywords[0]}". If the product is NOT seasonal (e.g., B2B software, developer tools), return an EMPTY array for this category.` : ''}
+${location ? `${upcomingHoliday ? '12' : '11'}. local (4-6 seeds) - Local/geographic keywords for "${location}". "[product/service] ${location}", "[product/service] near me", "best [product/service] in ${location}", "[product/service] ${location} reviews".` : ''}
 
 Return JSON format:
 {
@@ -190,7 +231,7 @@ Return JSON format:
   ]
 }`;
 
-  const text = await geminiGenerate(model, prompt);
+  const text = await geminiGenerate(prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Failed to parse AI seed response');
@@ -214,7 +255,7 @@ Return JSON format:
 
   if (weakCategories.length > 0) {
     functions.logger.info(`Multi-pass: ${weakCategories.length} weak categories detected: ${weakCategories.join(', ')}`);
-    const boostSeeds = await boostWeakCategories(model, context, weakCategories);
+    const boostSeeds = await boostWeakCategories(context, weakCategories);
     allSeeds = [...allSeeds, ...boostSeeds];
     functions.logger.info(`Multi-pass: added ${boostSeeds.length} additional seeds`);
   }
@@ -232,13 +273,12 @@ Return JSON format:
  * Multi-pass: re-prompt Gemini for categories that had fewer than 3 seeds
  */
 async function boostWeakCategories(
-  model: any,
   context: ProductContext,
   weakCategories: string[],
 ): Promise<{ keyword: string; category: string; source: string }[]> {
   const categoryInstructions: Record<string, string> = {
     competitor_brand: `Find 5-8 DIRECT competitors to "${context.productName || context.productLabel}". Known competitors: ${context.competitors.join(', ') || 'none identified'}. These must be real products that solve the same problem: ${context.whatItDoes}. Search your knowledge thoroughly.`,
-    competitor_alt: `Generate 5-8 "alternative to" and comparison queries. Known competitors: ${context.competitors.join(', ') || 'none'}. Use format: "[competitor] alternative", "best [product type]", "[competitor] vs [competitor]".`,
+    competitor_alt: `Generate 5-8 "alternative to", comparison, and pricing queries. Known competitors: ${context.competitors.join(', ') || 'none'}. Use format: "[competitor] alternative", "[competitor] vs [competitor]", "[competitor] pricing", "cheaper than [competitor]", "best [product type]".`,
     problem: `Generate 5-8 pain-point and "how to" queries. Known pain points: ${context.painPoints.join(', ') || 'not specified'}. What frustrations lead someone to need: ${context.whatItDoes}?`,
     use_case: `Generate 5-8 specific use-case keywords. Known use cases: ${context.useCases.join(', ') || 'not specified'}. Target audience: ${context.targetAudience.join(', ') || 'not specified'}. When exactly does someone need this product?`,
     benefit: `Generate 5-8 outcome-focused keywords. Known benefits: ${context.benefits.join(', ') || 'not specified'}. What results does this product deliver? "save time [doing X]", "best tool for [result]".`,
@@ -266,7 +306,7 @@ Return ONLY valid JSON, no markdown:
 }`;
 
   try {
-    const text = await geminiGenerate(model, prompt);
+    const text = await geminiGenerate(prompt);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return [];
 
@@ -376,8 +416,6 @@ export async function scoreRelevance(
   keywords: string[],
   context: ProductContext,
 ): Promise<Map<string, number>> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
   const keywordList = keywords.map((k, i) => `${i + 1}. "${k}"`).join('\n');
 
   const prompt = `You are evaluating keyword relevance for a specific product.
@@ -403,7 +441,7 @@ Return ONLY valid JSON, no markdown:
   ...
 ]`;
 
-  const text = await geminiGenerate(model, prompt);
+  const text = await geminiGenerate(prompt);
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return new Map();
 
@@ -423,8 +461,6 @@ Return ONLY valid JSON, no markdown:
 export async function nameClustersBatch(
   clusters: KeywordCluster[],
 ): Promise<KeywordCluster[]> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
   const groupList = clusters.map((c, i) =>
     `Group ${i}: [${c.keywordKeys.slice(0, 8).map((k) => `"${k}"`).join(', ')}]`,
   ).join('\n');
@@ -439,7 +475,7 @@ Return JSON format:
   ...
 ]`;
 
-  const text = await geminiGenerate(model, prompt);
+  const text = await geminiGenerate(prompt);
   const jsonMatch = text.match(/\[[\s\S]*\]/);
 
   if (!jsonMatch) return clusters;
@@ -471,8 +507,6 @@ export async function generateRefineSeeds(
   category: KeywordCategory,
   productDescription: string,
 ): Promise<{ keyword: string; category: string; source: string }[]> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
   const categoryPrompt = REFINE_PROMPTS[category] || 'Generate keyword seeds related to this input.';
 
   const prompt = `You are an expert keyword researcher. The user has an existing keyword research for this product:
@@ -492,7 +526,7 @@ Generate 10-20 keyword seeds. Each keyword should be directly searchable on Goog
   ]
 }`;
 
-  const text = await geminiGenerate(model, prompt);
+  const text = await geminiGenerate(prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Failed to parse refine response');

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useCredits } from '../hooks/useCredits';
@@ -38,6 +39,51 @@ export default function Pricing() {
   };
 
   return (
+    <>
+      <Helmet>
+        <title>Pricing — JackpotKeywords</title>
+        <meta name="description" content="Keyword research from $1.99/search or $9.99/mo unlimited. 3 free searches, no credit card required. 23x cheaper than SEMrush." />
+        <link rel="canonical" href="https://jackpotkeywords.web.app/pricing" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            name: 'JackpotKeywords Pricing',
+            description: 'Keyword research pricing plans',
+            offers: [
+              {
+                '@type': 'Offer',
+                name: 'Free Tier',
+                price: '0',
+                priceCurrency: 'USD',
+                description: '3 lifetime searches, no credit card required',
+              },
+              {
+                '@type': 'Offer',
+                name: 'Single Search',
+                price: '1.99',
+                priceCurrency: 'USD',
+                description: 'Pay-per-search credit',
+              },
+              {
+                '@type': 'Offer',
+                name: '3-Pack',
+                price: '4.99',
+                priceCurrency: 'USD',
+                description: '3 search credits ($1.66 each)',
+              },
+              {
+                '@type': 'Offer',
+                name: 'Pro Plan',
+                price: '9.99',
+                priceCurrency: 'USD',
+                description: 'Unlimited searches, full features',
+                billingIncrement: 'P1M',
+              },
+            ],
+          })}
+        </script>
+      </Helmet>
     <div className="max-w-5xl mx-auto px-4 py-16">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-white mb-4">Simple pricing</h1>
@@ -155,5 +201,6 @@ export default function Pricing() {
         </p>
       </div>
     </div>
+    </>
   );
 }

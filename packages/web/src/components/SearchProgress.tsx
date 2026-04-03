@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 
 const STEPS = [
   { label: 'Analyzing your product description', duration: 3000 },
-  { label: 'Generating keyword seeds across 10 categories', duration: 5000 },
+  { label: 'Generating keyword seeds across 12 categories', duration: 5000 },
   { label: 'Expanding long-tail keyword variations', duration: 8000 },
   { label: 'Enriching keywords with real search data', duration: 20000 },
   { label: 'Calculating trends and seasonality', duration: 3000 },

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { initUser } from '../services/api';
+import { trackSignUp } from '../services/analytics';
 import type { UserProfile, UserCredits } from '@jackpotkeywords/shared';
 
 interface AuthState {
@@ -56,7 +57,11 @@ export function useAuth() {
   const signInWithGoogle = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+      if (isNewUser) {
+        trackSignUp('google');
+      }
     } catch (err: any) {
       setState((prev) => ({ ...prev, loading: false, error: err.message }));
     }

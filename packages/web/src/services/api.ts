@@ -27,7 +27,7 @@ export async function initUser(token: string) {
 
 export async function runSearch(
   token: string | null,
-  params: { description: string; url?: string; budget?: number },
+  params: { description: string; url?: string; budget?: number; location?: string },
 ): Promise<SearchResult> {
   return apiFetch('/api/search', token, {
     method: 'POST',

@@ -22,7 +22,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   const startTime = Date.now();
   const userId = req.userId;
   const isAnonymous = !userId;
-  const { description, url, budget } = req.body as SearchRequest;
+  const { description, url, budget, location } = req.body as SearchRequest;
 
   if (!description?.trim() && !url?.trim()) {
     res.status(400).json({ error: 'Description or URL required' });
@@ -51,7 +51,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 
     // Step 1: AI seed generation
     functions.logger.info('Step 1: Generating seeds...');
-    const seeds = await generateSeeds(context);
+    const seeds = await generateSeeds(context, location);
     functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
 
     // Steps 1b + 2: Run competitor discovery and autocomplete expansion in parallel

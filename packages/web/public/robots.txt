@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /account
+Disallow: /admin
+Disallow: /results
 
-Sitemap: https://jackpotkeywords.com/sitemap.xml
+Sitemap: https://jackpotkeywords.web.app/sitemap.xml

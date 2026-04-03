@@ -36,6 +36,9 @@ export default function Layout() {
             <Link to="/pricing" className="text-gray-400 hover:text-white transition">
               Pricing
             </Link>
+            <Link to="/blog" className="text-gray-400 hover:text-white transition">
+              Blog
+            </Link>
             {user ? (
               <>
                 <Link to="/" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
@@ -44,6 +47,11 @@ export default function Layout() {
                 <Link to="/account" className="text-gray-400 hover:text-white transition">
                   Account
                 </Link>
+                {isAdmin && (
+                  <Link to="/admin" className="text-gray-400 hover:text-white transition">
+                    Admin
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="text-gray-400 hover:text-white transition"

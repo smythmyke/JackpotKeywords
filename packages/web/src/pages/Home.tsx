@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useAuthContext } from '../contexts/AuthContext';
 import { runSearch } from '../services/api';
+import { trackSearch } from '../services/analytics';
 import SearchForm from '../components/SearchForm';
 import SearchProgress from '../components/SearchProgress';
 
@@ -11,7 +13,7 @@ const COMPARISON_FEATURES = [
   'CPC & competition data',
   'Trend analysis',
   'AI opportunity scoring',
-  '10 intent categories',
+  '12 intent categories',
   'No keyword expertise needed',
 ];
 
@@ -36,7 +38,7 @@ const STEPS = [
   {
     num: '2',
     title: 'AI Finds Opportunities',
-    desc: '4 data sources. 10 intent categories. 1,000+ keywords analyzed in seconds.',
+    desc: '4 data sources. 12 intent categories. 1,000+ keywords analyzed in seconds.',
     icon: '🔍',
   },
   {
@@ -51,13 +53,15 @@ const CATEGORIES = [
   'Direct Intent',
   'Feature-Based',
   'Problem-Based',
-  'Competitor Alternatives',
-  'Long-Tail',
-  'Use Case',
   'Audience',
+  'Competitor Brands',
+  'Competitor Alternatives',
+  'Use Case',
+  'Industry / Niche',
+  'Benefit / Outcome',
+  'Adjacent',
   'Seasonal',
   'Local',
-  'Adjacent',
 ];
 
 const FAQS = [
@@ -105,16 +109,18 @@ export default function Home() {
     return "You've used your free searches. Unlock more from $1.99.";
   }
 
-  const handleSearch = async (description: string, url: string, budget?: number) => {
+  const handleSearch = async (description: string, url: string, budget?: number, location?: string) => {
     setError(null);
     setLoading(true);
     try {
       const token = user ? await getToken() : null;
 
+      trackSearch(description);
       const result = await runSearch(token, {
         description,
         url: url || undefined,
         budget,
+        location,
       });
 
       // Results not saved to Firestore — pass via state for both auth and anonymous
@@ -134,6 +140,24 @@ export default function Home() {
   }
 
   return (
+    <>
+      <Helmet>
+        <link rel="canonical" href="https://jackpotkeywords.web.app/" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: FAQS.map((faq) => ({
+              '@type': 'Question',
+              name: faq.q,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.a,
+              },
+            })),
+          })}
+        </script>
+      </Helmet>
     <div>
       {/* Hero */}
       <section className="min-h-[100vh] flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
@@ -149,7 +173,7 @@ export default function Home() {
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto leading-relaxed">
             AI-powered keyword research with real advertiser-grade data.
-            Discover 1,000+ keyword opportunities across 10 intent categories —
+            Discover 1,000+ keyword opportunities across 12 intent categories —
             scored, ranked, and ready to act on.
             <br />
             <span className="text-white font-medium">{getStatusLine()}</span>
@@ -165,27 +189,26 @@ export default function Home() {
 
         <SearchForm onSearch={handleSearch} loading={loading} initialDescription={prefillQuery} />
 
-        {/* Stats bar */}
-        <div className="mt-12 flex items-center gap-8 md:gap-12 text-center text-sm text-gray-500">
+        {/* Pricing strip */}
+        <div className="mt-12 flex items-center gap-6 md:gap-10 text-center text-sm">
           <div>
-            <div className="text-2xl font-bold text-white">4</div>
-            <div>Data sources<br />combined</div>
+            <div className="text-2xl font-bold text-jackpot-400">Free</div>
+            <div className="text-gray-500">3 searches<br />No card required</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-white">10</div>
-            <div>Intent<br />categories</div>
+            <div className="text-2xl font-bold text-white">$1.99</div>
+            <div className="text-gray-500">Per search<br />Pay as you go</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-white">23x</div>
-            <div>Cheaper than<br />SEMrush</div>
+            <div className="text-2xl font-bold text-white">$9.99<span className="text-base font-normal text-gray-400">/mo</span></div>
+            <div className="text-gray-500">Unlimited searches<br />Best value</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
-          <div>
-            <div className="text-2xl font-bold text-jackpot-400">30s</div>
-            <div>Results<br />delivered</div>
-          </div>
+          <Link to="/pricing" className="text-jackpot-400 hover:text-jackpot-300 transition font-medium text-sm">
+            See all plans &rarr;
+          </Link>
         </div>
         </div>
       </section>
@@ -209,16 +232,39 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          {/* Stats bar */}
+          <div className="mt-14 flex items-center justify-center gap-8 md:gap-12 text-center text-sm text-gray-500">
+            <div>
+              <div className="text-2xl font-bold text-white">4</div>
+              <div>Data sources<br />combined</div>
+            </div>
+            <div className="w-px h-10 bg-gray-800" />
+            <div>
+              <div className="text-2xl font-bold text-white">12</div>
+              <div>Intent<br />categories</div>
+            </div>
+            <div className="w-px h-10 bg-gray-800" />
+            <div>
+              <div className="text-2xl font-bold text-white">23x</div>
+              <div>Cheaper than<br />SEMrush</div>
+            </div>
+            <div className="w-px h-10 bg-gray-800" />
+            <div>
+              <div className="text-2xl font-bold text-jackpot-400">30s</div>
+              <div>Results<br />delivered</div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* 10 Categories */}
       <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">10 Intent Categories</h2>
+          <h2 className="text-3xl font-bold mb-4">12 Intent Categories</h2>
           <p className="text-gray-400 mb-10 max-w-lg mx-auto">
             We don&apos;t just find keywords — we organize them by how people search.
-            Every search covers all 10 categories.
+            Every search covers up to 12 categories.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {CATEGORIES.map((cat) => (
@@ -364,11 +410,13 @@ export default function Home() {
           <div>&copy; {new Date().getFullYear()} JackpotKeywords. All rights reserved.</div>
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
+            <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
             <Link to="/help" className="hover:text-gray-400 transition">Help</Link>
             <Link to="/disclaimer" className="hover:text-gray-400 transition">Disclaimer</Link>
           </div>
         </div>
       </footer>
     </div>
+    </>
   );
 }

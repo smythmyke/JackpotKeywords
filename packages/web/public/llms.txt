@@ -1,0 +1,51 @@
+# JackpotKeywords
+
+> AI-powered keyword research tool with real Google Ads data. Describe your product in plain English and get 1,000+ scored keyword opportunities across 12 intent categories.
+
+## What JackpotKeywords Does
+
+JackpotKeywords is a keyword research tool for small businesses, entrepreneurs, and marketers. Users describe their product or service in plain English — no keyword expertise needed — and the tool generates keyword opportunities using real Google Ads data.
+
+### Key Features
+- AI-powered keyword seed generation across 12 intent categories
+- Real Google Ads search volume, CPC, and competition data (not estimates)
+- Jackpot Score (0-100) combining volume, CPC, competition, and trends
+- Ad Score and SEO Score for different optimization strategies
+- 12-month trend analysis with seasonal detection
+- Keyword clustering and intent classification
+- Local keyword generation for geographic targeting
+- CSV and Google Ads Editor export
+- Budget Calculator with Google Ads forecast data
+- Market Intelligence dashboard
+
+### 12 Intent Categories
+1. Direct / Head Terms
+2. Feature-Based
+3. Problem-Based
+4. Audience-Based
+5. Competitor Brands
+6. Competitor Alternatives
+7. Use Case / Scenario
+8. Industry / Niche
+9. Benefit / Outcome
+10. Adjacent / Tangential
+11. Seasonal / Holiday
+12. Local / Geographic
+
+### Pricing
+- Free: 3 searches, no credit card required
+- Pay-per-search: $1.99/search or $4.99 for 3-pack ($1.66/search)
+- Pro: $9.99/month for unlimited searches
+
+### How It Compares
+- SEMrush: $140/month
+- Ahrefs: $99/month
+- SE Ranking: $44/month
+- Ubersuggest: $29/month
+- JackpotKeywords: $9.99/month (23x cheaper than SEMrush)
+
+## URL
+https://jackpotkeywords.web.app
+
+## Contact
+For questions about JackpotKeywords, visit https://jackpotkeywords.web.app/help

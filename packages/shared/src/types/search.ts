@@ -8,7 +8,9 @@ export type KeywordCategory =
   | 'use_case'
   | 'niche'
   | 'benefit'
-  | 'adjacent';
+  | 'adjacent'
+  | 'seasonal'
+  | 'local';
 
 export type KeywordSource = 'ai' | 'autocomplete' | 'planner_related';
 export type TrendDirection = 'rising' | 'rising_slight' | 'stable' | 'declining_slight' | 'declining';
@@ -35,6 +37,8 @@ export const CATEGORY_LABELS: Record<KeywordCategory, string> = {
   niche: 'Industry / Niche',
   benefit: 'Benefit / Outcome',
   adjacent: 'Adjacent / Tangential',
+  seasonal: 'Seasonal / Holiday',
+  local: 'Local / Geographic',
 };
 
 export interface ProductContext {
@@ -56,6 +60,7 @@ export interface SearchRequest {
   description: string;
   url?: string;
   budget?: number;
+  location?: string;
 }
 
 export interface KeywordResult {

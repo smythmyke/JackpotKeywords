@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 
 export default function Help() {
   return (
+    <>
+      <Helmet>
+        <title>Help — JackpotKeywords</title>
+        <link rel="canonical" href="https://jackpotkeywords.web.app/help" />
+      </Helmet>
     <div className="max-w-3xl mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold text-white mb-2">Help Center</h1>
       <p className="text-gray-500 text-sm mb-10">Guides and instructions for getting the most out of JackpotKeywords.</p>
@@ -149,5 +155,6 @@ export default function Help() {
         </Link>
       </div>
     </div>
+    </>
   );
 }

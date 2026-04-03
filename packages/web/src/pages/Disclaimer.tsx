@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 
 export default function Disclaimer() {
   return (
+    <>
+      <Helmet>
+        <title>Disclaimer — JackpotKeywords</title>
+        <link rel="canonical" href="https://jackpotkeywords.web.app/disclaimer" />
+      </Helmet>
     <div className="max-w-3xl mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold text-white mb-2">Disclaimer</h1>
       <p className="text-gray-500 text-sm mb-10">Last updated: March 2026</p>
@@ -146,5 +152,6 @@ export default function Disclaimer() {
         </Link>
       </div>
     </div>
+    </>
   );
 }
