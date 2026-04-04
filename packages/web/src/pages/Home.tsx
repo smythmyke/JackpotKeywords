@@ -410,6 +410,9 @@ export default function Home() {
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
             <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
+            <Link to="/features/competitor-keyword-research" className="hover:text-gray-400 transition">Competitor Research</Link>
+            <Link to="/features/long-tail-keyword-generator" className="hover:text-gray-400 transition">Long-Tail Generator</Link>
+            <Link to="/features/keyword-competition-checker" className="hover:text-gray-400 transition">Competition Checker</Link>
             <Link to="/help" className="hover:text-gray-400 transition">Help</Link>
             <Link to="/disclaimer" className="hover:text-gray-400 transition">Disclaimer</Link>
           </div>

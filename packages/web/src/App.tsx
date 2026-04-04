@@ -13,6 +13,9 @@ const BlogPost = lazy(() => import('./pages/BlogPost'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Help = lazy(() => import('./pages/Help'));
 const Disclaimer = lazy(() => import('./pages/Disclaimer'));
+const CompetitorKeywordResearch = lazy(() => import('./pages/features/CompetitorKeywordResearch'));
+const LongTailKeywordGenerator = lazy(() => import('./pages/features/LongTailKeywordGenerator'));
+const KeywordCompetitionChecker = lazy(() => import('./pages/features/KeywordCompetitionChecker'));
 
 export default function App() {
   const location = useLocation();
@@ -35,6 +38,9 @@ export default function App() {
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/features/competitor-keyword-research" element={<CompetitorKeywordResearch />} />
+          <Route path="/features/long-tail-keyword-generator" element={<LongTailKeywordGenerator />} />
+          <Route path="/features/keyword-competition-checker" element={<KeywordCompetitionChecker />} />
         </Route>
       </Routes>
     </Suspense>

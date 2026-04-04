@@ -12,7 +12,7 @@ export default function Layout() {
     navigate('/');
   };
 
-  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const isAdmin = (profile?.email && ADMIN_EMAILS.includes(profile.email)) || (user?.email && ADMIN_EMAILS.includes(user.email));
   const plan = profile?.plan || 'free';
 
   function getUserBadge() {

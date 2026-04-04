@@ -106,6 +106,21 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://jackpotkeywords.web.app/features/competitor-keyword-research</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://jackpotkeywords.web.app/features/long-tail-keyword-generator</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://jackpotkeywords.web.app/features/keyword-competition-checker</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://jackpotkeywords.web.app/help</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>

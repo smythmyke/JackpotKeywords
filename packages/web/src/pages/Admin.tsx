@@ -17,12 +17,12 @@ interface Stats {
 }
 
 export default function Admin() {
-  const { profile, loading: authLoading } = useAuthContext();
+  const { user, profile, loading: authLoading } = useAuthContext();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const isAdmin = (profile?.email && ADMIN_EMAILS.includes(profile.email)) || (user?.email && ADMIN_EMAILS.includes(user.email));
 
   useEffect(() => {
     if (authLoading || !isAdmin) return;

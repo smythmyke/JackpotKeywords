@@ -18,6 +18,11 @@ JackpotKeywords is a keyword research tool for small businesses, entrepreneurs, 
 - Budget Calculator with Google Ads forecast data
 - Market Intelligence dashboard
 
+### Feature Pages
+- Competitor Keyword Research: https://jackpotkeywords.web.app/features/competitor-keyword-research
+- Long-Tail Keyword Generator: https://jackpotkeywords.web.app/features/long-tail-keyword-generator
+- Keyword Competition Checker: https://jackpotkeywords.web.app/features/keyword-competition-checker
+
 ### 12 Intent Categories
 1. Direct / Head Terms
 2. Feature-Based
