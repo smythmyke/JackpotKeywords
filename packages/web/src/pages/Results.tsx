@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance } from '../services/api';
+import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -103,6 +103,8 @@ export default function Results() {
   const [refining, setRefining] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [expanding, setExpanding] = useState(false);
+  const [expandedCount, setExpandedCount] = useState<number | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -152,6 +154,10 @@ export default function Results() {
     // Check for results passed via location state
     if (stateResult && (!result || result.id !== stateResult.id || result.paid !== stateResult.paid)) {
       setResult(stateResult);
+      try {
+        sessionStorage.setItem('jk_results', JSON.stringify(stateResult));
+        sessionStorage.setItem('jk_results_path', location.pathname);
+      } catch {}
       const firstWithData = ALL_CATEGORIES.find(
         (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
       );
@@ -163,8 +169,21 @@ export default function Results() {
     // If we already have results loaded, don't re-fetch on auth changes
     if (result) return;
 
-    // Anonymous with no state — results expired
+    // Try restoring from sessionStorage
     if (isAnonymous) {
+      try {
+        const cached = sessionStorage.getItem('jk_results');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setResult(parsed);
+          const firstWithData = ALL_CATEGORIES.find(
+            (cat) => parsed.keywords?.some((kw: KeywordResult) => kw.category === cat),
+          );
+          if (firstWithData) setActiveCategory(firstWithData);
+          setLoading(false);
+          return;
+        }
+      } catch {}
       setError('Results expired. Please run a new search.');
       setLoading(false);
       return;
@@ -185,6 +204,10 @@ export default function Results() {
         if (!token) throw new Error('Not authenticated');
         const data = await getSearchResult(token, searchId);
         setResult(data);
+        try {
+          sessionStorage.setItem('jk_results', JSON.stringify(data));
+          sessionStorage.setItem('jk_results_path', location.pathname);
+        } catch {}
 
         const firstWithData = ALL_CATEGORIES.find(
           (cat) => data.keywords?.some((kw: KeywordResult) => kw.category === cat),
@@ -367,6 +390,54 @@ export default function Results() {
       setRefineError(err.message);
     } finally {
       setRefining(false);
+    }
+  };
+
+  const handleExpand = async () => {
+    if (!result || expanding || expandedCount !== null) return;
+    setExpanding(true);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Sign in to expand results');
+
+      // Get top seeds from direct category sorted by score
+      const topSeeds = result.keywords
+        .filter((kw) => kw.category === 'direct')
+        .sort((a, b) => b.adScore - a.adScore)
+        .slice(0, 8)
+        .map((kw) => kw.keyword);
+
+      if (topSeeds.length === 0) {
+        // Fallback: use any top keywords
+        topSeeds.push(...result.keywords
+          .sort((a, b) => b.adScore - a.adScore)
+          .slice(0, 8)
+          .map((kw) => kw.keyword));
+      }
+
+      const res = await expandResults(token, {
+        topSeeds,
+        existingKeywords: result.keywords.map((kw) => kw.keyword),
+        productContext: result.productContext || { productLabel: result.productLabel, whatItDoes: result.query, industryNiche: [], keyFeatures: [] },
+        budget: result.budget,
+      });
+
+      if (res.keywords.length > 0) {
+        setResult((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            keywords: [...prev.keywords, ...res.keywords],
+            clusters: [...(prev.clusters || []), ...res.clusters],
+            expandedAt: new Date().toISOString(),
+          } as any;
+        });
+      }
+      setExpandedCount(res.expandedCount);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setExpanding(false);
     }
   };
 
@@ -676,8 +747,8 @@ export default function Results() {
         </div>
       )}
 
-      {/* Filter bar */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl mb-3 flex-wrap">
+      {/* Filter bar — sticky */}
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-gray-900/95 backdrop-blur-sm border border-gray-800 rounded-xl mb-3 flex-wrap shadow-lg">
         <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold mr-1">Filters</span>
         <select
           value={filterVolume ?? ''}
@@ -762,10 +833,34 @@ export default function Results() {
           <option value="1">Scored</option>
         </select>
         {activeFilterCount > 0 && (
-          <button onClick={resetAll} className="ml-auto text-xs text-gray-500 hover:text-white transition">
+          <button onClick={resetAll} className="text-xs text-gray-500 hover:text-white transition">
             Clear all ({activeFilterCount} active)
           </button>
         )}
+
+        {/* Expand Results button */}
+        <button
+          onClick={handleExpand}
+          disabled={expanding || expandedCount !== null || !paid}
+          title={!paid ? 'Expand is available for paid users' : expandedCount !== null ? `Expanded +${expandedCount}` : 'Discover keywords from YouTube, Amazon & eBay'}
+          className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
+            expandedCount !== null
+              ? 'border-green-500/40 bg-green-500/8 text-green-400 opacity-70 cursor-default'
+              : expanding
+              ? 'border-amber-500/40 bg-amber-500/8 text-amber-400 cursor-wait opacity-80'
+              : !paid
+              ? 'border-gray-700 bg-gray-800/50 text-gray-500 cursor-not-allowed'
+              : 'border-red-500 bg-red-500/8 text-red-400 hover:bg-red-500/15 hover:shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+          }`}
+        >
+          {expandedCount !== null ? (
+            <>&#10003; Expanded +{expandedCount}</>
+          ) : expanding ? (
+            <><span className="inline-block w-3.5 h-3.5 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" /> Expanding...</>
+          ) : (
+            <><span className="text-base">&#9889;</span> Expand Results</>
+          )}
+        </button>
       </div>
 
       {/* Filter status */}

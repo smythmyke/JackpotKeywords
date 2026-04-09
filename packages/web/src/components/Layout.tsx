@@ -1,4 +1,5 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 
 const ADMIN_EMAILS = ['smythmyke@gmail.com'];
@@ -6,6 +7,18 @@ const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 export default function Layout() {
   const { user, profile, credits, loading, signInWithGoogle, logout } = useAuthContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [hasResults, setHasResults] = useState(false);
+  const [resultsPath, setResultsPath] = useState('');
+
+  const isOnResultsPage = location.pathname.startsWith('/results');
+
+  useEffect(() => {
+    const cached = sessionStorage.getItem('jk_results');
+    const path = sessionStorage.getItem('jk_results_path');
+    setHasResults(!!cached);
+    setResultsPath(path || '/results/anonymous');
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -39,6 +52,11 @@ export default function Layout() {
             <Link to="/blog" className="text-gray-400 hover:text-white transition">
               Blog
             </Link>
+            {hasResults && !isOnResultsPage && (
+              <Link to={resultsPath} className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                Results
+              </Link>
+            )}
             {user ? (
               <>
                 <Link to="/" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">

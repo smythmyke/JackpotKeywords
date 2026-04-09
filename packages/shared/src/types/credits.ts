@@ -19,7 +19,7 @@ export interface SubscriptionPlan {
   stripePriceId?: string;
 }
 
-export type OperationType = 'keyword_search' | 'concept_search' | 'pdf_report';
+export type OperationType = 'keyword_search' | 'concept_search' | 'pdf_report' | 'expand_search';
 
 export interface OperationCost {
   operation: OperationType;

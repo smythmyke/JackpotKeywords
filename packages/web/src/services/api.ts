@@ -97,6 +97,21 @@ export async function nameClusters(
   });
 }
 
+export async function expandResults(
+  token: string,
+  data: {
+    topSeeds: string[];
+    existingKeywords: string[];
+    productContext: any;
+    budget?: number;
+  },
+): Promise<{ keywords: any[]; clusters: any[]; platforms: string[]; expandedCount: number }> {
+  return apiFetch('/api/search/expand', token, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function refineSearch(
   token: string,
   searchId: string,

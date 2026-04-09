@@ -237,11 +237,13 @@ Return JSON format:
   if (!jsonMatch) throw new Error('Failed to parse AI seed response');
 
   const parsed = JSON.parse(jsonMatch[0]);
-  let allSeeds = parsed.seeds.map((s: any) => ({
-    keyword: s.keyword,
-    category: s.category,
-    source: 'ai' as const,
-  }));
+  let allSeeds = parsed.seeds
+    .filter((s: any) => s.keyword && typeof s.keyword === 'string')
+    .map((s: any) => ({
+      keyword: s.keyword,
+      category: s.category || 'direct',
+      source: 'ai' as const,
+    }));
 
   // Multi-pass: check for weak categories and re-prompt
   const categoryCounts = new Map<string, number>();

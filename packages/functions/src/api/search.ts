@@ -5,11 +5,14 @@ import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../mid
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
-import { expandAutocomplete, discoverCompetitors } from '../services/autocomplete';
+import { classifyIntent } from '../services/intentClassifier';
+import { expandAutocomplete, discoverCompetitors, expandAutocompleteMultiPlatform, selectExpandPlatforms } from '../services/autocomplete';
 import { enrichKeywords, forecastKeywords } from '../services/keywordPlanner';
 import { overlayTrends } from '../services/googleTrends';
 import { scoreAndClassify, nameClustersBatch, scoreRelevance } from '../services/gemini';
+import { clusterKeywords } from '../services/clustering';
 import type { SearchRequest, SearchResult, KeywordResult } from '@jackpotkeywords/shared';
+import { calculateAdScore, calculateSeoScore } from '@jackpotkeywords/shared';
 
 const router = Router();
 const db = admin.firestore();
@@ -280,6 +283,136 @@ router.post('/score-relevance', async (req, res) => {
   } catch (err: any) {
     functions.logger.error('Relevance scoring error:', err.message);
     res.status(500).json({ error: 'Scoring failed', details: err.message });
+  }
+});
+
+/**
+ * POST /api/search/expand
+ * Expand results via YouTube, Amazon, eBay autocomplete (half credit)
+ */
+router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const { topSeeds, existingKeywords, productContext, budget } = req.body;
+
+  if (!topSeeds || !Array.isArray(topSeeds) || topSeeds.length === 0) {
+    res.status(400).json({ error: 'Top seeds required' });
+    return;
+  }
+  if (!productContext) {
+    res.status(400).json({ error: 'Product context required' });
+    return;
+  }
+
+  // Half credit cost
+  const creditResult = await checkAndDeductCredits(userId, 0.5, 'expand_search', 'expand results');
+  if (!creditResult.allowed) {
+    res.status(402).json({ error: 'Insufficient credits', balance: creditResult.newBalance });
+    return;
+  }
+
+  try {
+    const startTime = Date.now();
+
+    // Step 1: Select platforms based on product type
+    const platforms = selectExpandPlatforms(productContext);
+    functions.logger.info(`Expand: platforms=${platforms.join(',')} for "${productContext.productLabel}"`);
+
+    // Step 2: Multi-platform autocomplete
+    const expandResults = await expandAutocompleteMultiPlatform(topSeeds, platforms);
+
+    // Step 3: Deduplicate against existing keywords
+    const existingSet = new Set((existingKeywords || []).map((k: string) => k.toLowerCase().trim()));
+    const newKeywords = expandResults.filter((r) => !existingSet.has(r.keyword.toLowerCase().trim()));
+    functions.logger.info(`Expand: ${newKeywords.length} new after dedup (${expandResults.length - newKeywords.length} dupes removed)`);
+
+    if (newKeywords.length === 0) {
+      res.json({ keywords: [], clusters: [], platforms, expandedCount: 0 });
+      return;
+    }
+
+    // Step 4: Enrich via Keyword Planner
+    const toEnrich = newKeywords.map((r) => ({
+      keyword: r.keyword,
+      category: 'direct' as const,
+      source: r.source,
+    }));
+    const enriched = await enrichKeywords(toEnrich);
+
+    // Step 5: Filter by volume >= 50
+    const filtered = enriched.filter((kw) => kw.avgMonthlySearches >= 50);
+    functions.logger.info(`Expand: ${filtered.length} keywords after vol>=50 filter (${enriched.length - filtered.length} dropped)`);
+
+    if (filtered.length === 0) {
+      res.json({ keywords: [], clusters: [], platforms, expandedCount: 0 });
+      return;
+    }
+
+    // Step 6: Score + classify intent + infer category
+    const scored: KeywordResult[] = filtered.map((kw) => {
+      const expandSource = newKeywords.find((n) => n.keyword.toLowerCase().trim() === kw.keyword.toLowerCase().trim())?.source || 'youtube';
+      const category = inferCategory(kw.keyword) as any;
+      const adScore = calculateAdScore(
+        kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
+        kw.competition, kw.relevance, kw.trendDirection, budget,
+      );
+      const seoScore = calculateSeoScore(
+        kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
+        kw.competition, kw.relevance, kw.trendDirection,
+      );
+      return {
+        ...kw,
+        source: expandSource as any,
+        category,
+        jackpotScore: adScore,
+        adScore,
+        seoScore,
+        intent: classifyIntent(kw.keyword, category as any),
+        isExpanded: true,
+      };
+    });
+
+    // Step 7: Relevance scoring via Gemini (scoped to expanded batch)
+    try {
+      const kwStrings = scored.slice(0, 100).map((k) => k.keyword);
+      const relevanceScores = await scoreRelevance(kwStrings, productContext);
+      for (const kw of scored) {
+        const score = relevanceScores.get(kw.keyword);
+        if (score !== undefined) kw.aiRelevance = score;
+      }
+      functions.logger.info(`Expand: relevance scored ${relevanceScores.size} keywords`);
+    } catch (err: any) {
+      functions.logger.warn(`Expand: relevance scoring failed (non-fatal): ${err.message}`);
+    }
+
+    // Step 8: Cluster (mark as expanded)
+    const clusters = clusterKeywords(scored).map((c) => ({ ...c, isExpanded: true }));
+
+    // Cap at 200 keywords
+    if (scored.length > 200) {
+      scored.sort((a, b) => b.jackpotScore - a.jackpotScore);
+      scored.length = 200;
+    }
+
+    const executionTimeMs = Date.now() - startTime;
+    functions.logger.info(`Expand complete: ${scored.length} keywords, ${clusters.length} clusters, ${executionTimeMs}ms`);
+
+    await logActivity('expand', {
+      userId,
+      keywordCount: scored.length,
+      platforms: platforms.join(','),
+      executionTimeMs,
+    });
+
+    res.json({
+      keywords: scored,
+      clusters,
+      platforms,
+      expandedCount: scored.length,
+    });
+  } catch (error: any) {
+    functions.logger.error('Expand error:', error.stack || error.message);
+    await refundCredits(userId, 0.5, `Expand failed: ${error.message}`);
+    res.status(500).json({ error: 'Expand failed', details: error.message });
   }
 });
 

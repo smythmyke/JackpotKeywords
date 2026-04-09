@@ -12,7 +12,7 @@ export type KeywordCategory =
   | 'seasonal'
   | 'local';
 
-export type KeywordSource = 'ai' | 'autocomplete' | 'planner_related';
+export type KeywordSource = 'ai' | 'autocomplete' | 'planner_related' | 'youtube' | 'amazon' | 'ebay' | 'bing' | 'duckduckgo' | 'pinterest';
 export type TrendDirection = 'rising' | 'rising_slight' | 'stable' | 'declining_slight' | 'declining';
 export type CompetitionLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNSPECIFIED';
 export type OpportunityType = 'quick_win' | 'long_term_seo' | 'ad_goldmine' | 'content_play' | 'expensive';
@@ -84,6 +84,7 @@ export interface KeywordResult {
   monthlyVolumes?: { month: string; volume: number }[];
   intent?: SearchIntent;
   aiRelevance?: number;
+  isExpanded?: boolean;
 }
 
 export interface CategorySummary {
@@ -112,6 +113,7 @@ export interface KeywordCluster {
   bestSeoScore: number;
   dominantIntent: SearchIntent;
   isJackpot: boolean;
+  isExpanded?: boolean;
 }
 
 export interface ConceptReport {
@@ -152,6 +154,8 @@ export interface SearchResult {
   categories: CategorySummary[];
   clusters?: KeywordCluster[];
   conceptReport?: ConceptReport;
+  expandedAt?: string;
+  productContext?: ProductContext;
   metadata: {
     seedCount: number;
     autocompleteCount: number;

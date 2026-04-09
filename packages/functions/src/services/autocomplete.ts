@@ -104,7 +104,7 @@ export async function discoverCompetitors(
   existingSeeds: { keyword: string; category: string; source: string }[],
 ): Promise<{ keyword: string; category: string; source: string }[]> {
   const results: { keyword: string; category: string; source: string }[] = [];
-  const seen = new Set(existingSeeds.map((s) => s.keyword.toLowerCase().trim()));
+  const seen = new Set(existingSeeds.filter((s) => s.keyword && typeof s.keyword === 'string').map((s) => s.keyword.toLowerCase().trim()));
 
   // Get direct category seeds for query building
   const directSeeds = existingSeeds
@@ -149,4 +149,148 @@ export async function discoverCompetitors(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---- Multi-platform autocomplete for Expand Results ----
+
+type ExpandPlatform = 'youtube' | 'amazon' | 'ebay' | 'bing' | 'duckduckgo' | 'pinterest';
+
+interface ExpandResult {
+  keyword: string;
+  source: ExpandPlatform;
+  parentSeed?: string;
+}
+
+async function fetchYouTubeSuggestions(query: string): Promise<string[]> {
+  const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!res.ok) return [];
+  const data: any = await res.json();
+  return (data[1] || []) as string[];
+}
+
+async function fetchAmazonSuggestions(query: string): Promise<string[]> {
+  const url = `https://completion.amazon.com/api/2017/suggestions?mid=ATVPDKIKX0DER&alias=aps&prefix=${encodeURIComponent(query)}`;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    return (data.suggestions || []).map((s: any) => s.value).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchEbaySuggestions(query: string): Promise<string[]> {
+  const url = `https://autosug.ebay.com/autosug?kwd=${encodeURIComponent(query)}&sId=0&fmt=osr`;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    return (data.res?.sug || []) as string[];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchBingSuggestions(query: string): Promise<string[]> {
+  const url = `https://api.bing.com/osjson.aspx?query=${encodeURIComponent(query)}&Market=en-US`;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    return (data[1] || []) as string[];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchDuckDuckGoSuggestions(query: string): Promise<string[]> {
+  const url = `https://duckduckgo.com/ac/?q=${encodeURIComponent(query)}&type=list`;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    return (data[1] || []) as string[];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchPinterestSuggestions(query: string): Promise<string[]> {
+  const options = JSON.stringify({ options: { pin_scope: 'pins', count: 5, term: query, no_fetch_context_on_resource: false }, context: null });
+  const url = `https://www.pinterest.com/resource/AdvancedTypeaheadResource/get/?source_url=/&data=${encodeURIComponent(options)}&_=${Date.now()}`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'X-Pinterest-PWS-Handler': 'www/index.js' },
+    });
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    const items = data?.resource_response?.data?.items || [];
+    return items.filter((i: any) => i.type === 'query').map((i: any) => i.query).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+const PLATFORM_FETCHERS: Record<ExpandPlatform, (q: string) => Promise<string[]>> = {
+  youtube: fetchYouTubeSuggestions,
+  amazon: fetchAmazonSuggestions,
+  ebay: fetchEbaySuggestions,
+  bing: fetchBingSuggestions,
+  duckduckgo: fetchDuckDuckGoSuggestions,
+  pinterest: fetchPinterestSuggestions,
+};
+
+/**
+ * Select which platforms to expand to based on product type.
+ * Digital/SaaS = YouTube + Bing + DuckDuckGo
+ * Visual/design = YouTube + Bing + DuckDuckGo + Pinterest
+ * Physical/ecommerce = YouTube + Amazon + eBay + Bing
+ * Default = YouTube + Bing + DuckDuckGo
+ */
+export function selectExpandPlatforms(context: { whatItDoes: string; industryNiche: string[]; keyFeatures: string[] }): ExpandPlatform[] {
+  const text = [context.whatItDoes, ...context.industryNiche, ...context.keyFeatures].join(' ').toLowerCase();
+  const isDigital = /\b(software|saas|app|api|platform|tool|dashboard|plugin|extension|online|cloud|web)\b/.test(text);
+  const isPhysical = /\b(buy|ship|physical|handmade|product|store|shop|retail|wholesale|inventory)\b/.test(text);
+  const isVisual = /\b(image|photo|design|visual|graphic|screenshot|template|banner|mockup|logo)\b/.test(text);
+
+  if (isPhysical && !isDigital) return ['youtube', 'amazon', 'ebay', 'bing'];
+  if (isVisual) return ['youtube', 'bing', 'duckduckgo', 'pinterest'];
+  if (isDigital) return ['youtube', 'bing', 'duckduckgo'];
+  return ['youtube', 'bing', 'duckduckgo'];
+}
+
+/**
+ * Expand keywords via YouTube, Amazon, and/or eBay autocomplete.
+ * Takes top seeds, queries each platform, deduplicates.
+ */
+export async function expandAutocompleteMultiPlatform(
+  topSeeds: string[],
+  platforms: ExpandPlatform[],
+): Promise<ExpandResult[]> {
+  const results = new Map<string, ExpandResult>();
+  const seeds = topSeeds.slice(0, 8);
+
+  for (const platform of platforms) {
+    const fetcher = PLATFORM_FETCHERS[platform];
+    const settled = await Promise.allSettled(
+      seeds.map(async (seed) => {
+        const suggestions = await fetcher(seed);
+        return suggestions.map((s) => ({ keyword: s, source: platform as ExpandPlatform, parentSeed: seed }));
+      }),
+    );
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        for (const hit of result.value) {
+          const key = hit.keyword.toLowerCase().trim();
+          if (!results.has(key)) results.set(key, hit);
+        }
+      }
+    }
+    await sleep(100);
+  }
+
+  functions.logger.info(`Multi-platform expand: ${results.size} unique keywords from ${platforms.join(', ')}`);
+  return Array.from(results.values());
 }
