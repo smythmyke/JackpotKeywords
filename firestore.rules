@@ -3,31 +3,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'smythmyke@gmail.com';
+    }
+
     // Users can only access their own data
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
 
-      // Credits — read by user, write only via Cloud Functions
+      // Credits — read by user or admin, write only via Cloud Functions
       match /credits/{document=**} {
-        allow read: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
         allow write: if false;
       }
 
-      // Transactions — read by user, write only via Cloud Functions
+      // Transactions — read by user or admin, write only via Cloud Functions
       match /transactions/{transactionId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
         allow write: if false;
       }
 
-      // Saved searches — read/write by user
+      // Saved searches — read/write by user, read by admin
       match /searches/{searchId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
     // Pricing config — public read
     match /pricingConfig/{document} {
       allow read: if true;
+      allow write: if false;
+    }
+
+    // Activity log — admin read only, write via Cloud Functions
+    match /activityLog/{logId} {
+      allow read: if isAdmin();
       allow write: if false;
     }
   }

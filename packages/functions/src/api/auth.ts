@@ -5,6 +5,18 @@ import { FieldValue } from 'firebase-admin/firestore';
 const router = Router();
 const db = admin.firestore();
 
+async function logActivity(action: string, details: Record<string, any>) {
+  try {
+    await db.collection('activityLog').add({
+      action,
+      ...details,
+      timestamp: FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    // Don't let logging failures break auth
+  }
+}
+
 /**
  * POST /api/auth/init
  * Called after Firebase Auth sign-in to ensure user document exists
@@ -46,6 +58,12 @@ router.post('/init', async (req, res) => {
 
     const userData = (await userRef.get()).data();
     const creditsData = (await db.doc(`users/${userId}/credits/balance`).get()).data();
+
+    await logActivity('auth_init', {
+      userId,
+      email: decoded.email || '',
+      isNewUser: !userDoc.exists,
+    });
 
     res.json({
       user: userData,

@@ -14,6 +14,18 @@ import type { SearchRequest, SearchResult, KeywordResult } from '@jackpotkeyword
 const router = Router();
 const db = admin.firestore();
 
+async function logActivity(action: string, details: Record<string, any>) {
+  try {
+    await db.collection('activityLog').add({
+      action,
+      ...details,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    // Don't let logging failures break the pipeline
+  }
+}
+
 /**
  * POST /api/search
  * Main search endpoint — orchestrates the 6-step pipeline
@@ -119,6 +131,14 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     };
 
     functions.logger.info(`Search complete: ${result.keywords.length} keywords (not saved — user selects and saves later)`);
+    await logActivity('search', {
+      userId: userId || 'anonymous',
+      query: description?.slice(0, 100),
+      productLabel: seeds.productLabel,
+      keywordCount: result.keywords.length,
+      executionTimeMs: Date.now() - startTime,
+      paid: !creditResult.isFreeSearch,
+    });
     res.json(result);
   } catch (error: any) {
     functions.logger.error('Search pipeline error:', error.stack || error.message);
@@ -126,6 +146,11 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     if (!isAnonymous) {
       await refundCredits(userId!, 1, `Search failed: ${error.message}`);
     }
+    await logActivity('search_error', {
+      userId: userId || 'anonymous',
+      query: description?.slice(0, 100),
+      error: error.message?.slice(0, 200),
+    });
     res.status(500).json({ error: 'Search pipeline failed', details: error.message });
   }
 });
@@ -144,6 +169,7 @@ router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
     }
     const paid = !creditResult.isFreeSearch;
     functions.logger.info(`Search claimed by user ${userId} (paid: ${paid})`);
+    await logActivity('claim', { userId, paid });
     res.json({ paid });
   } catch (error: any) {
     functions.logger.error('Claim error:', error.message);
@@ -189,6 +215,12 @@ router.post('/save', authMiddleware, async (req: AuthRequest, res) => {
     await db.doc(`users/${userId}/searches/${searchId}`).set(firestoreData);
 
     functions.logger.info(`Saved search: ${searchId} for user ${userId} (${keywords.length} keywords)`);
+    await logActivity('save', {
+      userId,
+      searchId,
+      keywordCount: keywords.length,
+      query: query?.slice(0, 100),
+    });
     res.json({ id: searchId });
   } catch (error: any) {
     functions.logger.error('Save search error:', error.message);

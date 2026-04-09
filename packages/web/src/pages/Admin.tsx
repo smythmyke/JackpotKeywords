@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -16,9 +16,24 @@ interface Stats {
   recentUsers: { email: string; plan: string; createdAt: string; searchCount: number }[];
 }
 
+interface ActivityLog {
+  action: string;
+  userId?: string;
+  email?: string;
+  query?: string;
+  productLabel?: string;
+  keywordCount?: number;
+  executionTimeMs?: number;
+  paid?: boolean;
+  error?: string;
+  isNewUser?: boolean;
+  timestamp: string;
+}
+
 export default function Admin() {
   const { user, profile, loading: authLoading } = useAuthContext();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +88,22 @@ export default function Admin() {
           totalFreeSearchesUsed,
           recentUsers,
         });
+
+        // Fetch activity logs
+        const logsSnap = await getDocs(
+          query(collection(db, 'activityLog'), orderBy('timestamp', 'desc'), limit(100))
+        );
+        const logEntries: ActivityLog[] = [];
+        logsSnap.forEach((doc) => {
+          const data = doc.data();
+          logEntries.push({
+            ...data,
+            timestamp: data.timestamp instanceof Timestamp
+              ? data.timestamp.toDate().toLocaleString()
+              : data.timestamp || '',
+          } as ActivityLog);
+        });
+        setLogs(logEntries);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -188,6 +219,71 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Activity Log */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mt-6">
+            <h2 className="text-lg font-bold mb-4">Activity Log</h2>
+            {logs.length === 0 ? (
+              <p className="text-gray-500 text-sm">No activity logged yet. Logs will appear after the next search or sign-in.</p>
+            ) : (
+              <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-900">
+                    <tr className="border-b border-gray-800">
+                      <th className="text-left px-3 py-2 text-gray-400 font-medium">Time</th>
+                      <th className="text-left px-3 py-2 text-gray-400 font-medium">Action</th>
+                      <th className="text-left px-3 py-2 text-gray-400 font-medium">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log, i) => (
+                      <tr key={i} className="border-b border-gray-800/50">
+                        <td className="px-3 py-2 text-gray-500 whitespace-nowrap text-xs">{log.timestamp}</td>
+                        <td className="px-3 py-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            log.action === 'search' ? 'bg-blue-500/10 text-blue-400' :
+                            log.action === 'search_error' ? 'bg-red-500/10 text-red-400' :
+                            log.action === 'save' ? 'bg-green-500/10 text-green-400' :
+                            log.action === 'claim' ? 'bg-jackpot-500/10 text-jackpot-400' :
+                            log.action === 'auth_init' ? 'bg-purple-500/10 text-purple-400' :
+                            'bg-gray-800 text-gray-400'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-300 text-xs">
+                          {log.action === 'search' && (
+                            <>
+                              <span className="text-gray-500">{log.userId === 'anonymous' ? 'anon' : log.userId?.slice(0, 8)}</span>
+                              {' '}&mdash; {log.productLabel || log.query}
+                              {' '}<span className="text-gray-500">({log.keywordCount} kw, {((log.executionTimeMs || 0) / 1000).toFixed(1)}s)</span>
+                            </>
+                          )}
+                          {log.action === 'search_error' && (
+                            <span className="text-red-400">{log.error}</span>
+                          )}
+                          {log.action === 'save' && (
+                            <>
+                              <span className="text-gray-500">{log.userId?.slice(0, 8)}</span>
+                              {' '}&mdash; {log.query} <span className="text-gray-500">({log.keywordCount} kw)</span>
+                            </>
+                          )}
+                          {log.action === 'claim' && (
+                            <span className="text-gray-500">{log.userId?.slice(0, 8)} {log.paid ? '(paid)' : '(free)'}</span>
+                          )}
+                          {log.action === 'auth_init' && (
+                            <>
+                              {log.email} {log.isNewUser && <span className="text-green-400 ml-1">NEW</span>}
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* External Links */}
