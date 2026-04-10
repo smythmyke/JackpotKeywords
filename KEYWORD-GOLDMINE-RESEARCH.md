@@ -240,7 +240,7 @@ People frustrated with Google's built-in tool. JackpotKeywords is the upgrade.
 
 > "SEMrush costs $140/mo and shows you data. Ahrefs costs $99/mo and shows you data. Google Keyword Planner is free but gives you raw numbers with no intelligence.
 >
-> **JackpotKeywords is $5.99/mo and shows you OPPORTUNITIES.** Describe your product → AI finds 1,000+ keywords across 10 intent categories → scores each one → tells you exactly which are goldmines. Real Google Ads data, AI opportunity scoring, at 1/23rd the price."
+> **JackpotKeywords is $9.99/mo and shows you OPPORTUNITIES.** Describe your product → AI finds 1,000+ keywords across 10 intent categories → scores each one → tells you exactly which are goldmines. Real Google Ads data, AI opportunity scoring, at 1/14th the price."
 
 ---
 
@@ -255,6 +255,6 @@ People frustrated with Google's built-in tool. JackpotKeywords is the upgrade.
 | Platform Keyword Tools | 11 | $2.00 | $1.50 | 2-4 |
 | **Total** | **77** | — | **$11.00/day** | **12-22** |
 
-At $330/mo, targeting ~450-660 clicks/month. If 5% convert to Pro ($5.99), that's 22-33 subscribers/month.
+At $330/mo, targeting ~450-660 clicks/month. If 5% convert to Pro ($9.99), that's 22-33 subscribers/month.
 
-Break-even: ~55 Pro subscribers ($330/mo ad spend ÷ $5.99).
+Break-even: ~33 Pro subscribers ($330/mo ad spend ÷ $9.99).

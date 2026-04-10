@@ -33,8 +33,14 @@ export async function createCreditCheckout(
     mode: 'payment',
     customer_email: email,
     metadata: { userId, packId, credits: String(pack.credits) },
-    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.com'}/account?purchase=success`,
-    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.com'}/pricing`,
+    payment_intent_data: {
+      statement_descriptor: 'JACKPOTKEYWORDS',
+    },
+    custom_text: {
+      submit: { message: 'Payment processed securely by JackpotKeywords' },
+    },
+    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/account?purchase=success`,
+    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/pricing`,
   });
 
   return session.url || '';
@@ -55,8 +61,15 @@ export async function createSubscriptionCheckout(
     mode: 'subscription',
     customer_email: email,
     metadata: { userId, planId },
-    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.com'}/account?subscribe=success`,
-    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.com'}/pricing`,
+    subscription_data: {
+      metadata: { userId, planId },
+      description: 'JackpotKeywords Pro subscription',
+    },
+    custom_text: {
+      submit: { message: 'Payment processed securely by JackpotKeywords' },
+    },
+    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/account?subscribe=success`,
+    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/pricing`,
   });
 
   return session.url || '';

@@ -126,6 +126,8 @@ export default function SearchProgress() {
       <div
         className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-[0.12] pointer-events-none"
         style={{ backgroundImage: "url('/logo-hero.png')" }}
+        role="presentation"
+        aria-hidden="true"
       />
 
       {/* Single floating tip */}

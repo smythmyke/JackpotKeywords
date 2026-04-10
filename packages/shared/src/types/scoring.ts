@@ -19,13 +19,6 @@ export const SEO_SCORE_WEIGHTS = {
   trend: 0.10,
 };
 
-export const BUDGET_AD_SCORE_WEIGHTS = {
-  volume: 0.20,
-  cpcInverse: 0.35,
-  competitionInverse: 0.20,
-  relevance: 0.15,
-  trend: 0.10,
-};
 
 export function volumeScore(avgMonthlySearches: number): number {
   if (avgMonthlySearches <= 0) return 0;
@@ -80,24 +73,16 @@ export function calculateAdScore(
   competition: CompetitionLevel,
   relevance: number,
   trend?: TrendDirection,
-  budget?: number,
 ): number {
   const avgCpc = (lowCpc + highCpc) / 2;
-  const weights = budget ? BUDGET_AD_SCORE_WEIGHTS : AD_SCORE_WEIGHTS;
+  const weights = AD_SCORE_WEIGHTS;
 
-  let score =
+  const score =
     volumeScore(volume) * weights.volume +
     cpcInverseScore(avgCpc) * weights.cpcInverse +
     competitionScore(competition) * weights.competitionInverse +
     (relevance * 20) * weights.relevance +
     Math.max(0, 50 + trendBonus(trend)) * weights.trend;
-
-  if (budget) {
-    const dailyBudget = budget / 30;
-    if (avgCpc > dailyBudget) {
-      score = Math.min(score, 30);
-    }
-  }
 
   return Math.round(Math.min(100, Math.max(0, score)));
 }

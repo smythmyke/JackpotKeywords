@@ -30,6 +30,63 @@ async function logActivity(action: string, details: Record<string, any>) {
 }
 
 /**
+ * Number of top-scoring keyword strings to leave visible as a teaser
+ * for unpaid (anonymous + free-trial) responses. Everything beyond this
+ * gets server-side masked so it can't be read from the network payload.
+ */
+const FREE_PREVIEW_KEYWORD_COUNT = 5;
+
+/**
+ * Mask keyword strings in an unpaid search response so the actual
+ * keyword text never reaches the browser. The top N keywords by
+ * jackpotScore stay visible as a sales teaser; the rest are replaced
+ * with opaque placeholders. Numeric/aggregate fields (volume, CPC,
+ * scores, intent) are preserved so the UI can still render the table.
+ *
+ * Cluster keywordKeys[] references are masked with the same mapping so
+ * frontend cluster→keyword joins continue to work.
+ */
+function maskUnpaidSearchResponse<
+  T extends { keywords: KeywordResult[]; clusters?: any[] },
+>(result: T, paid: boolean): T {
+  if (paid) return result;
+
+  const visibleSet = new Set(
+    [...result.keywords]
+      .sort((a, b) => b.jackpotScore - a.jackpotScore)
+      .slice(0, FREE_PREVIEW_KEYWORD_COUNT)
+      .map((k) => k.keyword),
+  );
+
+  // Build a stable original→masked mapping so the same keyword string
+  // gets the same replacement everywhere it appears in the payload.
+  const maskMap = new Map<string, string>();
+  let counter = 0;
+  for (const kw of result.keywords) {
+    if (!visibleSet.has(kw.keyword) && !maskMap.has(kw.keyword)) {
+      counter += 1;
+      maskMap.set(kw.keyword, `••• locked ${counter}`);
+    }
+  }
+
+  result.keywords = result.keywords.map((kw) => {
+    const masked = maskMap.get(kw.keyword);
+    return masked ? { ...kw, keyword: masked } : kw;
+  });
+
+  if (Array.isArray(result.clusters)) {
+    result.clusters = result.clusters.map((c: any) => ({
+      ...c,
+      keywordKeys: Array.isArray(c.keywordKeys)
+        ? c.keywordKeys.map((k: string) => maskMap.get(k) || k)
+        : c.keywordKeys,
+    }));
+  }
+
+  return result;
+}
+
+/**
  * POST /api/search
  * Main search endpoint — orchestrates the 6-step pipeline
  */
@@ -142,7 +199,13 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       executionTimeMs: Date.now() - startTime,
       paid: !creditResult.isFreeSearch,
     });
-    res.json(result);
+
+    // Server-side paywall: strip keyword strings from the response payload
+    // for unpaid users (anonymous + free-trial). Without this, anyone could
+    // read the full keyword list from the Network tab or via direct curl,
+    // bypassing the client-side CSS blur.
+    const maskedResult = maskUnpaidSearchResponse(result, paid);
+    res.json(maskedResult);
   } catch (error: any) {
     functions.logger.error('Search pipeline error:', error.stack || error.message);
     // Refund credit on pipeline failure (skip for anonymous)
@@ -165,6 +228,43 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId!;
   try {
+    // Anonymous /api/search responses are server-side masked. Claim only
+    // makes sense for users whose intended experience is the masked teaser
+    // — i.e. free-trial users consuming one of their free-search slots.
+    //
+    // Users with credits, a subscription, or admin would deduct value but
+    // still see masked placeholders (the unmasked payload is never sent
+    // anonymously). Block them and tell the UI to re-run signed in.
+    const userDoc = await db.doc(`users/${userId}`).get();
+    const userData = userDoc.data();
+    const plan = userData?.plan || 'free';
+    const email = userData?.email || '';
+    const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+    const isAdmin = ADMIN_EMAILS.includes(email);
+
+    if (isAdmin || plan === 'pro' || plan === 'agency') {
+      res.status(409).json({
+        error: 'Run a new search while signed in to get full results',
+        rerunRequired: true,
+      });
+      return;
+    }
+
+    const creditsDoc = await db.doc(`users/${userId}/credits/balance`).get();
+    const creditsData = creditsDoc.data() || {};
+    const balance = creditsData.balance || 0;
+    const freeUsed = creditsData.freeSearchesUsed || 0;
+    const FREE_LIMIT = 3;
+
+    if (freeUsed >= FREE_LIMIT && balance > 0) {
+      // Would deduct a real credit but the cached payload is masked.
+      res.status(409).json({
+        error: 'Run a new search while signed in to get full results',
+        rerunRequired: true,
+      });
+      return;
+    }
+
     const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'claimed search');
     if (!creditResult.allowed) {
       res.status(402).json({ error: 'Insufficient credits', balance: creditResult.newBalance });
@@ -303,6 +403,27 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
     return;
   }
 
+  // Paid-only feature: expand returns unmasked keyword data, so it must be
+  // gated to admin / Pro / Agency / users with purchased credits. The UI
+  // already disables the button for free users, but a curl bypass would
+  // otherwise let a free-trial user burn a free-search slot to extract
+  // real keyword strings.
+  const userDoc = await db.doc(`users/${userId}`).get();
+  const userData = userDoc.data();
+  const plan = userData?.plan || 'free';
+  const email = userData?.email || '';
+  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+  const isAdmin = ADMIN_EMAILS.includes(email);
+  const creditsDoc = await db.doc(`users/${userId}/credits/balance`).get();
+  const freeUsed = creditsDoc.data()?.freeSearchesUsed || 0;
+  const FREE_LIMIT = 3;
+
+  const isPaidUser = isAdmin || plan === 'pro' || plan === 'agency' || freeUsed >= FREE_LIMIT;
+  if (!isPaidUser) {
+    res.status(403).json({ error: 'Expand requires purchased credits or a subscription' });
+    return;
+  }
+
   // Half credit cost
   const creditResult = await checkAndDeductCredits(userId, 0.5, 'expand_search', 'expand results');
   if (!creditResult.allowed) {
@@ -353,7 +474,7 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
       const category = inferCategory(kw.keyword) as any;
       const adScore = calculateAdScore(
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
-        kw.competition, kw.relevance, kw.trendDirection, budget,
+        kw.competition, kw.relevance, kw.trendDirection,
       );
       const seoScore = calculateSeoScore(
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
@@ -564,7 +685,7 @@ router.post('/:searchId/refine', authMiddleware, async (req: AuthRequest, res) =
       const { calculateAdScore, calculateSeoScore } = require('@jackpotkeywords/shared');
       const adScore = calculateAdScore(
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
-        kw.competition, kw.relevance, kw.trendDirection, searchData.budget,
+        kw.competition, kw.relevance, kw.trendDirection,
       );
       const seoScore = calculateSeoScore(
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,

@@ -30,10 +30,10 @@ AI-powered keyword research tool that undercuts SEMrush/Ahrefs by 10x. User desc
 |---|---|---|
 | Free | $0 | 3 lifetime searches, blurred keywords, full metrics visible |
 | Credits | $0.99/1, $1.99/3, $4.99/10 | A-la-carte — full experience per search, identical to Pro |
-| Pro | $5.99/mo | Unlimited searches, full experience |
+| Pro | $9.99/mo | Unlimited searches, full experience |
 | Agency | $19.99/mo | Everything + branded PDF reports, Google Ads Editor export, multi-project, keyword monitoring |
 
-**Credit system:** Same Firebase + Stripe + credits pattern as GovToolsPro/BulkListingPro. 1 credit = 1 search. No feature differentiation between credits and subscription — paid is paid. Pro breaks even vs credits at 6 searches/mo.
+**Credit system:** Same Firebase + Stripe + credits pattern as GovToolsPro/BulkListingPro. 1 credit = 1 search. No feature differentiation between credits and subscription — paid is paid. Pro breaks even vs credits at ~10 searches/mo.
 
 ### Free Tier Design (Blurred Keywords, Full Metrics)
 
@@ -66,9 +66,9 @@ Core principle: **show the metrics, mask the keywords.** The keyword text is the
 **Conversion driver:** User sees a keyword with 2,400/mo at $0.14 CPC scoring 95/100 — they KNOW it's a goldmine. But "g** b***" tells them nothing. They can't act on it. That frustration converts.
 
 ## Revenue Projections
-- 100 Pro subscribers = $599/mo
+- 100 Pro subscribers = $999/mo
 - 50 Agency subscribers = $999/mo
-- Combined = ~$1,600/mo at modest scale
+- Combined = ~$2,000/mo at modest scale
 - API costs at that scale: ~$20-50/mo
 
 ## Tech Stack (Proposed)
@@ -160,12 +160,12 @@ Core principle: **show the metrics, mask the keywords.** The keyword text is the
 
 | Tool | Price | Data Source | AI Layer | Our Advantage |
 |---|---|---|---|---|
-| SEMrush | $140/mo | Own database | Basic | 23x cheaper |
-| Ahrefs | $99/mo | Own crawl index | Basic | 16x cheaper |
-| SE Ranking | $44/mo | Own database | Some | 7x cheaper |
-| Ubersuggest | $29/mo | Google autocomplete | Minimal | 5x cheaper + real API data |
-| KeywordTool.io | $89/mo | Autocomplete scraping | None | 15x cheaper + AI scoring |
-| **JackpotKeywords** | **$5.99/mo** | **Google Ads API (real data)** | **Full AI pipeline** | — |
+| SEMrush | $140/mo | Own database | Basic | 14x cheaper |
+| Ahrefs | $99/mo | Own crawl index | Basic | 10x cheaper |
+| SE Ranking | $44/mo | Own database | Some | 4x cheaper |
+| Ubersuggest | $29/mo | Google autocomplete | Minimal | 3x cheaper + real API data |
+| KeywordTool.io | $89/mo | Autocomplete scraping | None | 9x cheaper + AI scoring |
+| **JackpotKeywords** | **$9.99/mo** | **Google Ads API (real data)** | **Full AI pipeline** | — |
 
 ## Next Steps
 1. Check domain availability on registrar (jackpotkeywords.com, keymine.com)

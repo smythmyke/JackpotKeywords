@@ -2,24 +2,16 @@ import { useState, useMemo } from 'react';
 import { US_CITIES } from '../data/usCities';
 
 interface SearchFormProps {
-  onSearch: (description: string, url: string, budget?: number, location?: string) => void;
+  onSearch: (description: string, url: string, maxCpc?: number, location?: string) => void;
   loading?: boolean;
   initialDescription?: string;
 }
 
-const BUDGET_PRESETS = [
-  { label: 'No budget', value: undefined },
-  { label: '$100-300/mo', value: 200 },
-  { label: '$300-500/mo', value: 400 },
-  { label: '$500-1000/mo', value: 750 },
-  { label: '$1000+/mo', value: 1500 },
-];
-
 export default function SearchForm({ onSearch, loading, initialDescription }: SearchFormProps) {
   const [description, setDescription] = useState(initialDescription || '');
   const [url, setUrl] = useState('');
-  const [budget, setBudget] = useState<number | undefined>();
-  const [showBudget, setShowBudget] = useState(false);
+  const [maxCpc, setMaxCpc] = useState<number | undefined>();
+  const [showMaxCpc, setShowMaxCpc] = useState(false);
   const [includeLocal, setIncludeLocal] = useState(false);
   const [locationInput, setLocationInput] = useState('');
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
@@ -37,7 +29,7 @@ export default function SearchForm({ onSearch, loading, initialDescription }: Se
     if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
-    onSearch(description, normalizedUrl, budget, includeLocal && locationInput.trim() ? locationInput.trim() : undefined);
+    onSearch(description, normalizedUrl, maxCpc, includeLocal && locationInput.trim() ? locationInput.trim() : undefined);
   };
 
   const isValidUrl = (val: string): boolean => {
@@ -86,40 +78,31 @@ export default function SearchForm({ onSearch, loading, initialDescription }: Se
         <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-500 hover:text-gray-300 transition">
           <input
             type="checkbox"
-            checked={showBudget}
+            checked={showMaxCpc}
             onChange={(e) => {
-              setShowBudget(e.target.checked);
-              if (!e.target.checked) {
-                setBudget(undefined);
-              }
+              setShowMaxCpc(e.target.checked);
+              if (!e.target.checked) setMaxCpc(undefined);
             }}
             className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-jackpot-500 focus:ring-jackpot-500 focus:ring-offset-0 cursor-pointer"
           />
-          Set ad budget
+          Set max CPC
         </label>
-        {showBudget && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {BUDGET_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => setBudget(preset.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  budget === preset.value
-                    ? 'bg-jackpot-500 text-black font-medium'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-            <input
-              type="number"
-              value={budget && !BUDGET_PRESETS.find(p => p.value === budget) ? budget : ''}
-              onChange={(e) => setBudget(e.target.value ? Number(e.target.value) : undefined)}
-              placeholder="Custom $/mo"
-              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500"
-            />
+        {showMaxCpc && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm text-gray-400">Hide keywords above</span>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+              <input
+                type="number"
+                step="0.50"
+                min="0"
+                value={maxCpc ?? ''}
+                onChange={(e) => setMaxCpc(e.target.value ? Number(e.target.value) : undefined)}
+                placeholder="2.00"
+                className="w-28 bg-gray-800 border border-gray-700 rounded-lg pl-7 pr-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-jackpot-500"
+              />
+            </div>
+            <span className="text-sm text-gray-400">per click</span>
           </div>
         )}
       </div>

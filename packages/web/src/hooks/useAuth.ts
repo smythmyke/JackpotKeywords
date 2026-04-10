@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebas
 import { auth, googleProvider } from '../services/firebase';
 import { initUser } from '../services/api';
 import { trackSignUp } from '../services/analytics';
+import { readAttribution, clearAttribution } from '../services/attribution';
 import type { UserProfile, UserCredits } from '@jackpotkeywords/shared';
 
 interface AuthState {
@@ -25,7 +26,12 @@ export function useAuth() {
   const initUserProfile = useCallback(async (user: User) => {
     try {
       const token = await user.getIdToken();
-      const data = await initUser(token);
+      const attribution = readAttribution();
+      const data = await initUser(token, attribution);
+      // Clear attribution once successfully sent so we don't keep re-sending it
+      if (attribution && data?.user?.attribution) {
+        clearAttribution();
+      }
       setState({
         user,
         profile: data.user,

@@ -42,7 +42,7 @@ export default function Pricing() {
     <>
       <Helmet>
         <title>Pricing — JackpotKeywords</title>
-        <meta name="description" content="Keyword research from $1.99/search or $9.99/mo unlimited. 3 free searches, no credit card required. 23x cheaper than SEMrush." />
+        <meta name="description" content="Keyword research from $1.99/search or $9.99/mo unlimited. 3 free searches, no credit card required. 14x cheaper than SEMrush." />
         <link rel="canonical" href="https://jackpotkeywords.web.app/pricing" />
         <script type="application/ld+json">
           {JSON.stringify({

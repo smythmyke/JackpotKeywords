@@ -143,8 +143,8 @@ export default function Disclaimer() {
       <div className="mt-12 pt-8 border-t border-gray-800 text-center">
         <p className="text-gray-500 text-sm">
           Questions? Contact us at{' '}
-          <a href="mailto:support@jackpotkeywords.com" className="text-jackpot-400 hover:underline">
-            support@jackpotkeywords.com
+          <a href="mailto:smythmyke@gmail.com" className="text-jackpot-400 hover:underline">
+            smythmyke@gmail.com
           </a>
         </p>
         <Link to="/" className="text-jackpot-400 hover:underline text-sm mt-2 inline-block">

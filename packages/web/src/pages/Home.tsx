@@ -109,7 +109,7 @@ export default function Home() {
     return "You've used your free searches. Unlock more from $1.99.";
   }
 
-  const handleSearch = async (description: string, url: string, budget?: number, location?: string) => {
+  const handleSearch = async (description: string, url: string, maxCpc?: number, location?: string) => {
     setError(null);
     setLoading(true);
     try {
@@ -119,12 +119,11 @@ export default function Home() {
       const result = await runSearch(token, {
         description,
         url: url || undefined,
-        budget,
         location,
       });
 
       // Results not saved to Firestore — pass via state for both auth and anonymous
-      navigate('/results/anonymous', { state: { result } });
+      navigate('/results/anonymous', { state: { result, maxCpc } });
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -164,6 +163,8 @@ export default function Home() {
         <div
           className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-[0.18] pointer-events-none"
           style={{ backgroundImage: "url('/logo-hero.png')" }}
+          role="presentation"
+          aria-hidden="true"
         />
         <div className="relative z-10 text-center mb-8">
           <h1 className="text-5xl md:text-6xl font-bold mb-5 leading-tight">
@@ -245,7 +246,7 @@ export default function Home() {
             </div>
             <div className="w-px h-10 bg-gray-800" />
             <div>
-              <div className="text-2xl font-bold text-white">23x</div>
+              <div className="text-2xl font-bold text-white">14x</div>
               <div>Cheaper than<br />SEMrush</div>
             </div>
             <div className="w-px h-10 bg-gray-800" />
@@ -283,6 +284,8 @@ export default function Home() {
         <div
           className="absolute inset-0 bg-center bg-cover opacity-[0.12] pointer-events-none"
           style={{ backgroundImage: "url('/bg-coins.png')" }}
+          role="presentation"
+          aria-hidden="true"
         />
         <div className="max-w-5xl mx-auto relative z-10">
           <h2 className="text-3xl font-bold text-center mb-4">Stop Overpaying for Keywords</h2>
@@ -384,6 +387,8 @@ export default function Home() {
         <div
           className="absolute inset-0 bg-center bg-cover opacity-[0.18] pointer-events-none"
           style={{ backgroundImage: "url('/bg-coins.png')" }}
+          role="presentation"
+          aria-hidden="true"
         />
         <h2 className="text-3xl font-bold mb-4 relative z-10">
           Ready to find your <span className="text-jackpot-400">goldmine keywords</span>?

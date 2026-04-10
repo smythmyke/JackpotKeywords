@@ -33,11 +33,30 @@ router.post('/init', async (req, res) => {
     const decoded = await admin.auth().verifyIdToken(token);
     const userId = decoded.uid;
 
+    // Sanitize attribution from request body — only allow known string fields
+    const rawAttr = (req.body && req.body.attribution) || null;
+    let attribution: Record<string, any> | null = null;
+    if (rawAttr && typeof rawAttr === 'object') {
+      const allowedKeys = ['gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'landing_page', 'referrer'];
+      attribution = {};
+      for (const key of allowedKeys) {
+        const val = rawAttr[key];
+        if (typeof val === 'string' && val.length > 0 && val.length < 500) {
+          attribution[key] = val;
+        }
+      }
+      if (typeof rawAttr.captured_at === 'number') {
+        attribution.captured_at = rawAttr.captured_at;
+      }
+      if (Object.keys(attribution).length === 0) attribution = null;
+    }
+
     const userRef = db.doc(`users/${userId}`);
     const userDoc = await userRef.get();
+    const isNewUser = !userDoc.exists;
 
-    if (!userDoc.exists) {
-      // Create new user document
+    if (isNewUser) {
+      // Create new user document — store attribution on first sign-in
       await userRef.set({
         uid: userId,
         email: decoded.email || '',
@@ -45,6 +64,7 @@ router.post('/init', async (req, res) => {
         photoURL: decoded.picture || '',
         plan: 'free',
         createdAt: FieldValue.serverTimestamp(),
+        ...(attribution ? { attribution } : {}),
       });
 
       // Initialize credits
@@ -54,6 +74,9 @@ router.post('/init', async (req, res) => {
         lifetimeUsed: 0,
         freeSearchesUsed: 0,
       });
+    } else if (attribution && !userDoc.data()?.attribution) {
+      // Existing user with no prior attribution — backfill it
+      await userRef.set({ attribution }, { merge: true });
     }
 
     const userData = (await userRef.get()).data();
@@ -62,7 +85,12 @@ router.post('/init', async (req, res) => {
     await logActivity('auth_init', {
       userId,
       email: decoded.email || '',
-      isNewUser: !userDoc.exists,
+      isNewUser,
+      ...(attribution && isNewUser ? {
+        gclid: attribution.gclid || null,
+        utm_source: attribution.utm_source || null,
+        utm_campaign: attribution.utm_campaign || null,
+      } : {}),
     });
 
     res.json({

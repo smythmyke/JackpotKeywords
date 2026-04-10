@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@jackpotkeywords/shared": "file:../jackpotkeywords-shared-1.0.0.tgz",
     "@tailwindcss/typography": "^0.5.19",
     "firebase": "^11.2.0",
     "react": "^18.3.1",

@@ -47,7 +47,7 @@ JackpotKeywords is a keyword research tool for small businesses, entrepreneurs, 
 - Ahrefs: $99/month
 - SE Ranking: $44/month
 - Ubersuggest: $29/month
-- JackpotKeywords: $9.99/month (23x cheaper than SEMrush)
+- JackpotKeywords: $9.99/month (14x cheaper than SEMrush)
 
 ## URL
 https://jackpotkeywords.web.app

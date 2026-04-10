@@ -340,7 +340,7 @@ export async function scoreAndClassify(
   const scored = keywords.map((kw) => {
     const adScore = calculateAdScore(
       kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
-      kw.competition, kw.relevance, kw.trendDirection, budget,
+      kw.competition, kw.relevance, kw.trendDirection,
     );
     const seoScore = calculateSeoScore(
       kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,

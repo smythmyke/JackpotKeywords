@@ -151,12 +151,15 @@ export default function Results() {
 
   useEffect(() => {
     const stateResult = (location.state as any)?.result;
+    const stateMaxCpc = (location.state as any)?.maxCpc;
     // Check for results passed via location state
     if (stateResult && (!result || result.id !== stateResult.id || result.paid !== stateResult.paid)) {
       setResult(stateResult);
+      if (stateMaxCpc) setFilterCpc(stateMaxCpc);
       try {
         sessionStorage.setItem('jk_results', JSON.stringify(stateResult));
         sessionStorage.setItem('jk_results_path', location.pathname);
+        if (stateMaxCpc) sessionStorage.setItem('jk_maxCpc', String(stateMaxCpc));
       } catch {}
       const firstWithData = ALL_CATEGORIES.find(
         (cat) => stateResult.keywords?.some((kw: KeywordResult) => kw.category === cat),
@@ -176,6 +179,8 @@ export default function Results() {
         if (cached) {
           const parsed = JSON.parse(cached);
           setResult(parsed);
+          const savedMaxCpc = sessionStorage.getItem('jk_maxCpc');
+          if (savedMaxCpc) setFilterCpc(Number(savedMaxCpc));
           const firstWithData = ALL_CATEGORIES.find(
             (cat) => parsed.keywords?.some((kw: KeywordResult) => kw.category === cat),
           );
@@ -244,6 +249,12 @@ export default function Results() {
         setResult((prev) => prev ? { ...prev, paid: claimedPaid } : prev);
       } catch (err: any) {
         console.error('Claim failed:', err.message);
+        // Anonymous search payloads are server-masked. If the user has paid
+        // credits or a subscription, the claim endpoint refuses (409) because
+        // unmasked data was never sent. Tell them to re-run signed in.
+        if (err.message?.toLowerCase().includes('run a new search')) {
+          alert('To see full results with your credits, please run the search again while signed in.');
+        }
       }
     }
     claim();
@@ -769,10 +780,14 @@ export default function Results() {
           className={`bg-gray-800 border rounded text-sm px-2 py-1.5 outline-none cursor-pointer ${filterCpc !== null ? 'border-jackpot-500 text-jackpot-400' : 'border-gray-700 text-gray-300'}`}
         >
           <option value="">CPC: Any</option>
+          <option value="0.5">Under $0.50</option>
           <option value="1">Under $1</option>
           <option value="2">Under $2</option>
           <option value="5">Under $5</option>
           <option value="10">Under $10</option>
+          {filterCpc !== null && ![0.5, 1, 2, 5, 10].includes(filterCpc) && (
+            <option value={filterCpc}>Under ${filterCpc.toFixed(2)}</option>
+          )}
         </select>
         <div className="w-px h-6 bg-gray-700" />
         <select

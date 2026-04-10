@@ -21,8 +21,11 @@ async function apiFetch(path: string, token: string | null, options: RequestInit
   return res.json();
 }
 
-export async function initUser(token: string) {
-  return apiFetch('/api/auth/init', token, { method: 'POST' });
+export async function initUser(token: string, attribution?: any) {
+  return apiFetch('/api/auth/init', token, {
+    method: 'POST',
+    body: attribution ? JSON.stringify({ attribution }) : undefined,
+  });
 }
 
 export async function runSearch(

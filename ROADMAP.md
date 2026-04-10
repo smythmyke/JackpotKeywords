@@ -24,7 +24,7 @@ Full-stack monorepo built and compiling. All packages type-check clean. Web app 
 
 ### 1.3 Stripe Setup
 - [ ] Create 3 credit pack products ($0.99/1, $1.99/3, $4.99/10)
-- [ ] Create 2 subscription products ($5.99/mo Pro, $19.99/mo Agency)
+- [ ] Create 2 subscription products ($9.99/mo Pro, $19.99/mo Agency)
 - [ ] Get Stripe price IDs and update `SUBSCRIPTION_PLANS` in shared/credits.ts
 - [ ] Set up webhook endpoint pointing to `/api/stripe/webhook`
 
@@ -144,7 +144,7 @@ Full-stack monorepo built and compiling. All packages type-check clean. Web app 
 - [ ] Budget: $11/day across 5 ad groups
 
 ### 5.2 Content Marketing
-- [ ] Blog: "JackpotKeywords vs SEMrush — 23x cheaper with AI scoring"
+- [ ] Blog: "JackpotKeywords vs SEMrush — 14x cheaper with AI scoring"
 - [ ] Blog: "How to find goldmine keywords for your product in 30 seconds"
 - [ ] Blog: "Free keyword research tool — why we built JackpotKeywords"
 - [ ] YouTube: Demo video showing a real product search

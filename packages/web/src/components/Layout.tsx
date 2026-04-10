@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -10,6 +10,8 @@ export default function Layout() {
   const location = useLocation();
   const [hasResults, setHasResults] = useState(false);
   const [resultsPath, setResultsPath] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const isOnResultsPage = location.pathname.startsWith('/results');
 
@@ -20,7 +22,30 @@ export default function Layout() {
     setResultsPath(path || '/results/anonymous');
   }, [location.pathname]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [menuOpen]);
+
   const handleLogout = async () => {
+    setMenuOpen(false);
     await logout();
     navigate('/');
   };
@@ -62,14 +87,6 @@ export default function Layout() {
                 <Link to="/" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
                   New Search
                 </Link>
-                <Link to="/account" className="text-gray-400 hover:text-white transition">
-                  Account
-                </Link>
-                {isAdmin && (
-                  <Link to="/admin" className="text-gray-400 hover:text-white transition">
-                    Admin
-                  </Link>
-                )}
                 <button
                   onClick={handleLogout}
                   className="text-gray-400 hover:text-white transition"
@@ -81,13 +98,64 @@ export default function Layout() {
                     {badge.label}
                   </span>
                 )}
-                {profile?.photoURL && (
-                  <img
-                    src={profile.photoURL}
-                    alt=""
-                    className="w-7 h-7 rounded-full border border-gray-700"
-                  />
-                )}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setMenuOpen((v) => !v)}
+                    aria-label="Open account menu"
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    className="flex items-center rounded-full focus:outline-none focus:ring-2 focus:ring-jackpot-500"
+                  >
+                    {profile?.photoURL ? (
+                      <img
+                        src={profile.photoURL}
+                        alt=""
+                        className="w-8 h-8 rounded-full border border-gray-700 hover:border-jackpot-500 transition"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full border border-gray-700 hover:border-jackpot-500 bg-gray-800 flex items-center justify-center text-sm text-gray-300 transition">
+                        {(profile?.email || user.email || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+                  {menuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 mt-2 w-52 rounded-lg border border-gray-800 bg-gray-900 shadow-xl py-1 z-50"
+                    >
+                      {(profile?.email || user.email) && (
+                        <div className="px-4 py-2 border-b border-gray-800 text-xs text-gray-500 truncate">
+                          {profile?.email || user.email}
+                        </div>
+                      )}
+                      <Link
+                        to="/account"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition"
+                      >
+                        Account
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          role="menuitem"
+                          onClick={() => setMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition"
+                        >
+                          Admin
+                        </Link>
+                      )}
+                      <button
+                        role="menuitem"
+                        onClick={handleLogout}
+                        className="w-full text-left block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition border-t border-gray-800"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <button

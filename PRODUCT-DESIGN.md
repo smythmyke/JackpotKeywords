@@ -571,7 +571,7 @@ A keyword like "gov bids" (2,400/mo, $0.14 CPC, LOW comp):
 |---|---|---|---|
 | Free | $0 | 3 lifetime | Blurred keywords, full metrics visible |
 | Credits | $0.99/1, $1.99/3, $4.99/10 | Per-pack | **Full experience** — identical to Pro |
-| Pro | $5.99/mo | Unlimited | Full experience, unlimited |
+| Pro | $9.99/mo | Unlimited | Full experience, unlimited |
 | Agency | $19.99/mo | Unlimited | Full + branded PDF reports, Google Ads Editor export, multi-project, keyword monitoring |
 
 ### Credit System (A-La-Carte)
@@ -605,15 +605,15 @@ Proven pattern from GovToolsPro and BulkListingPro. Firebase + Stripe + credits.
 **No feature differentiation between credits and subscription.**
 If you paid, you get the full experience — trends, SEO Score, all categories, all keywords, exports. The only difference is volume:
 - Credits = pay per search
-- Pro = unlimited for $5.99/mo
-- Pro breaks even vs credits at 6 searches/month
+- Pro = unlimited for $9.99/mo
+- Pro breaks even vs credits at ~10 searches/month
 
 **Results never expire.** Saved to user's account permanently regardless of payment method. Every return visit is a chance to convert credit users to subscribers.
 
 ### Smart upsell moments:
 
 1. **After free search:** "Unlock all 1,247 keywords for $0.99"
-2. **After 5th credit purchase:** "You've spent $4.95 on credits. Go unlimited for $5.99/mo"
+2. **After 5th credit purchase:** "You've spent $4.95 on credits. Go unlimited for $9.99/mo"
 3. **On return visit viewing saved results:** "Run a fresh search to see updated data? [Use 1 credit / Go unlimited]"
 
 ### Free Tier: "Prove Value, Not Actionable"
@@ -696,19 +696,19 @@ Problem-Based Keywords: 94 found
 - Single credit ($0.99): $0.99 revenue, ~$0.05 cost → **95% margin**
 - 3-pack ($1.99): $1.99 revenue, ~$0.15 cost → **92% margin**
 - 10-pack ($4.99): $4.99 revenue, ~$0.50 cost → **90% margin**
-- Pro ($5.99/mo, ~30 searches): $5.99 revenue, ~$1.50 cost → **75% margin**
+- Pro ($9.99/mo, ~30 searches): $9.99 revenue, ~$1.50 cost → **85% margin**
 - Agency ($19.99/mo, ~100 searches): $19.99 revenue, ~$5.00 cost → **75% margin**
 
 **Revenue Projections (blended):**
 - 200 credit purchases/mo (avg $1.50) = $300/mo
-- 100 Pro subscribers = $599/mo
+- 100 Pro subscribers = $999/mo
 - 50 Agency subscribers = $999/mo
-- Combined = ~$1,900/mo at modest scale
+- Combined = ~$2,300/mo at modest scale
 - API costs at that scale: ~$50-100/mo
 
 **Credit-to-subscription conversion:**
-- Pro breaks even vs credits at 6 searches/month ($5.99 vs $5.94)
-- Natural nudge point: "You've spent $4.95 on credits. Go unlimited for $5.99/mo"
+- Pro breaks even vs credits at ~10 searches/month ($9.99 vs $9.90)
+- Natural nudge point: "You've spent $4.95 on credits. Go unlimited for $9.99/mo"
 - Expected credit→Pro conversion rate: 10-15% of credit buyers
 
 ---
@@ -718,7 +718,7 @@ Problem-Based Keywords: 94 found
 2. Existing Google Ads developer token + active spend account
 3. AI intelligence layer — no massive keyword database to maintain
 4. Multi-source methodology (Keyword Planner + Autocomplete + Trends + AI) that no single competitor combines at this price
-5. 10-23x cheaper than any competitor
+5. 3-14x cheaper than any competitor
 6. Proven workflow — manually validated on BulkListingPro and GovToolsPro
 7. Campaign builder export — competitors show data, we help users ACT on it
 8. Dual Ad Score / SEO Score — serves both paid and organic strategies

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { listSearches } from '../services/api';
+import { trackPurchase, trackSubscription } from '../services/analytics';
 
 interface SavedSearch {
   id: string;
@@ -18,6 +19,19 @@ export default function Account() {
   const [searches, setSearches] = useState<SavedSearch[]>([]);
   const [loadingSearches, setLoadingSearches] = useState(false);
   const { getToken } = useAuthContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Track Stripe return conversions
+  useEffect(() => {
+    if (searchParams.get('purchase') === 'success') {
+      trackPurchase(1.99, 'USD', 'credit_pack');
+      setSearchParams({}, { replace: true });
+    } else if (searchParams.get('subscribe') === 'success') {
+      trackSubscription('pro', 9.99);
+      trackPurchase(9.99, 'USD', 'pro_subscription');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (authLoading || !user) return;
