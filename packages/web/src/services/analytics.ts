@@ -81,3 +81,37 @@ export function trackExport(format: string, keywordCount: number) {
     keyword_count: keywordCount,
   });
 }
+
+// --- Conversion modal events ---
+// Fire at each step of the free-to-paid funnel so we can measure modal impact:
+// shown → (dismissed | cta_click) → (signup | purchase) downstream.
+
+export function trackConversionModalShown(
+  variant: 'anonymous' | 'free' | 'lastFreeSearch',
+  trigger: 'scroll' | 'masked_click',
+  jackpots: number,
+  totalKeywords: number,
+) {
+  gtag('event', 'conversion_modal_shown', {
+    variant,
+    trigger,
+    jackpots,
+    total_keywords: totalKeywords,
+  });
+}
+
+export function trackConversionModalCta(
+  variant: 'anonymous' | 'free' | 'lastFreeSearch',
+) {
+  gtag('event', 'conversion_modal_cta', {
+    variant,
+  });
+}
+
+export function trackConversionModalDismissed(
+  variant: 'anonymous' | 'free' | 'lastFreeSearch',
+) {
+  gtag('event', 'conversion_modal_dismissed', {
+    variant,
+  });
+}

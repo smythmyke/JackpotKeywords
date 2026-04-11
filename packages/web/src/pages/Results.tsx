@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
@@ -12,7 +12,14 @@ import KeywordPanel from '../components/KeywordPanel';
 import MarketIntelligence from '../components/MarketIntelligence';
 import BudgetCalculator from '../components/BudgetCalculator';
 import IntentBadge from '../components/IntentBadge';
+import ConversionModal, { type ConversionModalVariant } from '../components/ConversionModal';
+import { computeModalMetrics, computeTopThree } from '../lib/modalMetrics';
 import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
+import {
+  trackConversionModalShown,
+  trackConversionModalCta,
+  trackConversionModalDismissed,
+} from '../services/analytics';
 
 const ALL_CATEGORIES: KeywordCategory[] = [
   'direct', 'feature', 'problem', 'audience', 'competitor_brand',
@@ -37,9 +44,15 @@ export default function Results() {
   const { searchId } = useParams<{ searchId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { getToken, loading: authLoading, user, profile, signInWithGoogle } = useAuthContext();
+  const { getToken, loading: authLoading, user, profile, credits, signInWithGoogle } = useAuthContext();
   const isAnonymous = searchId === 'anonymous';
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [conversionModalOpen, setConversionModalOpen] = useState(false);
+  const [modalDismissed, setModalDismissed] = useState(false);
+  // Tracks which trigger caused the modal to open, for analytics
+  const modalTriggerRef = useRef<'scroll' | 'masked_click' | null>(null);
+  // Prevents double-firing the shown analytics event for one open cycle
+  const modalShownFiredRef = useRef(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clustersLoading, setClustersLoading] = useState(false);
@@ -339,6 +352,70 @@ export default function Results() {
     }
   };
 
+  // ----- Conversion modal: metrics, dismissal persistence, trigger -----
+  const modalMetrics = useMemo(
+    () => computeModalMetrics(result?.keywords || []),
+    [result?.keywords],
+  );
+  const modalTopThree = useMemo(
+    () => computeTopThree(result?.keywords || []),
+    [result?.keywords],
+  );
+
+  // Read dismissed state from localStorage when the search changes
+  useEffect(() => {
+    if (!result?.id) return;
+    try {
+      const seen = localStorage.getItem('jk_modal_seen_' + result.id) === '1';
+      setModalDismissed(seen);
+    } catch {
+      setModalDismissed(false);
+    }
+  }, [result?.id]);
+
+  // Fire the "modal shown" analytics event when the modal opens.
+  // Guarded by a ref so re-renders (e.g. credits refresh) don't re-fire it.
+  useEffect(() => {
+    if (!conversionModalOpen) {
+      modalShownFiredRef.current = false;
+      return;
+    }
+    if (modalShownFiredRef.current) return;
+    modalShownFiredRef.current = true;
+    const _variant: ConversionModalVariant = !user
+      ? 'anonymous'
+      : credits && credits.freeSearchesUsed >= 2
+        ? 'lastFreeSearch'
+        : 'free';
+    trackConversionModalShown(
+      _variant,
+      modalTriggerRef.current || 'scroll',
+      modalMetrics.jackpots,
+      modalMetrics.totalKeywords,
+    );
+  }, [conversionModalOpen, user, credits, modalMetrics.jackpots, modalMetrics.totalKeywords]);
+
+  // Scroll-depth trigger. Watches paid/isAdmin inline because the hoisted
+  // `paid` constant lives after the early returns below.
+  useEffect(() => {
+    if (!result || modalDismissed || conversionModalOpen) return;
+    const _isAdmin = !!(profile?.email && ADMIN_EMAILS.includes(profile.email));
+    const _plan = profile?.plan || 'free';
+    const _paid = !!(result.paid || _isAdmin || _plan === 'pro' || _plan === 'agency');
+    if (_paid) return;
+    let fired = false;
+    const onScroll = () => {
+      if (fired) return;
+      if (window.scrollY > 600) {
+        fired = true;
+        modalTriggerRef.current = 'scroll';
+        setConversionModalOpen(true);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [result, modalDismissed, conversionModalOpen, profile]);
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -369,9 +446,49 @@ export default function Results() {
   const refinesRemaining = 5 - refineCount;
   const showRefineBar = isSaved && canRefine && activeCategory !== 'direct' && refinesRemaining > 0;
 
+  // Conversion modal variant (anonymous vs free vs last-free-search)
+  const modalVariant: ConversionModalVariant = !user
+    ? 'anonymous'
+    : credits && credits.freeSearchesUsed >= 2
+      ? 'lastFreeSearch'
+      : 'free';
+
+  const markModalSeen = () => {
+    if (result?.id) {
+      try {
+        localStorage.setItem('jk_modal_seen_' + result.id, '1');
+      } catch {}
+      setModalDismissed(true);
+    }
+  };
+
+  const handleModalClose = () => {
+    trackConversionModalDismissed(modalVariant);
+    setConversionModalOpen(false);
+    markModalSeen();
+  };
+
+  const handleModalCta = () => {
+    trackConversionModalCta(modalVariant);
+    markModalSeen();
+    setConversionModalOpen(false);
+    if (modalVariant === 'anonymous') {
+      signInWithGoogle();
+    } else {
+      navigate('/pricing');
+    }
+  };
+
   const handleKeywordClick = (kw: KeywordResult) => {
     if (!paid && !isAdmin) {
-      // Anonymous or free user — show sign-in/upgrade prompt
+      // First time a free/anonymous user clicks a masked row: open the
+      // conversion modal instead of the sign-in toast. After the modal has
+      // been dismissed for this search, fall back to the toast.
+      if (!modalDismissed && !conversionModalOpen) {
+        modalTriggerRef.current = 'masked_click';
+        setConversionModalOpen(true);
+        return;
+      }
       setShowSignInPrompt(true);
       setTimeout(() => setShowSignInPrompt(false), 4000);
       return;
@@ -884,6 +1001,18 @@ export default function Results() {
           Showing {filteredKeywords.length} of {categoryKeywords.length} keywords
           <span className="text-jackpot-400 ml-1">({activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active)</span>
         </div>
+      )}
+
+      {/* Conversion modal (first-time push for non-paying users) */}
+      {!paid && !isAdmin && (
+        <ConversionModal
+          open={conversionModalOpen}
+          onClose={handleModalClose}
+          onCta={handleModalCta}
+          variant={modalVariant}
+          metrics={modalMetrics}
+          topThree={modalTopThree}
+        />
       )}
 
       {/* Sign-in prompt toast */}

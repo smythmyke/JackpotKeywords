@@ -11,6 +11,7 @@
   "dependencies": {
     "@jackpotkeywords/shared": "file:../jackpotkeywords-shared-1.0.0.tgz",
     "@tailwindcss/typography": "^0.5.19",
+    "canvas-confetti": "^1.9.4",
     "firebase": "^11.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -19,6 +20,7 @@
     "react-router-dom": "^7.1.5"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",

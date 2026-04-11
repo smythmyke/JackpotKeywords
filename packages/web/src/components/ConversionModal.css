@@ -1,0 +1,363 @@
+/* ConversionModal — scoped styles (cm- prefix) */
+
+.cm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+  z-index: 60;
+}
+.cm-backdrop.cm-show { opacity: 1; pointer-events: auto; }
+
+.cm-modal {
+  width: 100%;
+  max-width: 560px;
+  background: linear-gradient(180deg, #151d2e 0%, #0e1524 100%);
+  border: 1px solid #243044;
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(251, 191, 36, 0.08) inset;
+  padding: 28px 28px 22px;
+  transform: translateY(12px) scale(0.97);
+  opacity: 0;
+  transition: transform 320ms cubic-bezier(0.2, 0.9, 0.25, 1.2), opacity 220ms ease;
+  position: relative;
+  overflow: hidden;
+  color: #e5e7eb;
+  font-family: inherit;
+}
+.cm-backdrop.cm-show .cm-modal { transform: translateY(0) scale(1); opacity: 1; }
+.cm-modal::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: radial-gradient(600px 200px at 50% -20%, rgba(251, 191, 36, 0.14), transparent 60%);
+  pointer-events: none;
+}
+
+.cm-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: transparent;
+  border: 0;
+  color: #6b7280;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  z-index: 5;
+  padding: 4px 8px;
+}
+.cm-close:hover { color: #d1d5db; }
+
+.cm-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.cm-eyebrow::before,
+.cm-eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #243044, transparent);
+}
+
+/* Stage — holds the spotlight and the 2x2 grid in the same area */
+.cm-stage {
+  position: relative;
+  min-height: 300px;
+  margin-bottom: 18px;
+}
+
+/* Spotlight — big, centered */
+.cm-spotlight-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+}
+.cm-spotlight {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  max-width: 420px;
+}
+.cm-spotlight .cm-value {
+  font-size: 76px;
+  font-weight: 900;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  color: #fbbf24;
+  text-shadow: 0 4px 24px rgba(251, 191, 36, 0.35);
+}
+.cm-spotlight .cm-label {
+  font-size: 14px;
+  color: #fff;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 16px;
+  font-weight: 800;
+}
+.cm-spotlight .cm-sub {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 8px;
+  text-align: center;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+/* Grid — hidden until first tile lands */
+.cm-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 400ms ease;
+  z-index: 1;
+}
+.cm-grid.cm-show { opacity: 1; }
+
+.cm-tile {
+  background: rgba(31, 41, 55, 0.35);
+  border: 1px dashed rgba(55, 65, 81, 0.6);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  transition: background 260ms ease, border-color 260ms ease, border-style 0s linear 260ms;
+}
+.cm-tile.cm-filled {
+  background: rgba(31, 41, 55, 0.55);
+  border: 1px solid #1f2937;
+  border-style: solid;
+}
+.cm-tile .cm-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cm-tile .cm-n {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+.cm-tile.cm-filled .cm-n { opacity: 1; transform: translateY(0); }
+.cm-tile .cm-jackpot-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(4px) rotate(-8deg);
+  transition: opacity 260ms ease 40ms,
+    transform 320ms cubic-bezier(0.3, 0.9, 0.4, 1.3) 40ms;
+  filter: drop-shadow(0 2px 6px rgba(251, 191, 36, 0.35));
+}
+.cm-tile.cm-filled .cm-jackpot-icon {
+  opacity: 1;
+  transform: translateY(0) rotate(0);
+}
+.cm-tile .cm-lbl {
+  font-size: 12px;
+  color: #fff;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 10px;
+  font-weight: 800;
+  opacity: 0;
+  transition: opacity 260ms ease 80ms;
+}
+.cm-tile.cm-filled .cm-lbl { opacity: 1; }
+.cm-tile .cm-sub {
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 5px;
+  text-align: center;
+  line-height: 1.35;
+  opacity: 0;
+  transition: opacity 260ms ease 140ms;
+  max-width: 100%;
+}
+.cm-tile.cm-filled .cm-sub { opacity: 1; }
+.cm-tile .cm-n.cm-jackpot { color: #fbbf24; }
+.cm-tile .cm-n.cm-green { color: #22c55e; }
+.cm-tile .cm-n.cm-white { color: #fff; }
+.cm-tile .cm-n.cm-blue { color: #60a5fa; }
+
+/* Late-reveal content: headline, top-find, CTA */
+.cm-late {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 360ms ease, transform 360ms ease;
+}
+.cm-late.cm-show { opacity: 1; transform: translateY(0); }
+
+.cm-headline {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.3;
+  margin: 0 0 18px;
+}
+.cm-headline .cm-hl-count {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.cm-top-finds {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.08), rgba(251, 191, 36, 0.02));
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+}
+.cm-top-finds-title {
+  font-size: 10px;
+  color: #fbbf24;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.cm-top-head,
+.cm-top-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.cm-top-head {
+  padding: 4px 4px 6px;
+  border-bottom: 1px dashed rgba(75, 85, 99, 0.35);
+}
+.cm-top-head span {
+  font-size: 9px;
+  color: #6b7280;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: right;
+  font-weight: 700;
+}
+.cm-top-head span:first-child { text-align: left; }
+.cm-top-row {
+  padding: 7px 4px;
+  font-size: 13px;
+}
+.cm-top-row + .cm-top-row {
+  border-top: 1px dashed rgba(75, 85, 99, 0.22);
+}
+.cm-top-row .cm-rank {
+  color: #fbbf24;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.cm-top-row .cm-val {
+  text-align: right;
+  color: #e5e7eb;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cm-cta-btn {
+  display: block;
+  width: 100%;
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  color: #111;
+  font-weight: 800;
+  font-size: 15px;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.2) inset;
+  font-family: inherit;
+}
+.cm-cta-btn:hover { filter: brightness(1.05); }
+.cm-cta-btn .cm-price { font-weight: 900; }
+.cm-cta-sub {
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 10px;
+}
+.cm-cta-sub a {
+  color: #d1d5db;
+  text-decoration: none;
+  border-bottom: 1px dashed #4b5563;
+}
+.cm-dismiss {
+  display: block;
+  text-align: center;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 8px;
+  cursor: pointer;
+  padding: 6px;
+  font-family: inherit;
+}
+.cm-dismiss:hover { color: #d1d5db; }
+
+.cm-skip-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #4b5563;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.cm-skip-hint.cm-visible { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-backdrop,
+  .cm-modal,
+  .cm-grid,
+  .cm-tile,
+  .cm-tile .cm-n,
+  .cm-tile .cm-lbl,
+  .cm-tile .cm-sub,
+  .cm-tile .cm-jackpot-icon,
+  .cm-spotlight,
+  .cm-late {
+    transition: opacity 120ms ease !important;
+    transform: none !important;
+  }
+}

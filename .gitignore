@@ -1,6 +1,7 @@
 node_modules/
 dist/
 lib/
+!packages/web/src/lib/
 .env
 .env.local
 *.local
