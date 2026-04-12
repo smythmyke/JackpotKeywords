@@ -258,6 +258,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Product Screenshot */}
+      <section className="py-16 px-4 border-t border-gray-800">
+        <div className="max-w-5xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-3">See What You Get</h2>
+          <p className="text-gray-400 mb-8 max-w-lg mx-auto">
+            Market Intelligence dashboard, 12 category tabs, keyword scoring, budget calculator — all from one search.
+          </p>
+          <div className="rounded-xl border border-gray-800 overflow-hidden shadow-2xl shadow-black/50">
+            <img
+              src="/screenshot-dashboard.png"
+              alt="JackpotKeywords results dashboard showing Market Intelligence score, 1,000 keywords found, 12 intent category tabs, and budget calculator"
+              className="w-full"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* 10 Categories */}
       <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50">
         <div className="max-w-5xl mx-auto text-center">
@@ -380,6 +398,16 @@ export default function Home() {
                 <p className="text-gray-400 text-sm">{source.desc}</p>
               </div>
             ))}
+          </div>
+
+          {/* Keyword table screenshot */}
+          <div className="mt-10 rounded-xl border border-gray-800 overflow-hidden shadow-2xl shadow-black/50">
+            <img
+              src="/screenshot-keywords.png"
+              alt="JackpotKeywords keyword table showing keywords with source, intent labels, search volume, CPC range, competition level, trend direction, and Ad Score columns"
+              className="w-full"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>

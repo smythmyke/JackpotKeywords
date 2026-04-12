@@ -314,6 +314,24 @@ export default function SeoAuditInput() {
         </div>
       </section>
 
+      {/* Product Screenshot — Score & Checklist */}
+      <section className="py-16 px-4 border-t border-gray-800">
+        <div className="max-w-5xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-3">See Your SEO Score Instantly</h2>
+          <p className="text-gray-400 mb-8 max-w-lg mx-auto">
+            Overall score, category breakdowns, and a pass/warning/fail checklist for every factor — all in one report.
+          </p>
+          <div className="rounded-xl border border-gray-800 overflow-hidden shadow-2xl shadow-black/50">
+            <img
+              src="/screenshot-audit-score.png"
+              alt="JackpotKeywords SEO Audit results showing a 93/100 score, category breakdowns for Technical, Content, Crawlability, Structured Data, and a detailed checklist with pass/warning/fail indicators"
+              className="w-full"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* What We Check */}
       <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50">
         <div className="max-w-5xl mx-auto">
@@ -329,6 +347,24 @@ export default function SeoAuditInput() {
                 <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Product Screenshot — Gaps & Recommendations */}
+      <section className="py-16 px-4 border-t border-gray-800">
+        <div className="max-w-5xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-3">Keyword Gaps &amp; Actionable Recommendations</h2>
+          <p className="text-gray-400 mb-8 max-w-lg mx-auto">
+            Discover topics your site should cover and get prioritized recommendations with impact and effort ratings.
+          </p>
+          <div className="rounded-xl border border-gray-800 overflow-hidden shadow-2xl shadow-black/50">
+            <img
+              src="/screenshot-audit-gaps.png"
+              alt="JackpotKeywords SEO Audit showing keyword gap opportunities table with difficulty ratings, and prioritized recommendations with impact levels"
+              className="w-full"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
