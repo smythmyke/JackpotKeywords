@@ -343,6 +343,23 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SEO Audit Cross-link */}
+      <section className="py-16 px-4 border-t border-gray-800 bg-gray-900/50">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl font-bold mb-3">Already Have a Website?</h2>
+          <p className="text-gray-400 mb-6">
+            Audit your site&apos;s SEO in 60 seconds. Check title tags, structured data, crawlability,
+            and 20+ ranking factors — with AI-powered recommendations to fix what&apos;s broken.
+          </p>
+          <Link
+            to="/seo-audit"
+            className="inline-block bg-gray-800 hover:bg-gray-700 text-white font-bold px-8 py-3.5 rounded-xl text-lg transition border border-gray-700"
+          >
+            Try Free SEO Audit &rarr;
+          </Link>
+        </div>
+      </section>
+
       {/* Data Sources */}
       <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50">
         <div className="max-w-5xl mx-auto text-center">
@@ -415,6 +432,7 @@ export default function Home() {
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
             <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
+            <Link to="/seo-audit" className="hover:text-gray-400 transition">SEO Audit</Link>
             <Link to="/features/competitor-keyword-research" className="hover:text-gray-400 transition">Competitor Research</Link>
             <Link to="/features/long-tail-keyword-generator" className="hover:text-gray-400 transition">Long-Tail Generator</Link>
             <Link to="/features/keyword-competition-checker" className="hover:text-gray-400 transition">Competition Checker</Link>

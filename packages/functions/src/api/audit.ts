@@ -83,15 +83,19 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     return;
   }
 
-  // Validate URL format
+  // Normalize and validate URL
+  let normalizedUrl = url.trim();
+  if (!/^https?:\/\//i.test(normalizedUrl)) {
+    normalizedUrl = `https://${normalizedUrl}`;
+  }
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(url);
+    parsedUrl = new URL(normalizedUrl);
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       throw new Error('Invalid protocol');
     }
   } catch {
-    res.status(400).json({ error: 'Invalid URL. Please enter a full URL like https://example.com' });
+    res.status(400).json({ error: 'Invalid URL. Please enter a domain like example.com or a full URL like https://example.com' });
     return;
   }
 
@@ -110,7 +114,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   }
 
   try {
-    const auditData = await runSeoAudit(url);
+    const auditData = await runSeoAudit(normalizedUrl);
 
     const paid = !isAnonymous && !creditResult.isFreeSearch;
     const result: SeoAuditResult = {
@@ -122,7 +126,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 
     await logActivity('seo_audit', {
       userId: userId || 'anonymous',
-      url: url.slice(0, 200),
+      url: normalizedUrl.slice(0, 200),
       domain: parsedUrl.hostname,
       overallScore: result.overallScore,
       pagesAnalyzed: result.metadata.pagesAnalyzed,

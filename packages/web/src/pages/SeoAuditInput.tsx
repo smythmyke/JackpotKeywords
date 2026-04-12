@@ -95,7 +95,7 @@ export default function SeoAuditInput() {
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
+                placeholder="e.g., markitup.app or https://example.com"
                 className="w-full px-4 py-3.5 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-jackpot-500 focus:ring-1 focus:ring-jackpot-500 outline-none text-lg"
                 autoFocus
               />
