@@ -3,14 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuthContext } from '../contexts/AuthContext';
 import { runSeoAudit } from '../services/api';
-
-const PROGRESS_STEPS = [
-  'Connecting to your website...',
-  'Analyzing page structure...',
-  'Checking SEO fundamentals...',
-  'Scanning additional pages...',
-  'Generating recommendations...',
-];
+import AuditProgress from '../components/AuditProgress';
 
 const FEATURES = [
   {
@@ -116,7 +109,6 @@ export default function SeoAuditInput() {
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [progressStep, setProgressStep] = useState(0);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, getToken } = useAuthContext();
@@ -125,14 +117,6 @@ export default function SeoAuditInput() {
     const prefill = searchParams.get('url');
     if (prefill) setUrl(prefill);
   }, [searchParams]);
-
-  useEffect(() => {
-    if (!loading) return;
-    const interval = setInterval(() => {
-      setProgressStep((prev) => (prev < PROGRESS_STEPS.length - 1 ? prev + 1 : prev));
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [loading]);
 
   const handleAudit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,7 +138,6 @@ export default function SeoAuditInput() {
     }
 
     setLoading(true);
-    setProgressStep(0);
 
     try {
       const token = user ? await getToken() : null;
@@ -166,42 +149,12 @@ export default function SeoAuditInput() {
     }
   };
 
-  // Loading state — full-screen progress
+  // Loading state — full-screen progress with tips
   if (loading) {
     return (
-      <>
-        <Helmet>
-          <title>Auditing... — JackpotKeywords</title>
-        </Helmet>
-        <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
-          <div className="inline-block mb-8">
-            <svg className="animate-spin h-12 w-12 text-jackpot-500" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-          </div>
-          <div className="space-y-3 max-w-sm mx-auto text-left">
-            {PROGRESS_STEPS.map((step, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-3 text-sm transition-opacity duration-300 ${
-                  i < progressStep ? 'text-green-400' : i === progressStep ? 'text-white' : 'text-gray-600'
-                }`}
-              >
-                {i < progressStep ? (
-                  <span className="text-green-400 shrink-0">&#10003;</span>
-                ) : i === progressStep ? (
-                  <span className="text-jackpot-400 shrink-0 animate-pulse">&#9679;</span>
-                ) : (
-                  <span className="text-gray-600 shrink-0">&#9675;</span>
-                )}
-                {step}
-              </div>
-            ))}
-          </div>
-          <p className="text-gray-500 text-sm mt-8">This usually takes 30-90 seconds depending on site size.</p>
-        </div>
-      </>
+      <div className="min-h-[calc(100vh-4rem)]">
+        <AuditProgress />
+      </div>
     );
   }
 
