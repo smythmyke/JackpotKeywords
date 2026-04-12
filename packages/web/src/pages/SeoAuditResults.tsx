@@ -346,6 +346,31 @@ export default function SeoAuditResults() {
           </section>
         )}
 
+        {/* Keyword research CTA — right after gaps, highest intent moment */}
+        {result.keywordGaps.length > 0 && (
+          <section className="mb-12 bg-jackpot-500/5 border border-jackpot-500/20 rounded-xl p-6">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Get Real Data on These Keywords
+                </h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  The gaps above are topics your site should cover — but which ones have real search demand?
+                  Run a keyword search to get <span className="text-white font-medium">1,000+ scored keywords</span> with
+                  actual monthly volume, CPC, competition levels, and intent labels from Google Ads data.
+                </p>
+              </div>
+              <Link
+                to={`/?prefill=${encodeURIComponent(result.url)}`}
+                state={{ prefillQuery: result.pageResults[0]?.title || domain }}
+                className="shrink-0 bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition text-center"
+              >
+                Find Keywords for {domain} &rarr;
+              </Link>
+            </div>
+          </section>
+        )}
+
         {/* Recommendations */}
         {result.recommendations.length > 0 && (
           <section className="mb-12">
@@ -420,32 +445,32 @@ export default function SeoAuditResults() {
           </section>
         )}
 
-        {/* Upsell to keyword research — shown for paid users */}
-        {paid && (
-          <section className="py-10 border-t border-gray-800 relative overflow-hidden">
-            <div
-              className="absolute inset-0 bg-center bg-cover opacity-[0.08] pointer-events-none"
-              style={{ backgroundImage: "url('/bg-coins.png')" }}
-              role="presentation"
-              aria-hidden="true"
-            />
-            <div className="text-center relative z-10">
-              <h2 className="text-2xl font-bold text-white mb-3">
-                Now Find the <span className="text-jackpot-400">Keywords</span> to Fix These Gaps
-              </h2>
-              <p className="text-gray-400 mb-6 max-w-lg mx-auto">
-                Your audit found {result.keywordGaps.length} keyword gaps and {result.checks.filter((c) => c.status === 'warning' || c.status === 'fail').length} issues to fix.
-                Run a keyword search to get 1,000+ scored keywords with real Google Ads data — volume, CPC, competition, and intent labels.
-              </p>
-              <Link
-                to="/"
-                className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-xl text-lg transition"
-              >
-                Find Keywords for {domain} &rarr;
-              </Link>
-            </div>
-          </section>
-        )}
+        {/* Bottom keyword research CTA — shown for all users */}
+        <section className="py-10 border-t border-gray-800 relative overflow-hidden">
+          <div
+            className="absolute inset-0 bg-center bg-cover opacity-[0.08] pointer-events-none"
+            style={{ backgroundImage: "url('/bg-coins.png')" }}
+            role="presentation"
+            aria-hidden="true"
+          />
+          <div className="text-center relative z-10">
+            <h2 className="text-2xl font-bold text-white mb-3">
+              Now Find the <span className="text-jackpot-400">Keywords</span> to Fix These Gaps
+            </h2>
+            <p className="text-gray-400 mb-6 max-w-lg mx-auto">
+              Your audit found {result.checks.filter((c) => c.status === 'warning' || c.status === 'fail').length} issues
+              {result.keywordGaps.length > 0 ? ` and ${result.keywordGaps.length} keyword gaps` : ''}.
+              Get 1,000+ scored keywords with real Google Ads data — volume, CPC, competition, and intent labels.
+            </p>
+            <Link
+              to="/"
+              state={{ prefillQuery: result.pageResults[0]?.title || domain }}
+              className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-xl text-lg transition"
+            >
+              Find Keywords for {domain} &rarr;
+            </Link>
+          </div>
+        </section>
 
         {/* Cross-link for all users */}
         <div className="text-center mt-8">
