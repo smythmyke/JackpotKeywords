@@ -24,6 +24,97 @@ const GEMINI_MAX_RETRIES = 2;
 const GEMINI_RETRY_DELAY = 3000;
 
 /**
+ * Attempt to repair common JSON issues from Gemini responses:
+ * - Trailing commas before ] or }
+ * - Truncated output (missing closing brackets)
+ * - Single-line // comments
+ */
+function repairJSON(text: string): string {
+  // Remove single-line comments (// ...)
+  let fixed = text.replace(/\/\/[^\n]*/g, '');
+  // Remove trailing commas before } or ]
+  fixed = fixed.replace(/,\s*([\]}])/g, '$1');
+  // Count unmatched brackets and close them
+  let braces = 0;
+  let brackets = 0;
+  let inString = false;
+  let escape = false;
+  for (const ch of fixed) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') braces++;
+    else if (ch === '}') braces--;
+    else if (ch === '[') brackets++;
+    else if (ch === ']') brackets--;
+  }
+  // Trim any trailing incomplete value (e.g., truncated string)
+  if (braces > 0 || brackets > 0) {
+    // Remove trailing incomplete entry: partial string or trailing comma
+    fixed = fixed.replace(/,\s*"[^"]*$/, '');
+    fixed = fixed.replace(/,\s*\{[^}]*$/, '');
+    fixed = fixed.replace(/,\s*$/, '');
+  }
+  while (brackets > 0) { fixed += ']'; brackets--; }
+  while (braces > 0) { fixed += '}'; braces--; }
+  return fixed;
+}
+
+/**
+ * Extract and parse JSON from Gemini text response.
+ * Tries raw parse first, then repairs common issues, then retries the Gemini call once.
+ */
+async function safeParseGeminiJSON(
+  text: string,
+  mode: 'object' | 'array',
+  retryPrompt?: string,
+): Promise<any> {
+  const regex = mode === 'object' ? /\{[\s\S]*\}/ : /\[[\s\S]*\]/;
+  const jsonMatch = text.match(regex);
+  if (!jsonMatch) {
+    if (retryPrompt) {
+      functions.logger.warn('No JSON found in Gemini response, retrying...');
+      const retryText = await geminiGenerate(retryPrompt);
+      const retryMatch = retryText.match(regex);
+      if (!retryMatch) throw new Error('No JSON found in Gemini response after retry');
+      return JSON.parse(retryMatch[0]);
+    }
+    throw new Error('No JSON found in Gemini response');
+  }
+
+  // Try raw parse first
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch (_rawErr) {
+    // Try with repair
+    try {
+      const repaired = repairJSON(jsonMatch[0]);
+      const parsed = JSON.parse(repaired);
+      functions.logger.info('JSON repaired successfully');
+      return parsed;
+    } catch (_repairErr) {
+      // Retry the Gemini call if we have a prompt
+      if (retryPrompt) {
+        functions.logger.warn(
+          `JSON parse failed after repair (snippet: ${jsonMatch[0].slice(-100)}), retrying Gemini call...`,
+        );
+        const retryText = await geminiGenerate(retryPrompt);
+        const retryMatch = retryText.match(regex);
+        if (!retryMatch) throw new Error('No JSON found in Gemini retry response');
+        try {
+          return JSON.parse(retryMatch[0]);
+        } catch (_retryErr) {
+          const retryRepaired = repairJSON(retryMatch[0]);
+          return JSON.parse(retryRepaired);
+        }
+      }
+      throw _repairErr;
+    }
+  }
+}
+
+/**
  * Wrapper for Gemini generateContent with automatic retry on 503/overload
  */
 async function geminiGenerate(prompt: string, config?: Record<string, any>): Promise<string> {
@@ -146,8 +237,10 @@ RULES:
   const config = url ? { config: { tools: [{ urlContext: {} }] } } : undefined;
   const text = await geminiGenerate(prompt, config);
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  let parsed: any;
+  try {
+    parsed = await safeParseGeminiJSON(text, 'object', prompt);
+  } catch (_err) {
     functions.logger.warn('Failed to parse extraction response, using fallback');
     return {
       ...EMPTY_CONTEXT,
@@ -155,8 +248,6 @@ RULES:
       whatItDoes: description.substring(0, 200),
     };
   }
-
-  const parsed = JSON.parse(jsonMatch[0]);
 
   // Validate and fill defaults for every field
   return {
@@ -233,10 +324,7 @@ Return JSON format:
 
   const text = await geminiGenerate(prompt);
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Failed to parse AI seed response');
-
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = await safeParseGeminiJSON(text, 'object', prompt);
   let allSeeds = parsed.seeds
     .filter((s: any) => s.keyword && typeof s.keyword === 'string')
     .map((s: any) => ({
@@ -309,10 +397,7 @@ Return ONLY valid JSON, no markdown:
 
   try {
     const text = await geminiGenerate(prompt);
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return [];
-
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = await safeParseGeminiJSON(text, 'object');
     return (parsed.seeds || []).map((s: any) => ({
       keyword: s.keyword,
       category: s.category,
@@ -444,10 +529,13 @@ Return ONLY valid JSON, no markdown:
 ]`;
 
   const text = await geminiGenerate(prompt);
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return new Map();
-
-  const parsed = JSON.parse(jsonMatch[0]);
+  let parsed: any[];
+  try {
+    parsed = await safeParseGeminiJSON(text, 'array');
+  } catch (_err) {
+    functions.logger.warn('Failed to parse relevance scores, returning empty');
+    return new Map();
+  }
   const map = new Map<string, number>();
   for (const entry of parsed) {
     if (entry.keyword && typeof entry.relevance === 'number') {
@@ -478,11 +566,13 @@ Return JSON format:
 ]`;
 
   const text = await geminiGenerate(prompt);
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-
-  if (!jsonMatch) return clusters;
-
-  const names = JSON.parse(jsonMatch[0]);
+  let names: any[];
+  try {
+    names = await safeParseGeminiJSON(text, 'array');
+  } catch (_err) {
+    functions.logger.warn('Failed to parse cluster names, returning unnamed');
+    return clusters;
+  }
   return clusters.map((c, i) => ({
     ...c,
     name: names.find((n: any) => n.id === i)?.name || c.name,
@@ -530,10 +620,7 @@ Generate 10-20 keyword seeds. Each keyword should be directly searchable on Goog
 
   const text = await geminiGenerate(prompt);
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Failed to parse refine response');
-
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = await safeParseGeminiJSON(text, 'object', prompt);
   return (parsed.seeds || []).map((s: any) => ({
     keyword: s.keyword,
     category,
