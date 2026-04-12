@@ -174,8 +174,21 @@ RULES:
 - For jsonLdTypes: look for <script type="application/ld+json"> blocks and report the @type values found`;
 
   const config = { config: { tools: [{ urlContext: {} }] } };
-  const text = await geminiGenerate(prompt, config);
-  const parsed = await safeParseGeminiJSON(text, 'object');
+  let text: string;
+  let parsed: any;
+
+  try {
+    text = await geminiGenerate(prompt, config);
+    functions.logger.info(`Primary page Gemini response (first 500 chars): ${text.slice(0, 500)}`);
+    parsed = await safeParseGeminiJSON(text, 'object');
+  } catch (err: any) {
+    // URL context may fail — retry without it, asking Gemini to use its knowledge
+    functions.logger.warn(`Primary page analysis with URL context failed: ${err.message}. Retrying without URL context...`);
+    const fallbackPrompt = `${prompt}\n\nURL to analyze: ${url}\n\nIMPORTANT: Visit and analyze this URL. If you cannot access it, analyze what you know about the domain and return your best assessment with null for fields you cannot determine.`;
+    text = await geminiGenerate(fallbackPrompt);
+    functions.logger.info(`Fallback Gemini response (first 500 chars): ${text.slice(0, 500)}`);
+    parsed = await safeParseGeminiJSON(text, 'object');
+  }
 
   return {
     title: parsed.title || undefined,
@@ -337,6 +350,7 @@ If a page is unreachable, still include it with null values.`;
 
   try {
     const text = await geminiGenerate(prompt, config);
+    functions.logger.info(`Secondary pages Gemini response (first 300 chars): ${text.slice(0, 300)}`);
     const parsed = await safeParseGeminiJSON(text, 'array');
 
     return (parsed || []).map((page: any) => {
