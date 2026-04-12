@@ -16,6 +16,9 @@ const Disclaimer = lazy(() => import('./pages/Disclaimer'));
 const CompetitorKeywordResearch = lazy(() => import('./pages/features/CompetitorKeywordResearch'));
 const LongTailKeywordGenerator = lazy(() => import('./pages/features/LongTailKeywordGenerator'));
 const KeywordCompetitionChecker = lazy(() => import('./pages/features/KeywordCompetitionChecker'));
+const SeoAudit = lazy(() => import('./pages/features/SeoAudit'));
+const SeoAuditInput = lazy(() => import('./pages/SeoAuditInput'));
+const SeoAuditResults = lazy(() => import('./pages/SeoAuditResults'));
 
 export default function App() {
   const location = useLocation();
@@ -41,6 +44,9 @@ export default function App() {
           <Route path="/features/competitor-keyword-research" element={<CompetitorKeywordResearch />} />
           <Route path="/features/long-tail-keyword-generator" element={<LongTailKeywordGenerator />} />
           <Route path="/features/keyword-competition-checker" element={<KeywordCompetitionChecker />} />
+          <Route path="/features/seo-audit" element={<SeoAudit />} />
+          <Route path="/seo-audit" element={<SeoAuditInput />} />
+          <Route path="/seo-audit/results/:auditId" element={<SeoAuditResults />} />
         </Route>
       </Routes>
     </Suspense>

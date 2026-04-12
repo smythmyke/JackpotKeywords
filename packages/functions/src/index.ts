@@ -12,11 +12,13 @@ app.use(express.json({ limit: '5mb' }));
 // Import routes
 import authRouter from './api/auth';
 import searchRouter from './api/search';
+import auditRouter from './api/audit';
 import stripeRouter from './api/stripe';
 
 // Mount routes
 app.use('/api/auth', authRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/audit', auditRouter);
 app.use('/api/stripe', stripeRouter);
 
 // Health check

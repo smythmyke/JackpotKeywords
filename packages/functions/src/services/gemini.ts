@@ -65,7 +65,7 @@ function repairJSON(text: string): string {
  * Extract and parse JSON from Gemini text response.
  * Tries raw parse first, then repairs common issues, then retries the Gemini call once.
  */
-async function safeParseGeminiJSON(
+export async function safeParseGeminiJSON(
   text: string,
   mode: 'object' | 'array',
   retryPrompt?: string,
@@ -117,7 +117,7 @@ async function safeParseGeminiJSON(
 /**
  * Wrapper for Gemini generateContent with automatic retry on 503/overload
  */
-async function geminiGenerate(prompt: string, config?: Record<string, any>): Promise<string> {
+export async function geminiGenerate(prompt: string, config?: Record<string, any>): Promise<string> {
   for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
     try {
       const result = await ai.models.generateContent({

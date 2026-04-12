@@ -143,6 +143,30 @@ const pages = [
 <p>Check keyword competition levels with real Google Ads data. See LOW/MEDIUM/HIGH ratings, CPC ranges, and opportunity scores for every keyword.</p>
 <p>Find low-competition keywords with high search volume — the goldmine opportunities that expensive tools charge $100+/month to reveal.</p>`,
   },
+  {
+    path: '/features/seo-audit',
+    title: 'Free SEO Audit Tool — JackpotKeywords',
+    description: 'Audit your website\'s SEO in 60 seconds. Check title tags, meta descriptions, structured data, crawlability, and more. AI-powered analysis with specific fix recommendations.',
+    body: `<h1>Free SEO Audit Tool</h1>
+<p>Audit your website's SEO in 60 seconds. AI-powered analysis of 20+ ranking factors with specific recommendations sorted by impact.</p>
+<h2>What We Check</h2>
+<ul>
+<li>Technical Foundation — title tags, meta descriptions, heading hierarchy, HTTPS, viewport, canonical URLs</li>
+<li>Content Structure — content depth, blog presence, about page, internal linking</li>
+<li>Structured Data — JSON-LD types, missing schema opportunities (FAQ, Product, Article)</li>
+<li>Crawlability — robots.txt, sitemap.xml, noindex tags, JavaScript rendering</li>
+<li>Local & Geo SEO — LocalBusiness schema, location signals</li>
+<li>Social & Sharing — Open Graph tags, Twitter Card tags</li>
+</ul>
+<p><a href="https://jackpotkeywords.web.app/seo-audit">Start Your Free SEO Audit</a></p>`,
+  },
+  {
+    path: '/seo-audit',
+    title: 'SEO Audit — JackpotKeywords',
+    description: 'Enter your website URL for a free AI-powered SEO audit. Check 20+ ranking factors in under 2 minutes.',
+    body: `<h1>SEO Audit</h1>
+<p>Enter your website URL and we'll analyze 20+ SEO factors across your site. Free audit with preview, full report from $1.99.</p>`,
+  },
 ];
 
 // Add blog posts as pages

@@ -19,7 +19,7 @@ export interface SubscriptionPlan {
   stripePriceId?: string;
 }
 
-export type OperationType = 'keyword_search' | 'concept_search' | 'pdf_report' | 'expand_search';
+export type OperationType = 'keyword_search' | 'concept_search' | 'pdf_report' | 'expand_search' | 'seo_audit';
 
 export interface OperationCost {
   operation: OperationType;
@@ -70,4 +70,5 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 export const OPERATION_COSTS: OperationCost[] = [
   { operation: 'keyword_search', name: 'Keyword Search', credits: 1 },
   { operation: 'pdf_report', name: 'PDF Goldmine Report', credits: 1 },
+  { operation: 'seo_audit', name: 'SEO Site Audit', credits: 1 },
 ];

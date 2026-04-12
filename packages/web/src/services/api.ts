@@ -1,4 +1,4 @@
-import type { SearchResult } from '@jackpotkeywords/shared';
+import type { SearchResult, SeoAuditResult } from '@jackpotkeywords/shared';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
 
@@ -125,4 +125,18 @@ export async function refineSearch(
     method: 'POST',
     body: JSON.stringify({ input, category }),
   });
+}
+
+export async function runSeoAudit(
+  token: string | null,
+  params: { url: string },
+): Promise<SeoAuditResult> {
+  return apiFetch('/api/audit', token, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function claimAudit(token: string): Promise<{ paid: boolean }> {
+  return apiFetch('/api/audit/claim', token, { method: 'POST' });
 }
