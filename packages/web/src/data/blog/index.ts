@@ -36,6 +36,9 @@ import { post as howToDoSeoAudit } from './how-to-do-seo-audit';
 import { post as aiKeywordResearch } from './ai-keyword-research';
 import { post as youtubeKeywordResearch } from './youtube-keyword-research';
 import { post as keywordClusteringSeo } from './keyword-clustering-seo';
+import { post as ubersuggestAlternative } from './ubersuggest-alternative';
+import { post as seRankingAlternative } from './se-ranking-alternative';
+import { post as mangoolsAlternative } from './mangools-alternative';
 
 export const BLOG_POSTS: BlogPost[] = [
   whatIsKeywordResearch,
@@ -62,6 +65,9 @@ export const BLOG_POSTS: BlogPost[] = [
   aiKeywordResearch,
   youtubeKeywordResearch,
   keywordClusteringSeo,
+  ubersuggestAlternative,
+  seRankingAlternative,
+  mangoolsAlternative,
 ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 export function getPostBySlug(slug: string): BlogPost | undefined {
