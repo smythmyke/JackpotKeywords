@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
+import { anonymousRateLimit } from '../middleware/rateLimit';
 import { runSeoAudit } from '../services/seoAudit';
 import type { SeoAuditResult } from '@jackpotkeywords/shared';
 
@@ -64,7 +65,13 @@ function maskAnonymousAuditResponse(result: SeoAuditResult): SeoAuditResult {
  * POST /api/audit
  * Main SEO audit endpoint — free for signed-in users, preview for anonymous
  */
-router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
+const auditRateLimit = anonymousRateLimit({
+  maxRequests: 3,
+  windowSeconds: 3600, // 3 anonymous audits per hour per IP
+  collection: 'rateLimits_audit',
+});
+
+router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest, res) => {
   const userId = req.userId;
   const isAnonymous = !userId;
   const { url } = req.body as { url?: string };

@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuthContext } from '../contexts/AuthContext';
 import { runSeoAudit } from '../services/api';
 import AuditProgress from '../components/AuditProgress';
+import { trackAudit } from '../services/analytics';
 
 const FEATURES = [
   {
@@ -141,6 +142,7 @@ export default function SeoAuditInput() {
 
     try {
       const token = user ? await getToken() : null;
+      trackAudit(normalized);
       const result = await runSeoAudit(token, { url: normalized });
       // Save to sessionStorage so Layout nav can link back
       sessionStorage.setItem('jk_audit_results', JSON.stringify(result));

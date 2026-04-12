@@ -32,6 +32,10 @@ interface SearchAnalytics {
   topQueries: { query: string; count: number }[];
   signupCount: number;
   newUserCount: number;
+  auditCount: number;
+  auditErrorCount: number;
+  anonAudits: number;
+  authAudits: number;
 }
 
 interface FunnelStage {
@@ -48,6 +52,7 @@ interface DailyPoint {
   searches: number;
   signups: number;
   paid: number;
+  audits: number;
 }
 
 interface SourceRow {
@@ -229,6 +234,12 @@ export default function Admin() {
     const saveRate = searches.length ? (saves.length / searches.length) * 100 : 0;
     const newUserCount = auths.filter((a) => a.isNewUser === true).length;
 
+    // SEO Audit analytics
+    const audits = filteredLogs.filter((l) => l.action === 'seo_audit');
+    const auditErrors = filteredLogs.filter((l) => l.action === 'audit_error');
+    const anonAudits = audits.filter((a) => a.userId === 'anonymous').length;
+    const authAudits = audits.length - anonAudits;
+
     setAnalytics({
       searchCount: searches.length,
       errorCount: errors.length,
@@ -245,6 +256,10 @@ export default function Admin() {
       topQueries,
       signupCount: auths.length,
       newUserCount,
+      auditCount: audits.length,
+      auditErrorCount: auditErrors.length,
+      anonAudits,
+      authAudits,
     });
 
     // Compute conversion funnel
@@ -284,6 +299,7 @@ export default function Admin() {
         searches: 0,
         signups: 0,
         paid: 0,
+        audits: 0,
       });
     }
 
@@ -297,6 +313,8 @@ export default function Admin() {
       if (log.action === 'search') {
         point.searches++;
         if (log.paid === true) point.paid++;
+      } else if (log.action === 'seo_audit') {
+        point.audits++;
       } else if (log.action === 'auth_init' && log.isNewUser === true) {
         point.signups++;
       }
@@ -451,6 +469,14 @@ export default function Admin() {
                 <StatCard label="Errors" value={analytics.errorCount} subtext={`${analytics.errorRate.toFixed(1)}% rate`} />
               </div>
 
+              {/* SEO Audit stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <StatCard label="SEO Audits" value={analytics.auditCount} />
+                <StatCard label="Audit Anon vs Auth" value={analytics.anonAudits} subtext={`${analytics.authAudits} auth`} />
+                <StatCard label="Audit Errors" value={analytics.auditErrorCount} />
+                <StatCard label="Total Actions" value={analytics.searchCount + analytics.auditCount} subtext="searches + audits" />
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Performance & Engagement */}
                 <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -528,6 +554,7 @@ export default function Admin() {
                 <div className="mt-4 flex items-center gap-6 text-xs">
                   <LegendDot color="bg-blue-500" label="Searches" />
                   <LegendDot color="bg-jackpot-500" label="Paid Searches" />
+                  <LegendDot color="bg-green-500" label="SEO Audits" />
                   <LegendDot color="bg-purple-500" label="New Sign-ups" />
                 </div>
               </div>
@@ -701,6 +728,8 @@ export default function Admin() {
                         <td className="px-3 py-2">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             log.action === 'search' ? 'bg-blue-500/10 text-blue-400' :
+                            log.action === 'seo_audit' ? 'bg-green-500/10 text-green-400' :
+                            log.action === 'audit_error' ? 'bg-red-500/10 text-red-400' :
                             log.action === 'search_error' ? 'bg-red-500/10 text-red-400' :
                             log.action === 'save' ? 'bg-green-500/10 text-green-400' :
                             log.action === 'claim' ? 'bg-jackpot-500/10 text-jackpot-400' :
@@ -795,7 +824,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 }
 
 function BarChart({ points }: { points: DailyPoint[] }) {
-  const maxValue = Math.max(1, ...points.map((p) => Math.max(p.searches, p.signups)));
+  const maxValue = Math.max(1, ...points.map((p) => Math.max(p.searches, p.signups, p.audits)));
   const chartHeight = 180;
   const barGap = 2;
   const groupGap = 8;
@@ -837,6 +866,7 @@ function BarChart({ points }: { points: DailyPoint[] }) {
                   <div className="text-gray-400">{p.label}</div>
                   <div className="text-blue-400">Searches: {p.searches}</div>
                   <div className="text-jackpot-400">Paid: {p.paid}</div>
+                  <div className="text-green-400">Audits: {p.audits}</div>
                   <div className="text-purple-400">Sign-ups: {p.signups}</div>
                 </div>
 
@@ -849,6 +879,11 @@ function BarChart({ points }: { points: DailyPoint[] }) {
                     />
                   )}
                 </div>
+                {/* Audits bar */}
+                <div
+                  className="flex-1 bg-green-500/70 rounded-t-sm"
+                  style={{ height: `${(p.audits / maxValue) * chartHeight}px`, minHeight: p.audits > 0 ? '2px' : '0' }}
+                />
                 {/* Sign-ups bar */}
                 <div
                   className="flex-1 bg-purple-500 rounded-t-sm"
@@ -860,13 +895,20 @@ function BarChart({ points }: { points: DailyPoint[] }) {
         </div>
       </div>
 
-      {/* X-axis labels */}
-      <div className="flex pl-6 mt-2" style={{ gap: `${groupGap}px` }}>
+      {/* X-axis labels — visible labels are allowed to overflow their
+          flex cell into neighboring empty cells, since we skip labels
+          on the in-between days. Without overflow:visible the cells
+          would be 1/30 of the chart width and truncate to "Ma..." */}
+      <div className="flex pl-6 mt-2 overflow-visible" style={{ gap: `${groupGap}px` }}>
         {points.map((p, i) => {
           // Show every Nth label to avoid crowding
           const showLabel = points.length <= 7 || i % Math.ceil(points.length / 8) === 0 || i === points.length - 1;
           return (
-            <div key={i} className="flex-1 text-center text-[10px] text-gray-600 truncate" style={{ minWidth: 0 }}>
+            <div
+              key={i}
+              className="flex-1 text-center text-[10px] text-gray-600 whitespace-nowrap"
+              style={{ minWidth: 0, overflow: 'visible' }}
+            >
               {showLabel ? p.label : ''}
             </div>
           );

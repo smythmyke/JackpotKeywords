@@ -75,6 +75,14 @@ export function trackCreditPurchase(pack: string, value: number) {
   });
 }
 
+export function trackAudit(url: string) {
+  gtag('event', 'seo_audit', {
+    audit_url: url,
+  });
+  // Reuse search conversion — an audit is equivalent engagement
+  gtag('event', 'conversion', { send_to: 'AW-17678736775/eLjNCIb4mZkcEIe78O1B' });
+}
+
 export function trackExport(format: string, keywordCount: number) {
   gtag('event', 'export', {
     format,

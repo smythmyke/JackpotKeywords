@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
+import { anonymousRateLimit } from '../middleware/rateLimit';
 import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
 import { classifyIntent } from '../services/intentClassifier';
@@ -90,7 +91,13 @@ function maskUnpaidSearchResponse<
  * POST /api/search
  * Main search endpoint — orchestrates the 6-step pipeline
  */
-router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
+const searchRateLimit = anonymousRateLimit({
+  maxRequests: 5,
+  windowSeconds: 3600, // 5 anonymous searches per hour per IP
+  collection: 'rateLimits_search',
+});
+
+router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthRequest, res) => {
   const startTime = Date.now();
   const userId = req.userId;
   const isAnonymous = !userId;
