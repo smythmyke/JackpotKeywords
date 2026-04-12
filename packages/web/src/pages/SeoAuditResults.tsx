@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, Navigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult } from '@jackpotkeywords/shared';
+import { useAuthContext } from '../contexts/AuthContext';
 import ScoreGauge from '../components/audit/ScoreGauge';
 import CategoryScoreCard from '../components/audit/CategoryScoreCard';
 import CheckItem from '../components/audit/CheckItem';
@@ -10,19 +11,31 @@ const CATEGORIES: SeoAuditCategory[] = [
   'technical', 'content', 'crawlability', 'structured_data', 'local_geo', 'social_sharing',
 ];
 
+/** Number of checklist items to show before blurring for unpaid users */
+const FREE_PREVIEW_CHECKS = 4;
+
 export default function SeoAuditResults() {
   const location = useLocation();
   const result = (location.state as any)?.result as SeoAuditResult | undefined;
   const [activeCategory, setActiveCategory] = useState<SeoAuditCategory | null>(null);
+  const { user } = useAuthContext();
 
   if (!result) return <Navigate to="/seo-audit" replace />;
 
-  const paid = result.paid;
+  // If user is authenticated, always show full results — even if result.paid
+  // is false (e.g., user ran audit anonymously then logged in, or result was
+  // from a free search). Server-side masking only applies to anonymous users.
+  const paid = result.paid || !!user;
+
   const filteredChecks = activeCategory
     ? result.checks.filter((c) => c.category === activeCategory)
     : result.checks;
 
   const domain = result.domain.replace(/^https?:\/\//, '');
+
+  // Split checks into visible and blurred for unpaid
+  const visibleChecks = paid ? filteredChecks : filteredChecks.slice(0, FREE_PREVIEW_CHECKS);
+  const blurredChecks = paid ? [] : filteredChecks.slice(FREE_PREVIEW_CHECKS);
 
   return (
     <>
@@ -31,7 +44,7 @@ export default function SeoAuditResults() {
         <meta name="robots" content="noindex" />
       </Helmet>
 
-      <div className="max-w-5xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row items-center gap-6 mb-10">
           <ScoreGauge score={result.overallScore} size={140} />
@@ -91,20 +104,56 @@ export default function SeoAuditResults() {
           </div>
         )}
 
-        {/* Checklist */}
+        {/* Checklist — multi-column layout */}
         <section className="mb-12">
           <h2 className="text-xl font-bold text-white mb-4">
             SEO Checklist ({filteredChecks.length} items)
           </h2>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            {filteredChecks.length > 0 ? (
-              filteredChecks.map((check) => (
-                <CheckItem key={check.id} check={check} paid={paid} />
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm py-4 text-center">No checks in this category</p>
-            )}
-          </div>
+
+          {/* Visible checks in 2 columns */}
+          {visibleChecks.length > 0 && (
+            <div className="grid md:grid-cols-2 gap-x-4">
+              {visibleChecks.map((check) => (
+                <div key={check.id} className="bg-gray-900 border border-gray-800 rounded-xl px-4 mb-3">
+                  <CheckItem check={check} paid={paid} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Blurred checks for unpaid users */}
+          {blurredChecks.length > 0 && (
+            <div className="relative mt-2">
+              <div className="grid md:grid-cols-2 gap-x-4 blur-[6px] select-none pointer-events-none">
+                {blurredChecks.map((check) => (
+                  <div key={check.id} className="bg-gray-900 border border-gray-800 rounded-xl px-4 mb-3">
+                    <CheckItem check={check} paid={false} />
+                  </div>
+                ))}
+              </div>
+              {/* Unlock overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center bg-gray-950/80 backdrop-blur-sm rounded-2xl px-8 py-6 border border-gray-800">
+                  <p className="text-white font-bold text-lg mb-2">
+                    +{blurredChecks.length} more checks found
+                  </p>
+                  <p className="text-gray-400 text-sm mb-4">
+                    Sign in to see all results and recommendations
+                  </p>
+                  <Link
+                    to="/pricing"
+                    className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-2.5 rounded-lg transition"
+                  >
+                    Unlock Full Report
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {filteredChecks.length === 0 && (
+            <p className="text-gray-500 text-sm py-4 text-center">No checks in this category</p>
+          )}
         </section>
 
         {/* Page-by-Page Analysis */}
@@ -183,7 +232,7 @@ export default function SeoAuditResults() {
                 </thead>
                 <tbody>
                   {result.keywordGaps.map((gap, i) => {
-                    const isLocked = gap.keyword.startsWith('\u2022\u2022\u2022');
+                    const isLocked = !paid && gap.keyword.startsWith('\u2022\u2022\u2022');
                     return (
                       <tr key={i} className="border-b border-gray-800/50 last:border-0">
                         <td className={`px-4 py-3 ${isLocked ? 'text-gray-600 blur-sm select-none' : 'text-white font-medium'}`}>
@@ -218,7 +267,7 @@ export default function SeoAuditResults() {
             </h2>
             <div className="space-y-3">
               {result.recommendations.map((rec, i) => {
-                const isLocked = rec.title.startsWith('\u2022\u2022\u2022');
+                const isLocked = !paid && rec.title.startsWith('\u2022\u2022\u2022');
                 return (
                   <div
                     key={i}
@@ -270,7 +319,7 @@ export default function SeoAuditResults() {
           <section className="text-center py-10 border-t border-gray-800">
             <h2 className="text-2xl font-bold text-white mb-3">Unlock the Full Report</h2>
             <p className="text-gray-400 mb-6 max-w-lg mx-auto">
-              See all recommendations, keyword gap opportunities, and specific fixes for every issue found.
+              See all {filteredChecks.length} checklist items, recommendations, keyword gap opportunities, and specific fixes for every issue found.
             </p>
             <Link
               to="/pricing"
@@ -284,10 +333,37 @@ export default function SeoAuditResults() {
           </section>
         )}
 
-        {/* Cross-link */}
+        {/* Upsell to keyword research — shown for paid users */}
+        {paid && (
+          <section className="py-10 border-t border-gray-800 relative overflow-hidden">
+            <div
+              className="absolute inset-0 bg-center bg-cover opacity-[0.08] pointer-events-none"
+              style={{ backgroundImage: "url('/bg-coins.png')" }}
+              role="presentation"
+              aria-hidden="true"
+            />
+            <div className="text-center relative z-10">
+              <h2 className="text-2xl font-bold text-white mb-3">
+                Now Find the <span className="text-jackpot-400">Keywords</span> to Fix These Gaps
+              </h2>
+              <p className="text-gray-400 mb-6 max-w-lg mx-auto">
+                Your audit found {result.keywordGaps.length} keyword gaps and {result.checks.filter((c) => c.status === 'warning' || c.status === 'fail').length} issues to fix.
+                Run a keyword search to get 1,000+ scored keywords with real Google Ads data — volume, CPC, competition, and intent labels.
+              </p>
+              <Link
+                to="/"
+                className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-xl text-lg transition"
+              >
+                Find Keywords for {domain} &rarr;
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {/* Cross-link for all users */}
         <div className="text-center mt-8">
-          <Link to="/" className="text-sm text-gray-500 hover:text-gray-300 transition">
-            Find keywords for your site with our Keyword Research Tool &rarr;
+          <Link to="/seo-audit" className="text-sm text-gray-500 hover:text-gray-300 transition">
+            Run another SEO audit &rarr;
           </Link>
         </div>
       </div>

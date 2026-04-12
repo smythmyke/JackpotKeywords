@@ -78,6 +78,8 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   const isAnonymous = !userId;
   const { url } = req.body as { url?: string };
 
+  functions.logger.info(`Audit request: userId=${userId || 'anonymous'}, email=${req.userEmail || 'none'}, isAnonymous=${isAnonymous}`);
+
   if (!url?.trim()) {
     res.status(400).json({ error: 'URL required' });
     return;
