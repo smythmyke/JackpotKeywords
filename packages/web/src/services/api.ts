@@ -137,6 +137,10 @@ export async function runSeoAudit(
   });
 }
 
-export async function claimAudit(token: string): Promise<{ paid: boolean }> {
-  return apiFetch('/api/audit/claim', token, { method: 'POST' });
+export async function listAudits(token: string): Promise<{ audits: any[] }> {
+  return apiFetch('/api/audit', token);
+}
+
+export async function getAuditResult(token: string, auditId: string): Promise<SeoAuditResult> {
+  return apiFetch(`/api/audit/${auditId}`, token);
 }

@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { useLocation, Navigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useLocation, useParams, Navigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
+import { getAuditResult } from '../services/api';
 import ScoreGauge from '../components/audit/ScoreGauge';
 import CategoryScoreCard from '../components/audit/CategoryScoreCard';
 import CheckItem from '../components/audit/CheckItem';
@@ -16,11 +17,66 @@ const FREE_PREVIEW_CHECKS = 4;
 
 export default function SeoAuditResults() {
   const location = useLocation();
-  const result = (location.state as any)?.result as SeoAuditResult | undefined;
+  const { auditId } = useParams<{ auditId: string }>();
   const [activeCategory, setActiveCategory] = useState<SeoAuditCategory | null>(null);
-  const { user } = useAuthContext();
+  const { user, signInWithGoogle, getToken } = useAuthContext();
+  const [unlocking, setUnlocking] = useState(false);
+  const [fetchedResult, setFetchedResult] = useState<SeoAuditResult | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
 
-  if (!result) return <Navigate to="/seo-audit" replace />;
+  // Try location state first, then sessionStorage
+  let result = (location.state as any)?.result as SeoAuditResult | undefined;
+  if (!result) {
+    try {
+      const cached = sessionStorage.getItem('jk_audit_results');
+      if (cached) result = JSON.parse(cached);
+    } catch { /* ignore */ }
+  }
+
+  // If we have a specific auditId (not "anonymous") and no result yet, fetch from Firestore
+  useEffect(() => {
+    if (result || !auditId || auditId === 'anonymous' || fetchedResult || fetchLoading) return;
+
+    async function loadAudit() {
+      setFetchLoading(true);
+      try {
+        const token = await getToken();
+        if (!token) { setFetchError(true); return; }
+        const data = await getAuditResult(token, auditId!);
+        setFetchedResult(data);
+      } catch {
+        setFetchError(true);
+      } finally {
+        setFetchLoading(false);
+      }
+    }
+    loadAudit();
+  }, [auditId, result, fetchedResult, fetchLoading, getToken]);
+
+  // Use fetched result if we don't have one from state/session
+  if (!result && fetchedResult) result = fetchedResult;
+
+  if (fetchLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-gray-400">Loading audit results...</div>
+      </div>
+    );
+  }
+
+  if (!result) {
+    if (fetchError) {
+      return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+          <div className="text-gray-400">Audit not found or you don&apos;t have access.</div>
+          <Link to="/seo-audit" className="text-jackpot-400 hover:underline">Run a new audit</Link>
+        </div>
+      );
+    }
+    if (auditId && auditId !== 'anonymous') return null; // Still loading
+    return <Navigate to="/seo-audit" replace />;
+  }
 
   // If user is authenticated, always show full results — even if result.paid
   // is false (e.g., user ran audit anonymously then logged in, or result was
@@ -138,14 +194,14 @@ export default function SeoAuditResults() {
                     +{blurredChecks.length} more checks found
                   </p>
                   <p className="text-gray-400 text-sm mb-4">
-                    Sign in to see all results and recommendations
+                    Sign in free to see all results and recommendations
                   </p>
-                  <Link
-                    to="/pricing"
+                  <button
+                    onClick={signInWithGoogle}
                     className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-2.5 rounded-lg transition"
                   >
-                    Unlock Full Report
-                  </Link>
+                    Sign In Free to Unlock
+                  </button>
                 </div>
               </div>
             </div>
@@ -314,21 +370,21 @@ export default function SeoAuditResults() {
           </section>
         )}
 
-        {/* Paywall CTA for unpaid users */}
+        {/* Sign-in CTA for anonymous users */}
         {!paid && (
           <section className="text-center py-10 border-t border-gray-800">
-            <h2 className="text-2xl font-bold text-white mb-3">Unlock the Full Report</h2>
+            <h2 className="text-2xl font-bold text-white mb-3">Sign In to See the Full Report</h2>
             <p className="text-gray-400 mb-6 max-w-lg mx-auto">
-              See all {filteredChecks.length} checklist items, recommendations, keyword gap opportunities, and specific fixes for every issue found.
+              Create a free account to see all {filteredChecks.length} checklist items, recommendations, keyword gaps, and specific fixes. No credit card required.
             </p>
-            <Link
-              to="/pricing"
+            <button
+              onClick={signInWithGoogle}
               className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-lg text-lg transition"
             >
-              Unlock for $1.99
-            </Link>
+              Sign In Free with Google
+            </button>
             <p className="text-sm text-gray-500 mt-3">
-              Or go Pro for $9.99/mo — unlimited audits + keyword research
+              Full SEO audit reports are free for all signed-in users
             </p>
           </section>
         )}

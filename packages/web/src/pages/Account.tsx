@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
-import { listSearches } from '../services/api';
+import { listSearches, listAudits } from '../services/api';
 import { trackPurchase, trackSubscription } from '../services/analytics';
 
 interface SavedSearch {
@@ -17,7 +17,9 @@ interface SavedSearch {
 export default function Account() {
   const { user, profile, credits, loading: authLoading, signInWithGoogle } = useAuthContext();
   const [searches, setSearches] = useState<SavedSearch[]>([]);
+  const [audits, setAudits] = useState<any[]>([]);
   const [loadingSearches, setLoadingSearches] = useState(false);
+  const [loadingAudits, setLoadingAudits] = useState(false);
   const { getToken } = useAuthContext();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -36,20 +38,26 @@ export default function Account() {
   useEffect(() => {
     if (authLoading || !user) return;
 
-    async function fetchSearches() {
+    async function fetchData() {
       setLoadingSearches(true);
+      setLoadingAudits(true);
       try {
         const token = await getToken();
         if (!token) return;
-        const data = await listSearches(token);
-        setSearches(data.searches || []);
+        const [searchData, auditData] = await Promise.allSettled([
+          listSearches(token),
+          listAudits(token),
+        ]);
+        if (searchData.status === 'fulfilled') setSearches(searchData.value.searches || []);
+        if (auditData.status === 'fulfilled') setAudits(auditData.value.audits || []);
       } catch {
         // silent
       } finally {
         setLoadingSearches(false);
+        setLoadingAudits(false);
       }
     }
-    fetchSearches();
+    fetchData();
   }, [user, authLoading, getToken]);
 
   if (authLoading) {
@@ -181,6 +189,56 @@ export default function Account() {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Saved audits */}
+      <div className="mt-10">
+        <h2 className="text-xl font-bold text-white mb-4">SEO Audits</h2>
+        {loadingAudits && (
+          <div className="text-gray-400 py-8 text-center">Loading audits...</div>
+        )}
+        {!loadingAudits && audits.length === 0 && (
+          <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+            <p className="text-gray-400 mb-4">No SEO audits yet. Audit your website for free!</p>
+            <Link
+              to="/seo-audit"
+              className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition"
+            >
+              Run Free SEO Audit
+            </Link>
+          </div>
+        )}
+        {!loadingAudits && audits.length > 0 && (
+          <div className="space-y-2">
+            {audits.map((audit) => {
+              const scoreColor = audit.overallScore >= 70 ? 'text-green-400' : audit.overallScore >= 40 ? 'text-yellow-400' : 'text-red-400';
+              return (
+                <Link
+                  key={audit.id}
+                  to={`/seo-audit/results/${audit.id}`}
+                  className="block bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white font-medium">
+                        {audit.domain?.replace(/^https?:\/\//, '') || audit.url}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {formatDate(audit.createdAt)} &middot; {audit.pagesAnalyzed} pages analyzed
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-lg font-bold ${scoreColor}`}>
+                        {audit.overallScore}/100
+                      </span>
+                      <span className="text-gray-600">&rarr;</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

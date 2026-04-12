@@ -142,6 +142,9 @@ export default function SeoAuditInput() {
     try {
       const token = user ? await getToken() : null;
       const result = await runSeoAudit(token, { url: normalized });
+      // Save to sessionStorage so Layout nav can link back
+      sessionStorage.setItem('jk_audit_results', JSON.stringify(result));
+      sessionStorage.setItem('jk_audit_results_path', '/seo-audit/results/anonymous');
       navigate('/seo-audit/results/anonymous', { state: { result } });
     } catch (err: any) {
       setError(err.message);
@@ -237,7 +240,7 @@ export default function SeoAuditInput() {
             </button>
           </form>
           <p className="text-center text-sm text-gray-500 mt-3">
-            {user ? 'Full report included with your account.' : 'Sign in to unlock full recommendations.'}
+            {user ? 'Full report included — free for signed-in users.' : 'Sign in free to see the full report.'}
           </p>
         </div>
 
@@ -245,21 +248,21 @@ export default function SeoAuditInput() {
         <div className="relative z-10 mt-12 flex items-center gap-6 md:gap-10 text-center text-sm">
           <div>
             <div className="text-2xl font-bold text-jackpot-400">Free</div>
-            <div className="text-gray-500">Preview audit<br />No card required</div>
+            <div className="text-gray-500">Full SEO audit<br />Just sign in</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-white">$1.99</div>
-            <div className="text-gray-500">Per search credit<br />Pay as you go</div>
+            <div className="text-2xl font-bold text-white">20+</div>
+            <div className="text-gray-500">SEO factors<br />checked</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-white">$9.99<span className="text-base font-normal text-gray-400">/mo</span></div>
-            <div className="text-gray-500">Unlimited audits<br />+ keyword research</div>
+            <div className="text-2xl font-bold text-white">9</div>
+            <div className="text-gray-500">Pages<br />analyzed</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <Link to="/pricing" className="text-jackpot-400 hover:text-jackpot-300 transition font-medium text-sm">
-            See all plans &rarr;
+            Need keywords too? &rarr;
           </Link>
         </div>
       </section>

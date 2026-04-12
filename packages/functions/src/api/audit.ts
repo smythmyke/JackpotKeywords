@@ -2,7 +2,6 @@ import { Router } from 'express';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
-import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { runSeoAudit } from '../services/seoAudit';
 import type { SeoAuditResult } from '@jackpotkeywords/shared';
 
@@ -22,42 +21,34 @@ async function logActivity(action: string, details: Record<string, any>) {
 }
 
 /**
- * Number of keyword gaps and recommendations to show as a teaser for unpaid users.
- * Check statuses (pass/warning/fail) are always visible; only the actionable
- * recommendation text and keyword gaps are masked.
+ * Mask audit response for anonymous (not signed in) users.
+ * Check statuses (pass/warning/fail) stay visible as a teaser,
+ * but recommendation text and keyword gaps are replaced with placeholders.
  */
 const FREE_PREVIEW_RECOMMENDATIONS = 2;
 const FREE_PREVIEW_GAPS = 2;
 
-/**
- * Mask recommendation details and keyword gaps for unpaid users.
- * Check items keep their status (pass/warning/fail) visible as a teaser,
- * but recommendation text is replaced with a placeholder.
- */
-function maskUnpaidAuditResponse(result: SeoAuditResult): SeoAuditResult {
-  // Mask recommendation text on check items (keep status visible)
+function maskAnonymousAuditResponse(result: SeoAuditResult): SeoAuditResult {
   const maskedChecks = result.checks.map((check) => ({
     ...check,
-    recommendation: check.recommendation ? '••• Unlock full report to see recommendation' : undefined,
+    recommendation: check.recommendation ? '••• Sign in to see recommendation' : undefined,
   }));
 
-  // Show only first N keyword gaps, mask the rest
   const maskedGaps = result.keywordGaps.map((gap, i) => {
     if (i < FREE_PREVIEW_GAPS) return gap;
     return {
-      keyword: '••• locked keyword',
-      opportunity: '••• Unlock full report to see opportunity',
+      keyword: '••• sign in to see',
+      opportunity: '••• Sign in to see opportunity',
       difficulty: gap.difficulty,
     };
   });
 
-  // Show only first N recommendations, mask the rest
   const maskedRecs = result.recommendations.map((rec, i) => {
     if (i < FREE_PREVIEW_RECOMMENDATIONS) return rec;
     return {
       ...rec,
-      title: '••• locked recommendation',
-      description: '••• Unlock full report to see details',
+      title: '••• sign in to see',
+      description: '••• Sign in free to see this recommendation',
     };
   });
 
@@ -71,14 +62,14 @@ function maskUnpaidAuditResponse(result: SeoAuditResult): SeoAuditResult {
 
 /**
  * POST /api/audit
- * Main SEO audit endpoint
+ * Main SEO audit endpoint — free for signed-in users, preview for anonymous
  */
 router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId;
   const isAnonymous = !userId;
   const { url } = req.body as { url?: string };
 
-  functions.logger.info(`Audit request: userId=${userId || 'anonymous'}, email=${req.userEmail || 'none'}, isAnonymous=${isAnonymous}`);
+  functions.logger.info(`Audit request: userId=${userId || 'anonymous'}, email=${req.userEmail || 'none'}`);
 
   if (!url?.trim()) {
     res.status(400).json({ error: 'URL required' });
@@ -101,19 +92,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
     return;
   }
 
-  // Check and deduct credits (skip for anonymous)
-  let creditResult = { allowed: true, newBalance: 0, isFreeSearch: true };
-  if (!isAnonymous) {
-    creditResult = await checkAndDeductCredits(userId, 1, 'seo_audit', 'SEO site audit');
-
-    if (!creditResult.allowed) {
-      res.status(402).json({
-        error: 'Insufficient credits',
-        balance: creditResult.newBalance,
-      });
-      return;
-    }
-  }
+  // No credit deduction — SEO audit is free for signed-in users
 
   try {
     const auditData = await runSeoAudit(normalizedUrl);
@@ -126,6 +105,19 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       paid,
     };
 
+    // Auto-save for authenticated users
+    if (!isAnonymous) {
+      try {
+        await db.collection(`users/${userId}/audits`).doc(result.id).set({
+          ...result,
+          savedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (saveErr) {
+        functions.logger.warn('Audit save failed:', saveErr);
+        // Don't block the response if save fails
+      }
+    }
+
     await logActivity('seo_audit', {
       userId: userId || 'anonymous',
       url: normalizedUrl.slice(0, 200),
@@ -135,24 +127,15 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
       executionTimeMs: result.metadata.executionTimeMs,
     });
 
-    // Mask for unpaid users
-    const response = paid ? result : maskUnpaidAuditResponse(result);
+    // Mask for anonymous users only
+    const response = paid ? result : maskAnonymousAuditResponse(result);
     res.json(response);
   } catch (error: any) {
     functions.logger.error(`SEO Audit error: ${error.message}`, error);
 
-    // Refund credits on failure
-    if (!isAnonymous && !creditResult.isFreeSearch) {
-      try {
-        await refundCredits(userId, 1, 'SEO audit failed');
-      } catch (refundErr) {
-        functions.logger.error('Credit refund failed:', refundErr);
-      }
-    }
-
     await logActivity('audit_error', {
       userId: userId || 'anonymous',
-      url: url?.slice(0, 200),
+      url: normalizedUrl?.slice(0, 200),
       error: error.message?.slice(0, 200),
     });
 
@@ -161,28 +144,57 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
 });
 
 /**
- * POST /api/audit/claim
- * Claim an anonymous audit after signing in
+ * GET /api/audit
+ * List saved audits for the authenticated user
  */
-router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
+router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId!;
 
-  const creditResult = await checkAndDeductCredits(userId, 1, 'seo_audit', 'SEO audit (claimed)');
+  try {
+    const snapshot = await db.collection(`users/${userId}/audits`)
+      .orderBy('savedAt', 'desc')
+      .limit(20)
+      .get();
 
-  if (!creditResult.allowed) {
-    res.status(402).json({
-      error: 'Insufficient credits',
-      balance: creditResult.newBalance,
+    const audits = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        url: data.url,
+        domain: data.domain,
+        overallScore: data.overallScore,
+        createdAt: data.createdAt,
+        pagesAnalyzed: data.metadata?.pagesAnalyzed || 0,
+      };
     });
-    return;
+
+    res.json({ audits });
+  } catch (error: any) {
+    functions.logger.error('List audits error:', error);
+    res.status(500).json({ error: 'Failed to load audits' });
   }
+});
 
-  await logActivity('audit_claim', {
-    userId,
-    isFreeSearch: creditResult.isFreeSearch,
-  });
+/**
+ * GET /api/audit/:auditId
+ * Get a specific saved audit
+ */
+router.get('/:auditId', authMiddleware, async (req: AuthRequest, res) => {
+  const userId = req.userId!;
+  const { auditId } = req.params;
 
-  res.json({ paid: !creditResult.isFreeSearch });
+  try {
+    const doc = await db.doc(`users/${userId}/audits/${auditId}`).get();
+    if (!doc.exists) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    res.json(doc.data());
+  } catch (error: any) {
+    functions.logger.error('Get audit error:', error);
+    res.status(500).json({ error: 'Failed to load audit' });
+  }
 });
 
 export default router;

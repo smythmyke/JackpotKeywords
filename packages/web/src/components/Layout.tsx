@@ -8,33 +8,49 @@ export default function Layout() {
   const { user, profile, credits, loading, signInWithGoogle, logout } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
-  const [hasResults, setHasResults] = useState(false);
-  const [resultsPath, setResultsPath] = useState('');
+  const [hasKeywordResults, setHasKeywordResults] = useState(false);
+  const [keywordResultsPath, setKeywordResultsPath] = useState('');
+  const [hasAuditResults, setHasAuditResults] = useState(false);
+  const [auditResultsPath, setAuditResultsPath] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [resultsDropdownOpen, setResultsDropdownOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-  const isOnResultsPage = location.pathname.startsWith('/results');
+  const isOnResultsPage = location.pathname.startsWith('/results') || location.pathname.startsWith('/seo-audit/results');
 
   useEffect(() => {
-    const cached = sessionStorage.getItem('jk_results');
-    const path = sessionStorage.getItem('jk_results_path');
-    setHasResults(!!cached);
-    setResultsPath(path || '/results/anonymous');
+    const cachedKeywords = sessionStorage.getItem('jk_results');
+    const keywordPath = sessionStorage.getItem('jk_results_path');
+    setHasKeywordResults(!!cachedKeywords);
+    setKeywordResultsPath(keywordPath || '/results/anonymous');
+
+    const cachedAudit = sessionStorage.getItem('jk_audit_results');
+    const auditPath = sessionStorage.getItem('jk_audit_results_path');
+    setHasAuditResults(!!cachedAudit);
+    setAuditResultsPath(auditPath || '/seo-audit/results/anonymous');
   }, [location.pathname]);
 
   useEffect(() => {
     setMenuOpen(false);
+    setResultsDropdownOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !resultsDropdownOpen) return;
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
+      if (resultsRef.current && !resultsRef.current.contains(e.target as Node)) {
+        setResultsDropdownOpen(false);
+      }
     }
     function handleEsc(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setResultsDropdownOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEsc);
@@ -42,7 +58,7 @@ export default function Layout() {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEsc);
     };
-  }, [menuOpen]);
+  }, [menuOpen, resultsDropdownOpen]);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -62,6 +78,11 @@ export default function Layout() {
   }
 
   const badge = user ? getUserBadge() : null;
+  const hasAnyResults = hasKeywordResults || hasAuditResults;
+  const hasBothResults = hasKeywordResults && hasAuditResults;
+
+  // If only one result type, link directly; if both, show dropdown
+  const singleResultPath = hasKeywordResults ? keywordResultsPath : auditResultsPath;
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -80,10 +101,48 @@ export default function Layout() {
             <Link to="/blog" className="text-gray-400 hover:text-white transition">
               Blog
             </Link>
-            {hasResults && !isOnResultsPage && (
-              <Link to={resultsPath} className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
-                Results
-              </Link>
+            {hasAnyResults && !isOnResultsPage && (
+              hasBothResults ? (
+                // Dropdown for both result types
+                <div className="relative" ref={resultsRef}>
+                  <button
+                    onMouseEnter={() => setResultsDropdownOpen(true)}
+                    onClick={() => setResultsDropdownOpen((v) => !v)}
+                    className="text-jackpot-400 hover:text-jackpot-300 font-medium transition flex items-center gap-1"
+                  >
+                    Results
+                    <svg className="w-3.5 h-3.5 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {resultsDropdownOpen && (
+                    <div
+                      onMouseLeave={() => setResultsDropdownOpen(false)}
+                      className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-800 bg-gray-900 shadow-xl py-1 z-50"
+                    >
+                      <Link
+                        to={keywordResultsPath}
+                        onClick={() => setResultsDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition"
+                      >
+                        Keyword Results
+                      </Link>
+                      <Link
+                        to={auditResultsPath}
+                        onClick={() => setResultsDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition border-t border-gray-800"
+                      >
+                        SEO Audit Results
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Direct link for single result type
+                <Link to={singleResultPath} className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                  Results
+                </Link>
+              )
             )}
             {user ? (
               <>
