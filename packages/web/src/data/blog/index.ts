@@ -33,6 +33,9 @@ import { post as jackpotkeywordsVsAhrefs } from './jackpotkeywords-vs-ahrefs';
 import { post as freeSeoAuditTool } from './free-seo-audit-tool';
 import { post as onPageSeoChecklist } from './on-page-seo-checklist';
 import { post as howToDoSeoAudit } from './how-to-do-seo-audit';
+import { post as aiKeywordResearch } from './ai-keyword-research';
+import { post as youtubeKeywordResearch } from './youtube-keyword-research';
+import { post as keywordClusteringSeo } from './keyword-clustering-seo';
 
 export const BLOG_POSTS: BlogPost[] = [
   whatIsKeywordResearch,
@@ -56,6 +59,9 @@ export const BLOG_POSTS: BlogPost[] = [
   freeSeoAuditTool,
   onPageSeoChecklist,
   howToDoSeoAudit,
+  aiKeywordResearch,
+  youtubeKeywordResearch,
+  keywordClusteringSeo,
 ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 export function getPostBySlug(slug: string): BlogPost | undefined {
