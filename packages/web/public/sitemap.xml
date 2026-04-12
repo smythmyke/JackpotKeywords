@@ -101,6 +101,16 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://jackpotkeywords.web.app/blog/how-to-do-seo-audit</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://jackpotkeywords.web.app/blog/on-page-seo-checklist</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://jackpotkeywords.web.app/blog/free-seo-audit-tool</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

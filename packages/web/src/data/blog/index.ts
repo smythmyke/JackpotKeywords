@@ -31,6 +31,8 @@ import { post as bestKeywordResearchTool2026 } from './best-keyword-research-too
 import { post as jackpotkeywordsVsSemrush } from './jackpotkeywords-vs-semrush';
 import { post as jackpotkeywordsVsAhrefs } from './jackpotkeywords-vs-ahrefs';
 import { post as freeSeoAuditTool } from './free-seo-audit-tool';
+import { post as onPageSeoChecklist } from './on-page-seo-checklist';
+import { post as howToDoSeoAudit } from './how-to-do-seo-audit';
 
 export const BLOG_POSTS: BlogPost[] = [
   whatIsKeywordResearch,
@@ -52,6 +54,8 @@ export const BLOG_POSTS: BlogPost[] = [
   jackpotkeywordsVsSemrush,
   jackpotkeywordsVsAhrefs,
   freeSeoAuditTool,
+  onPageSeoChecklist,
+  howToDoSeoAudit,
 ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 export function getPostBySlug(slug: string): BlogPost | undefined {
