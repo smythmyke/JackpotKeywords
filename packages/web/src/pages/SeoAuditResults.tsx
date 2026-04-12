@@ -26,36 +26,46 @@ export default function SeoAuditResults() {
   const [fetchLoading, setFetchLoading] = useState(false);
 
   // Try location state first, then sessionStorage
-  let result = (location.state as any)?.result as SeoAuditResult | undefined;
-  if (!result) {
+  let stateResult = (location.state as any)?.result as SeoAuditResult | undefined;
+  if (!stateResult) {
     try {
       const cached = sessionStorage.getItem('jk_audit_results');
-      if (cached) result = JSON.parse(cached);
+      if (cached) stateResult = JSON.parse(cached);
     } catch { /* ignore */ }
   }
 
-  // If we have a specific auditId (not "anonymous") and no result yet, fetch from Firestore
+  // If user is signed in but result is masked (paid=false), re-fetch from Firestore
+  // to get the unmasked version that was auto-saved server-side
+  const needsRefetch = !!user && stateResult && !stateResult.paid && !fetchedResult && !fetchLoading;
+  const needsInitialFetch = !stateResult && auditId && auditId !== 'anonymous' && !fetchedResult && !fetchLoading;
+
   useEffect(() => {
-    if (result || !auditId || auditId === 'anonymous' || fetchedResult || fetchLoading) return;
+    if (!needsRefetch && !needsInitialFetch) return;
+
+    const targetId = stateResult?.id || auditId;
+    if (!targetId) return;
 
     async function loadAudit() {
       setFetchLoading(true);
       try {
         const token = await getToken();
         if (!token) { setFetchError(true); return; }
-        const data = await getAuditResult(token, auditId!);
+        const data = await getAuditResult(token, targetId!);
         setFetchedResult(data);
+        // Update sessionStorage with unmasked data
+        sessionStorage.setItem('jk_audit_results', JSON.stringify(data));
       } catch {
-        setFetchError(true);
+        // If re-fetch fails, fall back to the masked version
+        if (needsInitialFetch) setFetchError(true);
       } finally {
         setFetchLoading(false);
       }
     }
     loadAudit();
-  }, [auditId, result, fetchedResult, fetchLoading, getToken]);
+  }, [needsRefetch, needsInitialFetch, stateResult?.id, auditId, getToken]);
 
-  // Use fetched result if we don't have one from state/session
-  if (!result && fetchedResult) result = fetchedResult;
+  // Prefer fetched (unmasked) result over state (possibly masked) result
+  let result = fetchedResult || stateResult;
 
   if (fetchLoading) {
     return (
@@ -78,10 +88,17 @@ export default function SeoAuditResults() {
     return <Navigate to="/seo-audit" replace />;
   }
 
-  // If user is authenticated, always show full results — even if result.paid
-  // is false (e.g., user ran audit anonymously then logged in, or result was
-  // from a free search). Server-side masking only applies to anonymous users.
-  const paid = result.paid || !!user;
+  // Check if the result content is actually masked (server-side replaced text)
+  const hasServerMaskedContent = result.keywordGaps.some((g) => g.keyword.includes('•••'))
+    || result.recommendations.some((r) => r.title.includes('•••'))
+    || result.checks.some((c) => c.recommendation?.includes('•••'));
+
+  // If user is logged in but data is server-masked AND we couldn't re-fetch,
+  // they need to re-run the audit
+  const needsRerun = !!user && hasServerMaskedContent && !fetchLoading;
+
+  // paid = true if result is unmasked OR user is logged in with clean data
+  const paid = !hasServerMaskedContent || !!user;
 
   const filteredChecks = activeCategory
     ? result.checks.filter((c) => c.category === activeCategory)
@@ -101,6 +118,22 @@ export default function SeoAuditResults() {
       </Helmet>
 
       <div className="max-w-6xl mx-auto px-4 py-12">
+        {/* Re-run banner for logged-in users with stale masked data */}
+        {needsRerun && (
+          <div className="mb-6 bg-jackpot-500/10 border border-jackpot-500/30 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-white font-medium">You&apos;re signed in — get the full report free</p>
+              <p className="text-gray-400 text-sm">This audit was run before you signed in. Re-run to see all recommendations and keyword gaps.</p>
+            </div>
+            <Link
+              to={`/seo-audit?url=${encodeURIComponent(result.url)}`}
+              className="shrink-0 bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2.5 rounded-lg transition"
+            >
+              Re-run Audit Free
+            </Link>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row items-center gap-6 mb-10">
           <ScoreGauge score={result.overallScore} size={140} />
