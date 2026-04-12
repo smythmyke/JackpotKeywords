@@ -116,7 +116,7 @@ router.post('/', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   try {
     const auditData = await runSeoAudit(normalizedUrl);
 
-    const paid = !isAnonymous && !creditResult.isFreeSearch;
+    const paid = !isAnonymous;
     const result: SeoAuditResult = {
       ...auditData,
       id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
