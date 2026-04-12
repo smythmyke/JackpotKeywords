@@ -198,6 +198,18 @@ router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthReques
     };
 
     functions.logger.info(`Search complete: ${result.keywords.length} keywords (not saved — user selects and saves later)`);
+
+    // Save to global collection so anonymous searches can be retrieved after login
+    try {
+      await db.collection('searches').doc(searchId).set({
+        ...JSON.parse(JSON.stringify(result)),
+        userId: userId || null,
+        savedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (saveErr) {
+      functions.logger.warn('Global search save failed:', saveErr);
+    }
+
     await logActivity('search', {
       userId: userId || 'anonymous',
       query: description?.slice(0, 100),
@@ -596,13 +608,22 @@ router.get('/:searchId', authMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId!;
   const { searchId } = req.params;
 
-  const doc = await db.doc(`users/${userId}/searches/${searchId}`).get();
+  // Check user's saved searches first
+  let doc = await db.doc(`users/${userId}/searches/${searchId}`).get();
+
+  // Fall back to global searches collection (handles anonymous searches claimed after login)
+  if (!doc.exists) {
+    doc = await db.doc(`searches/${searchId}`).get();
+  }
+
   if (!doc.exists) {
     res.status(404).json({ error: 'Search not found' });
     return;
   }
 
-  res.json(doc.data());
+  // Return with paid=true since user is authenticated
+  const data = doc.data()!;
+  res.json({ ...data, paid: true });
 });
 
 /**

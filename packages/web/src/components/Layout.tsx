@@ -95,7 +95,7 @@ export default function Layout() {
             <Link to="/pricing" className="text-gray-400 hover:text-white transition">
               Pricing
             </Link>
-            <Link to="/seo-audit" className="text-gray-400 hover:text-white transition">
+            <Link to="/seo-audit" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
               SEO Audit
             </Link>
             <Link to="/blog" className="text-gray-400 hover:text-white transition">

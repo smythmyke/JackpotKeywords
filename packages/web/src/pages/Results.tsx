@@ -240,37 +240,55 @@ export default function Results() {
     fetchResults();
   }, [searchId, getToken, authLoading, user, isAnonymous, location.state, result]);
 
-  // When anonymous user signs in, claim the search to check credits and unblur
-  // Skip for admin/subscribers — they get access via profile check, not claim
+  // When anonymous user signs in, re-fetch unmasked data from global collection
+  // The anonymous response has server-masked keyword strings (••• locked N),
+  // so we must re-fetch the full unmasked result using the search ID.
   const [claimed, setClaimed] = useState(false);
   useEffect(() => {
     if (!isAnonymous || !user || !result || claimed) return;
-    // Admin and subscribers don't need to claim — paid is computed from profile
-    const isAdminOrSub = (profile?.email && ADMIN_EMAILS.includes(profile.email)) ||
-      profile?.plan === 'pro' || profile?.plan === 'agency';
-    if (isAdminOrSub) {
+
+    // Wait for profile to load so we know if admin/pro
+    if (!profile) return;
+
+    const isAdminOrSub = (profile.email && ADMIN_EMAILS.includes(profile.email)) ||
+      profile.plan === 'pro' || profile.plan === 'agency';
+
+    async function refetchUnmasked() {
       setClaimed(true);
-      return;
-    }
-    // Free users: claim to deduct a free search credit
-    async function claim() {
-      setClaimed(true);
+      console.log('[Results] User signed in, re-fetching unmasked data for:', result!.id);
       try {
         const token = await getToken();
-        if (!token) return;
-        const { paid: claimedPaid } = await claimSearch(token);
-        setResult((prev) => prev ? { ...prev, paid: claimedPaid } : prev);
+        if (!token) {
+          console.error('[Results] No token available after login');
+          return;
+        }
+        // Re-fetch from backend — returns unmasked data with paid=true
+        const data = await getSearchResult(token, result!.id);
+        console.log('[Results] Re-fetch success, keywords:', data.keywords?.length);
+        setResult(data);
+        try {
+          sessionStorage.setItem('jk_results', JSON.stringify(data));
+        } catch {}
       } catch (err: any) {
-        console.error('Claim failed:', err.message);
-        // Anonymous search payloads are server-masked. If the user has paid
-        // credits or a subscription, the claim endpoint refuses (409) because
-        // unmasked data was never sent. Tell them to re-run signed in.
-        if (err.message?.toLowerCase().includes('run a new search')) {
-          alert('To see full results with your credits, please run the search again while signed in.');
+        console.error('[Results] Re-fetch failed:', err.message);
+        // If re-fetch fails for admin/pro, they already see unblurred via paid flag
+        // For free users, fall back to claim flow
+        if (!isAdminOrSub) {
+          try {
+            const token = await getToken();
+            if (!token) return;
+            const { paid: claimedPaid } = await claimSearch(token);
+            setResult((prev) => prev ? { ...prev, paid: claimedPaid } : prev);
+          } catch (claimErr: any) {
+            console.error('[Results] Claim also failed:', claimErr.message);
+            if (claimErr.message?.toLowerCase().includes('run a new search')) {
+              alert('To see full results with your credits, please run the search again while signed in.');
+            }
+          }
         }
       }
     }
-    claim();
+    refetchUnmasked();
   }, [isAnonymous, user, result, profile, claimed, getToken]);
 
   // Background cluster naming — runs after keywords display

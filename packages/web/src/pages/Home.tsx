@@ -260,7 +260,7 @@ export default function Home() {
 
       {/* Product Screenshot */}
       <section className="py-16 px-4 border-t border-gray-800">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-3">See What You Get</h2>
           <p className="text-gray-400 mb-8 max-w-lg mx-auto">
             Market Intelligence dashboard, 12 category tabs, keyword scoring, budget calculator — all from one search.
@@ -380,7 +380,7 @@ export default function Home() {
 
       {/* Data Sources */}
       <section className="py-20 px-4 border-t border-gray-800 bg-gray-900/50">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Real Data, Not Guesswork</h2>
           <p className="text-gray-400 mb-10 max-w-lg mx-auto">
             Every keyword is enriched with real data — not estimates, not scraped guesses.

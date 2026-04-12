@@ -39,22 +39,56 @@ export default function SeoAuditResults() {
   const shouldFetchById = !stateResult && auditId && auditId !== 'anonymous';
   const shouldRefetchMasked = !!user && isMasked && stateResult?.id;
 
+  // DEBUG: Log auth/blur state on every render to diagnose stale-blur bug
+  console.log('[AuditResults] render state:', {
+    userUid: user?.uid ?? null,
+    userEmail: user?.email ?? null,
+    isMasked,
+    shouldFetchById,
+    shouldRefetchMasked,
+    fetchAttempted: fetchAttempted.current,
+    hasFetchedResult: !!fetchedResult,
+    stateResultId: stateResult?.id ?? null,
+    stateResultPaid: stateResult?.paid ?? null,
+    auditId,
+  });
+
+  // Reset fetchAttempted when user logs in and we need to re-fetch masked data
+  if (shouldRefetchMasked && fetchAttempted.current && !fetchedResult) {
+    console.log('[AuditResults] Resetting fetchAttempted — user logged in with masked data');
+    fetchAttempted.current = false;
+  }
+
   useEffect(() => {
-    if (fetchAttempted.current || fetchedResult) return;
-    if (!shouldFetchById && !shouldRefetchMasked) return;
+    if (fetchAttempted.current || fetchedResult) {
+      console.log('[AuditResults] useEffect skipped:', { fetchAttempted: fetchAttempted.current, hasFetchedResult: !!fetchedResult });
+      return;
+    }
+    if (!shouldFetchById && !shouldRefetchMasked) {
+      console.log('[AuditResults] useEffect skipped: no fetch needed', { shouldFetchById, shouldRefetchMasked });
+      return;
+    }
 
     const targetId = shouldFetchById ? auditId! : stateResult!.id;
     fetchAttempted.current = true;
+    console.log('[AuditResults] Fetching audit:', { targetId, shouldFetchById, shouldRefetchMasked });
 
     async function loadAudit() {
       setFetchLoading(true);
       try {
         const token = await getToken();
-        if (!token) { setFetchError(true); return; }
+        if (!token) {
+          console.error('[AuditResults] No token available after login — cannot re-fetch');
+          setFetchError(true);
+          return;
+        }
+        console.log('[AuditResults] Calling getAuditResult with token, id:', targetId);
         const data = await getAuditResult(token, targetId);
+        console.log('[AuditResults] Re-fetch success, paid:', data.paid, 'maskedContent:', data.checks?.some((c: any) => c.recommendation?.includes('•••')));
         setFetchedResult(data);
         sessionStorage.setItem('jk_audit_results', JSON.stringify(data));
-      } catch {
+      } catch (err) {
+        console.error('[AuditResults] Re-fetch failed:', err);
         setFetchError(true);
       } finally {
         setFetchLoading(false);
@@ -97,6 +131,16 @@ export default function SeoAuditResults() {
 
   // Anonymous and has masked content = not paid. Logged in with clean data = paid.
   const paid = !hasServerMaskedContent;
+
+  // DEBUG: Log blur decision
+  console.log('[AuditResults] blur decision:', {
+    hasServerMaskedContent,
+    needsRerun,
+    paid,
+    resultSource: fetchedResult ? 'fetched' : 'state/cache',
+    resultId: result.id,
+    resultPaid: result.paid,
+  });
 
   const filteredChecks = activeCategory
     ? result.checks.filter((c) => c.category === activeCategory)

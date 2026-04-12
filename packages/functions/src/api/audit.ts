@@ -112,17 +112,23 @@ router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest
       paid,
     };
 
-    // Auto-save for authenticated users
-    if (!isAnonymous) {
-      try {
+    // Save audit to Firestore (strip undefined values to avoid Firestore rejection)
+    const firestoreData = JSON.parse(JSON.stringify(result));
+    try {
+      if (!isAnonymous) {
         await db.collection(`users/${userId}/audits`).doc(result.id).set({
-          ...result,
+          ...firestoreData,
           savedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-      } catch (saveErr) {
-        functions.logger.warn('Audit save failed:', saveErr);
-        // Don't block the response if save fails
       }
+      // Always save to global collection so anonymous audits can be claimed after login
+      await db.collection('audits').doc(result.id).set({
+        ...firestoreData,
+        userId: userId || null,
+        savedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (saveErr) {
+      functions.logger.warn('Audit save failed:', saveErr);
     }
 
     await logActivity('seo_audit', {
@@ -191,13 +197,28 @@ router.get('/:auditId', authMiddleware, async (req: AuthRequest, res) => {
   const { auditId } = req.params;
 
   try {
-    const doc = await db.doc(`users/${userId}/audits/${auditId}`).get();
+    // Check user's personal audits first
+    let doc = await db.doc(`users/${userId}/audits/${auditId}`).get();
+
+    // Fall back to global audits collection (handles anonymous audits claimed after login)
+    if (!doc.exists) {
+      doc = await db.doc(`audits/${auditId}`).get();
+      if (doc.exists) {
+        // Copy to user's collection for future lookups
+        const data = doc.data()!;
+        const userAuditData = { ...data, userId, paid: true, savedAt: admin.firestore.FieldValue.serverTimestamp() };
+        await db.collection(`users/${userId}/audits`).doc(auditId).set(userAuditData);
+      }
+    }
+
     if (!doc.exists) {
       res.status(404).json({ error: 'Audit not found' });
       return;
     }
 
-    res.json(doc.data());
+    // Return with paid=true since user is authenticated
+    const data = doc.data()!;
+    res.json({ ...data, paid: true });
   } catch (error: any) {
     functions.logger.error('Get audit error:', error);
     res.status(500).json({ error: 'Failed to load audit' });

@@ -316,7 +316,7 @@ export default function SeoAuditInput() {
 
       {/* Product Screenshot — Score & Checklist */}
       <section className="py-16 px-4 border-t border-gray-800">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-3">See Your SEO Score Instantly</h2>
           <p className="text-gray-400 mb-8 max-w-lg mx-auto">
             Overall score, category breakdowns, and a pass/warning/fail checklist for every factor — all in one report.
@@ -353,7 +353,7 @@ export default function SeoAuditInput() {
 
       {/* Product Screenshot — Gaps & Recommendations */}
       <section className="py-16 px-4 border-t border-gray-800">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-3">Keyword Gaps &amp; Actionable Recommendations</h2>
           <p className="text-gray-400 mb-8 max-w-lg mx-auto">
             Discover topics your site should cover and get prioritized recommendations with impact and effort ratings.
