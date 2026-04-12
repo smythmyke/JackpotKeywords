@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useParams, Navigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult } from '@jackpotkeywords/shared';
@@ -20,10 +20,10 @@ export default function SeoAuditResults() {
   const { auditId } = useParams<{ auditId: string }>();
   const [activeCategory, setActiveCategory] = useState<SeoAuditCategory | null>(null);
   const { user, signInWithGoogle, getToken } = useAuthContext();
-  const [unlocking, setUnlocking] = useState(false);
   const [fetchedResult, setFetchedResult] = useState<SeoAuditResult | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
+  const fetchAttempted = useRef(false);
 
   // Try location state first, then sessionStorage
   let stateResult = (location.state as any)?.result as SeoAuditResult | undefined;
@@ -34,35 +34,34 @@ export default function SeoAuditResults() {
     } catch { /* ignore */ }
   }
 
-  // If user is signed in but result is masked (paid=false), re-fetch from Firestore
-  // to get the unmasked version that was auto-saved server-side
-  const needsRefetch = !!user && stateResult && !stateResult.paid && !fetchedResult && !fetchLoading;
-  const needsInitialFetch = !stateResult && auditId && auditId !== 'anonymous' && !fetchedResult && !fetchLoading;
+  // One-time fetch: either loading a saved audit by ID, or re-fetching masked results
+  const isMasked = stateResult && !stateResult.paid;
+  const shouldFetchById = !stateResult && auditId && auditId !== 'anonymous';
+  const shouldRefetchMasked = !!user && isMasked && stateResult?.id;
 
   useEffect(() => {
-    if (!needsRefetch && !needsInitialFetch) return;
+    if (fetchAttempted.current || fetchedResult) return;
+    if (!shouldFetchById && !shouldRefetchMasked) return;
 
-    const targetId = stateResult?.id || auditId;
-    if (!targetId) return;
+    const targetId = shouldFetchById ? auditId! : stateResult!.id;
+    fetchAttempted.current = true;
 
     async function loadAudit() {
       setFetchLoading(true);
       try {
         const token = await getToken();
         if (!token) { setFetchError(true); return; }
-        const data = await getAuditResult(token, targetId!);
+        const data = await getAuditResult(token, targetId);
         setFetchedResult(data);
-        // Update sessionStorage with unmasked data
         sessionStorage.setItem('jk_audit_results', JSON.stringify(data));
       } catch {
-        // If re-fetch fails, fall back to the masked version
-        if (needsInitialFetch) setFetchError(true);
+        setFetchError(true);
       } finally {
         setFetchLoading(false);
       }
     }
     loadAudit();
-  }, [needsRefetch, needsInitialFetch, stateResult?.id, auditId, getToken]);
+  }, [shouldFetchById, shouldRefetchMasked, auditId, stateResult?.id, getToken, fetchedResult]);
 
   // Prefer fetched (unmasked) result over state (possibly masked) result
   let result = fetchedResult || stateResult;
@@ -76,7 +75,7 @@ export default function SeoAuditResults() {
   }
 
   if (!result) {
-    if (fetchError) {
+    if (fetchError || (shouldFetchById && fetchAttempted.current)) {
       return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
           <div className="text-gray-400">Audit not found or you don&apos;t have access.</div>
@@ -89,16 +88,15 @@ export default function SeoAuditResults() {
   }
 
   // Check if the result content is actually masked (server-side replaced text)
-  const hasServerMaskedContent = result.keywordGaps.some((g) => g.keyword.includes('•••'))
-    || result.recommendations.some((r) => r.title.includes('•••'))
-    || result.checks.some((c) => c.recommendation?.includes('•••'));
+  const hasServerMaskedContent = result.keywordGaps.some((g) => g.keyword.includes('\u2022\u2022\u2022'))
+    || result.recommendations.some((r) => r.title.includes('\u2022\u2022\u2022'))
+    || result.checks.some((c) => c.recommendation?.includes('\u2022\u2022\u2022'));
 
-  // If user is logged in but data is server-masked AND we couldn't re-fetch,
-  // they need to re-run the audit
-  const needsRerun = !!user && hasServerMaskedContent && !fetchLoading;
+  // User is logged in but has stale masked data — show re-run banner
+  const needsRerun = !!user && hasServerMaskedContent;
 
-  // paid = true if result is unmasked OR user is logged in with clean data
-  const paid = !hasServerMaskedContent || !!user;
+  // Anonymous and has masked content = not paid. Logged in with clean data = paid.
+  const paid = !hasServerMaskedContent;
 
   const filteredChecks = activeCategory
     ? result.checks.filter((c) => c.category === activeCategory)
