@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { collection, getDocs, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuthContext } from '../contexts/AuthContext';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
 
 const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
@@ -64,11 +66,29 @@ interface SourceRow {
   conversionRate: number; // % of signups that became pro
 }
 
+interface SearchConsoleRow {
+  keys: string[];
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+interface SearchConsoleData {
+  startDate: string;
+  endDate: string;
+  dimension: string;
+  rows: SearchConsoleRow[];
+  totals: { clicks: number; impressions: number; ctr: number; position: number };
+}
+
 interface ActivityLog {
   action: string;
   userId?: string;
   email?: string;
   query?: string;
+  url?: string;
+  inputType?: 'description' | 'url' | 'both';
   productLabel?: string;
   keywordCount?: number;
   executionTimeMs?: number;
@@ -79,7 +99,7 @@ interface ActivityLog {
 }
 
 export default function Admin() {
-  const { user, profile, loading: authLoading } = useAuthContext();
+  const { user, profile, loading: authLoading, getToken } = useAuthContext();
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [analytics, setAnalytics] = useState<SearchAnalytics | null>(null);
@@ -91,6 +111,11 @@ export default function Admin() {
   const [rawData, setRawData] = useState<{ logs: any[]; users: any[]; adminIds: Set<string> } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scData, setScData] = useState<SearchConsoleData | null>(null);
+  const [scDimension, setScDimension] = useState<'query' | 'page'>('query');
+  const [scDays, setScDays] = useState<7 | 28>(28);
+  const [scLoading, setScLoading] = useState(false);
+  const [scError, setScError] = useState<string | null>(null);
 
   const isAdmin = (profile?.email && ADMIN_EMAILS.includes(profile.email)) || (user?.email && ADMIN_EMAILS.includes(user.email));
 
@@ -329,23 +354,39 @@ export default function Admin() {
       let source: string;
       let detail: string;
 
+      // Classify referrer as search engine for legacy users without referrer_type
+      const isSearchEngineRef = (ref: string) => {
+        try {
+          const h = new URL(ref).hostname.replace(/^www\./, '');
+          return ['google.com', 'bing.com', 'duckduckgo.com', 'yahoo.com', 'baidu.com', 'yandex.com'].some((se) => h.includes(se));
+        } catch { return false; }
+      };
+
       if (attr.gclid) {
         source = 'Google Ads';
         detail = attr.utm_campaign || 'Search Network';
       } else if (attr.utm_source) {
         source = `${attr.utm_source}/${attr.utm_medium || 'unknown'}`;
         detail = attr.utm_campaign || '';
+      } else if (attr.referrer_type === 'search' || (!attr.referrer_type && attr.referrer && isSearchEngineRef(attr.referrer))) {
+        try {
+          const hostname = new URL(attr.referrer).hostname.replace(/^www\./, '');
+          source = 'Organic Search';
+          detail = hostname;
+        } catch {
+          source = 'Organic Search';
+          detail = '';
+        }
       } else if (attr.referrer) {
         try {
-          const url = new URL(attr.referrer);
-          source = url.hostname.replace(/^www\./, '');
-          detail = 'organic referral';
+          source = new URL(attr.referrer).hostname.replace(/^www\./, '');
+          detail = 'referral';
         } catch {
           source = 'unknown referrer';
           detail = '';
         }
       } else {
-        source = 'Direct / Organic';
+        source = 'Direct';
         detail = '';
       }
 
@@ -372,6 +413,33 @@ export default function Admin() {
     sourceList.sort((a, b) => b.signups - a.signups);
     setSources(sourceList);
   }, [rawData, excludeAdmin]);
+
+  const fetchSearchConsole = useCallback(async (days: number, dimension: string) => {
+    setScLoading(true);
+    setScError(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+      const resp = await fetch(`${API_URL}/api/admin/search-console?days=${days}&dimension=${dimension}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${resp.status}`);
+      }
+      setScData(await resp.json());
+    } catch (err: any) {
+      setScError(err.message);
+      setScData(null);
+    } finally {
+      setScLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchSearchConsole(scDays, scDimension);
+  }, [isAdmin, scDays, scDimension, fetchSearchConsole]);
 
   if (authLoading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -671,6 +739,107 @@ export default function Admin() {
             </div>
           )}
 
+          {/* Organic Search (Search Console) */}
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Organic Search <span className="text-xs font-normal text-gray-500">(Google Search Console)</span></h2>
+              <div className="flex gap-2">
+                <div className="flex bg-gray-800 rounded-lg overflow-hidden text-xs">
+                  <button
+                    onClick={() => setScDimension('query')}
+                    className={`px-3 py-1.5 transition ${scDimension === 'query' ? 'bg-jackpot-500 text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    By Query
+                  </button>
+                  <button
+                    onClick={() => setScDimension('page')}
+                    className={`px-3 py-1.5 transition ${scDimension === 'page' ? 'bg-jackpot-500 text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    By Page
+                  </button>
+                </div>
+                <div className="flex bg-gray-800 rounded-lg overflow-hidden text-xs">
+                  <button
+                    onClick={() => setScDays(7)}
+                    className={`px-3 py-1.5 transition ${scDays === 7 ? 'bg-jackpot-500 text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    7d
+                  </button>
+                  <button
+                    onClick={() => setScDays(28)}
+                    className={`px-3 py-1.5 transition ${scDays === 28 ? 'bg-jackpot-500 text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    28d
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              {scLoading ? (
+                <p className="text-gray-500 text-sm">Loading Search Console data...</p>
+              ) : scError ? (
+                <div className="text-sm">
+                  <p className="text-red-400 mb-1">Search Console error</p>
+                  <p className="text-gray-500">{scError}</p>
+                  {scError.includes('not configured') && (
+                    <p className="text-gray-500 mt-2">Add GOOGLE_SEARCH_CONSOLE_REFRESH_TOKEN to .env to enable this section.</p>
+                  )}
+                </div>
+              ) : scData && scData.rows.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase tracking-wider">Clicks</div>
+                      <div className="text-2xl font-bold text-white mt-1">{scData.totals.clicks.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase tracking-wider">Impressions</div>
+                      <div className="text-2xl font-bold text-white mt-1">{scData.totals.impressions.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase tracking-wider">Avg CTR</div>
+                      <div className="text-2xl font-bold text-white mt-1">{(scData.totals.ctr * 100).toFixed(1)}%</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase tracking-wider">Avg Position</div>
+                      <div className="text-2xl font-bold text-white mt-1">{scData.totals.position.toFixed(1)}</div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800">
+                          <th className="text-left px-3 py-2 text-gray-400 font-medium">{scDimension === 'query' ? 'Query' : 'Page'}</th>
+                          <th className="text-right px-3 py-2 text-gray-400 font-medium">Clicks</th>
+                          <th className="text-right px-3 py-2 text-gray-400 font-medium">Impressions</th>
+                          <th className="text-right px-3 py-2 text-gray-400 font-medium">CTR</th>
+                          <th className="text-right px-3 py-2 text-gray-400 font-medium">Position</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scData.rows.map((row, i) => (
+                          <tr key={i} className="border-b border-gray-800/50">
+                            <td className="px-3 py-2 text-white font-medium truncate max-w-xs">{row.keys[0]}</td>
+                            <td className="px-3 py-2 text-right text-white tabular-nums">{row.clicks}</td>
+                            <td className="px-3 py-2 text-right text-gray-400 tabular-nums">{row.impressions.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right text-gray-400 tabular-nums">{(row.ctr * 100).toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              <span className={row.position <= 10 ? 'text-green-400' : row.position <= 20 ? 'text-yellow-400' : 'text-gray-500'}>
+                                {row.position.toFixed(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-500 text-sm">No Search Console data yet — data typically appears 2-3 days after Google indexes your pages.</p>
+              )}
+            </div>
+          </div>
+
           {/* Recent Users */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <h2 className="text-lg font-bold mb-4">Recent Users</h2>
@@ -744,6 +913,15 @@ export default function Admin() {
                             <>
                               <span className="text-gray-500">{log.userId === 'anonymous' ? 'anon' : log.userId?.slice(0, 8)}</span>
                               {' '}&mdash; {log.productLabel || log.query}
+                              {log.inputType && (
+                                <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded ${
+                                  log.inputType === 'url' ? 'bg-cyan-500/10 text-cyan-400' :
+                                  log.inputType === 'both' ? 'bg-purple-500/10 text-purple-400' :
+                                  'bg-gray-800 text-gray-500'
+                                }`}>
+                                  {log.inputType === 'url' ? 'URL' : log.inputType === 'both' ? 'DESC+URL' : 'DESC'}
+                                </span>
+                              )}
                               {' '}<span className="text-gray-500">({log.keywordCount} kw, {((log.executionTimeMs || 0) / 1000).toFixed(1)}s)</span>
                             </>
                           )}

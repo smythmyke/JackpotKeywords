@@ -213,6 +213,8 @@ router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthReques
     await logActivity('search', {
       userId: userId || 'anonymous',
       query: description?.slice(0, 100),
+      url: url?.slice(0, 200) || null,
+      inputType: description && url ? 'both' : url ? 'url' : 'description',
       productLabel: seeds.productLabel,
       keywordCount: result.keywords.length,
       executionTimeMs: Date.now() - startTime,

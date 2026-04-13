@@ -1,4 +1,4 @@
-import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory } from '@jackpotkeywords/shared';
+import { SEO_AUDIT_CATEGORY_LABELS, SEO_AUDIT_CATEGORY_DESCRIPTIONS, type SeoAuditCategory } from '@jackpotkeywords/shared';
 
 interface CategoryScoreCardProps {
   category: SeoAuditCategory;
@@ -29,7 +29,7 @@ export default function CategoryScoreCard({ category, score, passed, total, acti
         active ? `border-gray-600 ring-2 ${ringColor}` : 'border-gray-800'
       }`}
     >
-      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1" title={SEO_AUDIT_CATEGORY_DESCRIPTIONS[category]}>
         {SEO_AUDIT_CATEGORY_LABELS[category]}
       </div>
       <div className="flex items-baseline gap-2 mb-2">

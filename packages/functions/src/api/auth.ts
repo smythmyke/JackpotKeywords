@@ -37,7 +37,7 @@ router.post('/init', async (req, res) => {
     const rawAttr = (req.body && req.body.attribution) || null;
     let attribution: Record<string, any> | null = null;
     if (rawAttr && typeof rawAttr === 'object') {
-      const allowedKeys = ['gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'landing_page', 'referrer'];
+      const allowedKeys = ['gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'landing_page', 'referrer', 'referrer_type'];
       attribution = {};
       for (const key of allowedKeys) {
         const val = rawAttr[key];

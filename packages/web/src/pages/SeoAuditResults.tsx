@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation, useParams, Navigate, Link } from 'react-router-dom';
+import { useLocation, useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult } from '@jackpotkeywords/shared';
+import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult, type SeoAuditKeywordGap } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
 import { getAuditResult } from '../services/api';
 import ScoreGauge from '../components/audit/ScoreGauge';
 import CategoryScoreCard from '../components/audit/CategoryScoreCard';
 import CheckItem from '../components/audit/CheckItem';
+import KeywordGapModal from '../components/audit/KeywordGapModal';
 
 const CATEGORIES: SeoAuditCategory[] = [
   'technical', 'content', 'crawlability', 'structured_data', 'local_geo', 'social_sharing',
@@ -17,6 +18,7 @@ const FREE_PREVIEW_CHECKS = 4;
 
 export default function SeoAuditResults() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { auditId } = useParams<{ auditId: string }>();
   const [activeCategory, setActiveCategory] = useState<SeoAuditCategory | null>(null);
   const { user, signInWithGoogle, getToken } = useAuthContext();
@@ -24,6 +26,8 @@ export default function SeoAuditResults() {
   const [fetchError, setFetchError] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
   const fetchAttempted = useRef(false);
+  const [selectedGap, setSelectedGap] = useState<SeoAuditKeywordGap | null>(null);
+  const [gapModalOpen, setGapModalOpen] = useState(false);
 
   // Try location state first, then sessionStorage
   let stateResult = (location.state as any)?.result as SeoAuditResult | undefined;
@@ -96,6 +100,16 @@ export default function SeoAuditResults() {
     }
     loadAudit();
   }, [shouldFetchById, shouldRefetchMasked, auditId, stateResult?.id, getToken, fetchedResult]);
+
+  // Post-login redirect: if user just signed in via the keyword gap modal, navigate to keyword search
+  useEffect(() => {
+    if (!user) return;
+    const redirect = sessionStorage.getItem('jk_audit_keyword_redirect');
+    if (redirect) {
+      sessionStorage.removeItem('jk_audit_keyword_redirect');
+      navigate(redirect);
+    }
+  }, [user, navigate]);
 
   // Prefer fetched (unmasked) result over state (possibly masked) result
   let result = fetchedResult || stateResult;
@@ -364,10 +378,32 @@ export default function SeoAuditResults() {
                 <tbody>
                   {result.keywordGaps.map((gap, i) => {
                     const isLocked = !paid && gap.keyword.startsWith('\u2022\u2022\u2022');
+                    const samples = gap.sampleKeywords || [];
+                    const VISIBLE_SAMPLES = 2;
                     return (
-                      <tr key={i} className="border-b border-gray-800/50 last:border-0">
-                        <td className={`px-4 py-3 ${isLocked ? 'text-gray-600 blur-sm select-none' : 'text-white font-medium'}`}>
-                          {gap.keyword}
+                      <tr
+                        key={i}
+                        className="border-b border-gray-800/50 last:border-0 cursor-pointer hover:bg-gray-800/50 transition"
+                        onClick={() => { setSelectedGap(isLocked ? null : gap); setGapModalOpen(true); }}
+                      >
+                        <td className={`px-4 py-3 ${isLocked ? 'text-gray-600 blur-sm select-none' : 'text-white font-medium'}`} colSpan={isLocked ? 1 : undefined}>
+                          <div>{gap.keyword}</div>
+                          {samples.length > 0 && !isLocked && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {samples.map((kw, j) => (
+                                <span
+                                  key={j}
+                                  className={`text-xs px-2 py-0.5 rounded-full border ${
+                                    j < VISIBLE_SAMPLES
+                                      ? 'bg-jackpot-500/10 border-jackpot-500/30 text-jackpot-400'
+                                      : 'bg-gray-800 border-gray-700 text-gray-500 blur-[3px] select-none'
+                                  }`}
+                                >
+                                  {kw}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className={`px-4 py-3 ${isLocked ? 'text-gray-600 blur-sm select-none' : 'text-gray-400'}`}>
                           {gap.opportunity}
@@ -396,10 +432,10 @@ export default function SeoAuditResults() {
             <div className="flex flex-col md:flex-row items-center gap-6">
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-white mb-2">
-                  Get Real Data on These Keywords
+                  Want Volume &amp; CPC Data for These Keywords?
                 </h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  The gaps above are topics your site should cover — but which ones have real search demand?
+                  You&apos;ve seen keyword ideas your site is missing — but which ones have real search demand?
                   Run a keyword search to get <span className="text-white font-medium">1,000+ scored keywords</span> with
                   actual monthly volume, CPC, competition levels, and intent labels from Google Ads data.
                 </p>
@@ -523,6 +559,23 @@ export default function SeoAuditResults() {
           </Link>
         </div>
       </div>
+
+      <KeywordGapModal
+        open={gapModalOpen}
+        onClose={() => setGapModalOpen(false)}
+        gap={selectedGap}
+        domain={domain}
+        isSignedIn={!!user}
+        onSignIn={() => {
+          sessionStorage.setItem('jk_audit_keyword_redirect', `/?prefill=${encodeURIComponent(domain)}`);
+          signInWithGoogle();
+          setGapModalOpen(false);
+        }}
+        onKeywordSearch={() => {
+          setGapModalOpen(false);
+          navigate(`/?prefill=${encodeURIComponent(domain)}`);
+        }}
+      />
     </>
   );
 }

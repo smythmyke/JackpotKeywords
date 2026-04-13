@@ -14,12 +14,14 @@ import authRouter from './api/auth';
 import searchRouter from './api/search';
 import auditRouter from './api/audit';
 import stripeRouter from './api/stripe';
+import adminRouter from './api/admin';
 
 // Mount routes
 app.use('/api/auth', authRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/stripe', stripeRouter);
+app.use('/api/admin', adminRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

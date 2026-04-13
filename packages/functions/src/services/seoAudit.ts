@@ -604,9 +604,10 @@ Return ONLY valid JSON, no markdown:
 {
   "keywordGaps": [
     {
-      "keyword": "a keyword this site should target but doesn't seem to",
+      "keyword": "a topic this site should target but doesn't seem to",
       "opportunity": "why this keyword is valuable (1 sentence)",
-      "difficulty": "easy|medium|hard"
+      "difficulty": "easy|medium|hard",
+      "sampleKeywords": ["specific long-tail phrase 1", "specific long-tail phrase 2", "phrase 3", "phrase 4", "phrase 5"]
     }
   ],
   "recommendations": [
@@ -625,6 +626,7 @@ RULES:
 - Return 5-10 recommendations, sorted by impact (highest first)
 - Be specific — reference the actual site content, not generic SEO advice
 - For keyword gaps: focus on topics/keywords the site doesn't currently target but should
+- For each keyword gap, include 4-6 specific long-tail keyword phrases a user could actually search for in Google. Make them realistic search queries, not just topic names
 - For recommendations: each should be directly actionable with a clear next step`;
 
   try {
@@ -637,6 +639,9 @@ RULES:
         keyword: g.keyword,
         opportunity: g.opportunity,
         difficulty: ['easy', 'medium', 'hard'].includes(g.difficulty) ? g.difficulty : 'medium',
+        sampleKeywords: Array.isArray(g.sampleKeywords)
+          ? g.sampleKeywords.filter((k: any) => typeof k === 'string' && k.trim()).slice(0, 6)
+          : [],
       }));
 
     const recommendations: SeoAuditRecommendation[] = (parsed.recommendations || [])

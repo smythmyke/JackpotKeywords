@@ -41,6 +41,7 @@ function maskAnonymousAuditResponse(result: SeoAuditResult): SeoAuditResult {
       keyword: '••• sign in to see',
       opportunity: '••• Sign in to see opportunity',
       difficulty: gap.difficulty,
+      sampleKeywords: [],
     };
   });
 

@@ -24,6 +24,15 @@ export const SEO_AUDIT_CATEGORY_WEIGHTS: Record<SeoAuditCategory, number> = {
   social_sharing: 10,
 };
 
+export const SEO_AUDIT_CATEGORY_DESCRIPTIONS: Record<SeoAuditCategory, string> = {
+  technical: 'Core HTML elements that help search engines understand your pages',
+  content: 'How well your site\'s pages cover topics with enough depth',
+  crawlability: 'Whether search engines like Google can find and read your pages',
+  structured_data: 'Special code that helps Google show rich results like ratings and FAQs',
+  local_geo: 'Signals that help your site appear in local map and city-based searches',
+  social_sharing: 'How your pages look when shared on Facebook, Twitter, and other platforms',
+};
+
 export interface SeoAuditCheckItem {
   id: string;
   category: SeoAuditCategory;
@@ -47,6 +56,7 @@ export interface SeoAuditKeywordGap {
   keyword: string;
   opportunity: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  sampleKeywords?: string[];
 }
 
 export interface SeoAuditRecommendation {

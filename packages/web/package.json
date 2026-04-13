@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@jackpotkeywords/shared": "file:../jackpotkeywords-shared-1.0.0.tgz",
+    "@jackpotkeywords/shared": "file:../shared",
     "@tailwindcss/typography": "^0.5.19",
     "canvas-confetti": "^1.9.4",
     "firebase": "^11.2.0",

@@ -7,6 +7,17 @@
 const STORAGE_KEY = 'jk_attribution';
 const EXPIRY_DAYS = 90;
 
+const SEARCH_ENGINES = ['google.com', 'bing.com', 'duckduckgo.com', 'yahoo.com', 'baidu.com', 'yandex.com'];
+
+function classifyReferrer(referrer: string): 'search' | 'referral' | undefined {
+  try {
+    const hostname = new URL(referrer).hostname.replace(/^www\./, '');
+    return SEARCH_ENGINES.some((se) => hostname.includes(se)) ? 'search' : 'referral';
+  } catch {
+    return undefined;
+  }
+}
+
 export interface Attribution {
   gclid?: string;
   utm_source?: string;
@@ -16,6 +27,7 @@ export interface Attribution {
   utm_content?: string;
   landing_page?: string;
   referrer?: string;
+  referrer_type?: 'search' | 'referral';
   captured_at: number; // ms epoch
 }
 
@@ -43,6 +55,9 @@ export function captureAttribution(): void {
     // If no new params and we already have attribution, leave it alone
     if (!hasAdParams && existing) return;
 
+    const referrer = document.referrer || undefined;
+    const referrer_type = referrer ? classifyReferrer(referrer) : undefined;
+
     const attribution: Attribution = hasAdParams
       ? {
           gclid,
@@ -52,13 +67,15 @@ export function captureAttribution(): void {
           utm_term,
           utm_content,
           landing_page: window.location.pathname,
-          referrer: document.referrer || undefined,
+          referrer,
+          referrer_type,
           captured_at: Date.now(),
         }
       : {
           // First-touch organic visit: capture referrer + landing page
           landing_page: window.location.pathname,
-          referrer: document.referrer || undefined,
+          referrer,
+          referrer_type,
           captured_at: Date.now(),
         };
 
