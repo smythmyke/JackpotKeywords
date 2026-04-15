@@ -44,14 +44,19 @@ export default function SeoAuditResults() {
   const [pdfExporting, setPdfExporting] = useState(false);
   const PAGE_SIZE = 50;
 
-  // Try location state first, then sessionStorage
-  let stateResult = (location.state as any)?.result as SeoAuditResult | undefined;
-  if (!stateResult) {
+  // Try location state first, then sessionStorage. Memoize so the reference
+  // is stable across renders — otherwise `result = fetchedResult || stateResult`
+  // returns a new reference every render, which would retrigger effects that
+  // depend on `result` (like the keyword preview fetch) and could loop.
+  const locationStateResult = (location.state as any)?.result as SeoAuditResult | undefined;
+  const stateResult = useMemo<SeoAuditResult | undefined>(() => {
+    if (locationStateResult) return locationStateResult;
     try {
       const cached = sessionStorage.getItem('jk_audit_results');
-      if (cached) stateResult = JSON.parse(cached);
+      if (cached) return JSON.parse(cached);
     } catch { /* ignore */ }
-  }
+    return undefined;
+  }, [locationStateResult]);
 
   // One-time fetch: either loading a saved audit by ID, or re-fetching masked results
   const isMasked = stateResult && !stateResult.paid;
@@ -162,14 +167,18 @@ export default function SeoAuditResults() {
     if (keywordPreviewFetched.current) return;
     if (!result.id) return;
 
+    // IMPORTANT: set BOTH refs synchronously. setKeywordPreviewLoading triggers
+    // a re-render while the async fetch is still in flight; if fetchedAsAuthed
+    // isn't set now, the re-render would see fetched=true/fetchedAsAuthed=false/
+    // user=true and re-trigger the invalidation branch, causing an infinite loop.
     keywordPreviewFetched.current = true;
+    keywordPreviewFetchedAsAuthed.current = !!user;
     setKeywordPreviewLoading(true);
     (async () => {
       try {
         const token = user ? await getToken() : null;
         const resp = await fetchAuditKeywords(token, result!.id);
         setKeywordPreview(resp.keywordPreview || []);
-        keywordPreviewFetchedAsAuthed.current = !!user;
       } catch {
         setKeywordPreviewError(true);
       } finally {
