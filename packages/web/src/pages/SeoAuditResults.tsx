@@ -346,7 +346,7 @@ export default function SeoAuditResults() {
                 setShowUpgradeModal(true);
                 return;
               }
-              if (pdfExporting) return;
+              if (pdfExporting || keywordPreviewLoading) return;
               setPdfExporting(true);
               try {
                 const { exportAuditPdf } = await import('../services/pdfExport');
@@ -358,14 +358,25 @@ export default function SeoAuditResults() {
                 setPdfExporting(false);
               }
             }}
-            disabled={pdfExporting}
+            disabled={pdfExporting || (paid && keywordPreviewLoading)}
             className="bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-bold px-5 py-2.5 rounded-lg text-sm transition whitespace-nowrap flex items-center gap-2"
-            title={paid ? 'Download a branded PDF report' : 'PDF export available with Pro or a paid search credit'}
+            title={
+              !paid
+                ? 'PDF export available with Pro or a paid search credit'
+                : keywordPreviewLoading
+                  ? 'Waiting for keyword opportunities to finish loading'
+                  : 'Download a branded PDF report'
+            }
           >
             {pdfExporting ? (
               <>
                 <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-black/40 border-t-transparent" />
                 Generating…
+              </>
+            ) : paid && keywordPreviewLoading ? (
+              <>
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-gray-400/40 border-t-transparent" />
+                Waiting for keywords…
               </>
             ) : (
               <>&#128196; Export PDF{!paid && <span className="text-xs opacity-75">(Pro)</span>}</>
@@ -404,6 +415,151 @@ export default function SeoAuditResults() {
               (show all)
             </button>
           </div>
+        )}
+
+        {/* Keyword Opportunities — moved up so the loading state is visible
+            immediately after the score summary, signalling more data is on the way */}
+        {(keywordPreviewLoading || (keywordPreview !== null && keywordPreview.length > 0) || (keywordPreview !== null && keywordPreview.length < 3 && !keywordPreviewLoading) || keywordPreviewError) && (
+          <section className="mb-12">
+            <h2 className="text-xl font-bold text-white mb-2">
+              Keyword Opportunities for {domain}
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Real search volume &amp; CPC data from Google Ads. Top opportunities locked — unlock with Pro or a single-search credit.
+            </p>
+            {keywordPreviewLoading ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-jackpot-500 border-t-transparent mb-2" />
+                <div>Finding keyword opportunities…</div>
+                <div className="text-xs text-gray-500 mt-1">This takes ~10-15 seconds</div>
+              </div>
+            ) : keywordPreviewError || (keywordPreview !== null && keywordPreview.length < 3) ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                <p className="text-gray-300 mb-4">
+                  {keywordPreviewError
+                    ? 'Keyword preview unavailable right now.'
+                    : `We found limited keyword data for ${domain} from the audit alone.`}
+                </p>
+                <p className="text-sm text-gray-400 mb-4">
+                  Run a full keyword search for {domain} to uncover 1,000+ scored opportunities with clustering, intent classification, and Jackpot Scores.
+                </p>
+                <Link
+                  to={`/?url=${encodeURIComponent(result.url)}`}
+                  className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2.5 rounded-lg text-sm transition"
+                >
+                  Run full keyword research &rarr;
+                </Link>
+              </div>
+            ) : keywordPreview && keywordPreview.length > 0 ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-950 text-xs text-gray-500 uppercase tracking-wider">
+                    <tr>
+                      <th
+                        className={`text-left px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'keyword' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('keyword')}
+                      >
+                        Keyword{sortArrow('keyword')}
+                      </th>
+                      <th
+                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'volume' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('volume')}
+                      >
+                        Volume{sortArrow('volume')}
+                      </th>
+                      <th
+                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'cpc' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('cpc')}
+                      >
+                        CPC{sortArrow('cpc')}
+                      </th>
+                      <th
+                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'competition' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('competition')}
+                      >
+                        Competition{sortArrow('competition')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedKeywords.map((kw, i) => (
+                      <tr key={i} className="border-t border-gray-800">
+                        <td className="px-4 py-2">
+                          <MaskedKeyword keyword={kw.keyword} paid={paid} />
+                        </td>
+                        <td className="px-4 py-2 text-right text-white tabular-nums">{kw.monthlyVolume.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-right text-white tabular-nums">
+                          ${kw.lowCpc.toFixed(2)}&ndash;${kw.highCpc.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            kw.competition === 'LOW' ? 'bg-green-500/10 text-green-400' :
+                            kw.competition === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400' :
+                            kw.competition === 'HIGH' ? 'bg-red-500/10 text-red-400' :
+                            'bg-gray-800 text-gray-500'
+                          }`}>
+                            {kw.competition}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {totalKeywords > 0 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 text-sm text-gray-400">
+                    <div>
+                      Showing {pageStart + 1}&ndash;{Math.min(pageStart + PAGE_SIZE, totalKeywords)} of{' '}
+                      <span className="text-white font-medium">{totalKeywords.toLocaleString()}</span> keywords
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handlePageChange(clampedPage - 1)}
+                        disabled={clampedPage === 1}
+                        className="px-3 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        &larr; Prev
+                      </button>
+                      <span className="text-gray-500">Page {clampedPage} of {totalPages}</span>
+                      <button
+                        onClick={() => handlePageChange(clampedPage + 1)}
+                        disabled={clampedPage >= totalPages}
+                        className="px-3 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Next &rarr;
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </section>
+        )}
+
+        {/* Full keyword research upsell — sits below the preview as the natural
+            next step. Only shown once the preview itself is settled (success or
+            error) so it doesn't compete with the loading state. */}
+        {!keywordPreviewLoading && (keywordPreview !== null || keywordPreviewError) && (
+          <section className="mb-12 bg-jackpot-500/5 border border-jackpot-500/20 rounded-xl p-6">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Want the Full Picture?
+                </h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  This preview shows a slice of opportunities for {domain}. Run a full keyword research to get
+                  <span className="text-white font-medium"> 1,000+ scored keywords</span> with clustering, intent
+                  classification, Jackpot Scores, and Google Trends overlay.
+                </p>
+              </div>
+              <Link
+                to={`/?prefill=${encodeURIComponent(result.url)}`}
+                state={{ prefillQuery: result.pageResults[0]?.title || domain }}
+                className="shrink-0 bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition text-center"
+              >
+                Run full keyword research &rarr;
+              </Link>
+            </div>
+          </section>
         )}
 
         {/* Checklist — multi-column layout */}
@@ -582,148 +738,6 @@ export default function SeoAuditResults() {
                   })}
                 </tbody>
               </table>
-            </div>
-          </section>
-        )}
-
-        {/* Bundled mini keyword preview — real volume/CPC from Google Ads */}
-        {(keywordPreviewLoading || (keywordPreview !== null && keywordPreview.length > 0) || (keywordPreview !== null && keywordPreview.length < 3 && !keywordPreviewLoading) || keywordPreviewError) && (
-          <section className="mb-12">
-            <h2 className="text-xl font-bold text-white mb-2">
-              Keyword Opportunities for {domain}
-            </h2>
-            <p className="text-sm text-gray-400 mb-4">
-              Real search volume &amp; CPC data from Google Ads. Top opportunities locked — unlock with Pro or a single-search credit.
-            </p>
-            {keywordPreviewLoading ? (
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-jackpot-500 border-t-transparent mb-2" />
-                <div>Finding keyword opportunities…</div>
-                <div className="text-xs text-gray-500 mt-1">This takes ~10-15 seconds</div>
-              </div>
-            ) : keywordPreviewError || (keywordPreview !== null && keywordPreview.length < 3) ? (
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                <p className="text-gray-300 mb-4">
-                  {keywordPreviewError
-                    ? 'Keyword preview unavailable right now.'
-                    : `We found limited keyword data for ${domain} from the audit alone.`}
-                </p>
-                <p className="text-sm text-gray-400 mb-4">
-                  Run a full keyword search for {domain} to uncover 1,000+ scored opportunities with clustering, intent classification, and Jackpot Scores.
-                </p>
-                <Link
-                  to={`/?url=${encodeURIComponent(result.url)}`}
-                  className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2.5 rounded-lg text-sm transition"
-                >
-                  Run full keyword research &rarr;
-                </Link>
-              </div>
-            ) : keywordPreview && keywordPreview.length > 0 ? (
-              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-950 text-xs text-gray-500 uppercase tracking-wider">
-                    <tr>
-                      <th
-                        className={`text-left px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'keyword' ? 'text-jackpot-400' : ''}`}
-                        onClick={() => handleSort('keyword')}
-                      >
-                        Keyword{sortArrow('keyword')}
-                      </th>
-                      <th
-                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'volume' ? 'text-jackpot-400' : ''}`}
-                        onClick={() => handleSort('volume')}
-                      >
-                        Volume{sortArrow('volume')}
-                      </th>
-                      <th
-                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'cpc' ? 'text-jackpot-400' : ''}`}
-                        onClick={() => handleSort('cpc')}
-                      >
-                        CPC{sortArrow('cpc')}
-                      </th>
-                      <th
-                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'competition' ? 'text-jackpot-400' : ''}`}
-                        onClick={() => handleSort('competition')}
-                      >
-                        Competition{sortArrow('competition')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedKeywords.map((kw, i) => (
-                      <tr key={i} className="border-t border-gray-800">
-                        <td className="px-4 py-2">
-                          <MaskedKeyword keyword={kw.keyword} paid={paid} />
-                        </td>
-                        <td className="px-4 py-2 text-right text-white tabular-nums">{kw.monthlyVolume.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-right text-white tabular-nums">
-                          ${kw.lowCpc.toFixed(2)}&ndash;${kw.highCpc.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            kw.competition === 'LOW' ? 'bg-green-500/10 text-green-400' :
-                            kw.competition === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400' :
-                            kw.competition === 'HIGH' ? 'bg-red-500/10 text-red-400' :
-                            'bg-gray-800 text-gray-500'
-                          }`}>
-                            {kw.competition}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {totalKeywords > 0 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 text-sm text-gray-400">
-                    <div>
-                      Showing {pageStart + 1}&ndash;{Math.min(pageStart + PAGE_SIZE, totalKeywords)} of{' '}
-                      <span className="text-white font-medium">{totalKeywords.toLocaleString()}</span> keywords
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handlePageChange(clampedPage - 1)}
-                        disabled={clampedPage === 1}
-                        className="px-3 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        &larr; Prev
-                      </button>
-                      <span className="text-gray-500">Page {clampedPage} of {totalPages}</span>
-                      <button
-                        onClick={() => handlePageChange(clampedPage + 1)}
-                        disabled={clampedPage >= totalPages}
-                        className="px-3 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        Next &rarr;
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </section>
-        )}
-
-        {/* Keyword research CTA — right after gaps, highest intent moment */}
-        {result.keywordGaps.length > 0 && (
-          <section className="mb-12 bg-jackpot-500/5 border border-jackpot-500/20 rounded-xl p-6">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-2">
-                  Want Volume &amp; CPC Data for These Keywords?
-                </h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  You&apos;ve seen keyword ideas your site is missing — but which ones have real search demand?
-                  Run a keyword search to get <span className="text-white font-medium">1,000+ scored keywords</span> with
-                  actual monthly volume, CPC, competition levels, and intent labels from Google Ads data.
-                </p>
-              </div>
-              <Link
-                to={`/?prefill=${encodeURIComponent(result.url)}`}
-                state={{ prefillQuery: result.pageResults[0]?.title || domain }}
-                className="shrink-0 bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition text-center"
-              >
-                Find Keywords for {domain} &rarr;
-              </Link>
             </div>
           </section>
         )}
