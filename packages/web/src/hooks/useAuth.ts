@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebas
 import { auth, googleProvider } from '../services/firebase';
 import { initUser } from '../services/api';
 import { trackSignUp } from '../services/analytics';
+import { trackEvent } from '../lib/analytics';
 import { readAttribution, clearAttribution } from '../services/attribution';
 import type { UserProfile, UserCredits } from '@jackpotkeywords/shared';
 
@@ -68,6 +69,7 @@ export function useAuth() {
       if (isNewUser) {
         trackSignUp('google');
       }
+      trackEvent('signin_completed', { method: 'google', isNewUser });
     } catch (err: any) {
       setState((prev) => ({ ...prev, loading: false, error: err.message }));
     }

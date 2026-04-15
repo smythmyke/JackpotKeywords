@@ -4,6 +4,15 @@ import type { Request, Response, NextFunction } from 'express';
 export interface AuthRequest extends Request {
   userId?: string;
   userEmail?: string;
+  anonId?: string;
+}
+
+function readAnonId(req: Request): string | undefined {
+  const raw = req.headers['x-anon-id'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return undefined;
+  const trimmed = value.toString().trim().slice(0, 128);
+  return trimmed || undefined;
 }
 
 export async function authMiddleware(
@@ -23,6 +32,7 @@ export async function authMiddleware(
     const decoded = await admin.auth().verifyIdToken(token);
     req.userId = decoded.uid;
     req.userEmail = decoded.email;
+    req.anonId = readAnonId(req);
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
@@ -48,5 +58,6 @@ export async function optionalAuthMiddleware(
       // Invalid token — proceed as anonymous
     }
   }
+  req.anonId = readAnonId(req);
   next();
 }

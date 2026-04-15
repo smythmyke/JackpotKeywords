@@ -15,6 +15,7 @@ import searchRouter from './api/search';
 import auditRouter from './api/audit';
 import stripeRouter from './api/stripe';
 import adminRouter from './api/admin';
+import eventsRouter from './api/events';
 
 // Mount routes
 app.use('/api/auth', authRouter);
@@ -22,6 +23,7 @@ app.use('/api/search', searchRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/events', eventsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

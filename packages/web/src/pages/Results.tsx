@@ -20,6 +20,7 @@ import {
   trackConversionModalCta,
   trackConversionModalDismissed,
 } from '../services/analytics';
+import { trackEvent } from '../lib/analytics';
 
 const ALL_CATEGORIES: KeywordCategory[] = [
   'direct', 'feature', 'problem', 'audience', 'competitor_brand',
@@ -428,6 +429,7 @@ export default function Results() {
         fired = true;
         modalTriggerRef.current = 'scroll';
         setConversionModalOpen(true);
+        trackEvent('paywall_viewed', { source: 'scroll' });
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -488,9 +490,11 @@ export default function Results() {
 
   const handleModalCta = () => {
     trackConversionModalCta(modalVariant);
+    trackEvent('upgrade_clicked', { source: 'conversion_modal', variant: modalVariant });
     markModalSeen();
     setConversionModalOpen(false);
     if (modalVariant === 'anonymous') {
+      trackEvent('signin_prompted', { trigger: 'conversion_modal_cta' });
       signInWithGoogle();
     } else {
       navigate('/pricing');
@@ -505,10 +509,12 @@ export default function Results() {
       if (!modalDismissed && !conversionModalOpen) {
         modalTriggerRef.current = 'masked_click';
         setConversionModalOpen(true);
+        trackEvent('paywall_viewed', { source: 'masked_click', authed: !!user });
         return;
       }
       setShowSignInPrompt(true);
       setTimeout(() => setShowSignInPrompt(false), 4000);
+      trackEvent('signin_prompted', { trigger: 'masked_click_repeat' });
       return;
     }
     setExpandedKeyword(expandedKeyword === kw.keyword ? null : kw.keyword);
@@ -681,6 +687,25 @@ export default function Results() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 py-8">
+      {/* Sticky upgrade CTA — unpaid users see all N keywords teased, paywall messaging above */}
+      {!paid && !isAdmin && (
+        <div className="sticky top-0 z-40 -mx-4 px-4 py-3 mb-4 bg-gradient-to-r from-jackpot-500/20 via-jackpot-500/15 to-jackpot-500/20 border-b border-jackpot-500/40 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-sm text-white">
+            <span className="font-semibold text-jackpot-400">Unlock all {totalKeywords.toLocaleString()} keywords</span>
+            <span className="text-gray-300 ml-1">— including the top jackpot-tier picks. Pro is $9.99/mo, single searches from $1.99.</span>
+          </div>
+          <button
+            onClick={() => {
+              trackEvent('upgrade_clicked', { source: 'results_sticky_bar' });
+              navigate('/pricing');
+            }}
+            className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2 rounded-lg text-sm transition whitespace-nowrap"
+          >
+            Unlock all keywords
+          </button>
+        </div>
+      )}
+
       {/* Anonymous user banner */}
       {isAnonymous && !user && (
         <div className="bg-jackpot-500/10 border border-jackpot-500/30 rounded-xl px-5 py-3 mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">

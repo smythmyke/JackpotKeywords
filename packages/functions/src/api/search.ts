@@ -4,6 +4,7 @@ import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { anonymousRateLimit } from '../middleware/rateLimit';
+import { anonSearchLimit, refundAnonSearch } from '../middleware/anonSearchLimit';
 import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
 import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInference';
 import { classifyIntent } from '../services/intentClassifier';
@@ -31,18 +32,25 @@ async function logActivity(action: string, details: Record<string, any>) {
 }
 
 /**
- * Number of top-scoring keyword strings to leave visible as a teaser
- * for unpaid (anonymous + free-trial) responses. Everything beyond this
- * gets server-side masked so it can't be read from the network payload.
+ * Teaser: number of mid-tier keywords shown unmasked to unpaid users.
+ * Selection excludes the top jackpot tier (goldmines) — see
+ * maskUnpaidSearchResponse for logic.
  */
-const FREE_PREVIEW_KEYWORD_COUNT = 5;
+const FREE_PREVIEW_KEYWORD_COUNT = 20;
+
+/**
+ * Fraction of the top-scoring keywords treated as "jackpot tier" and
+ * hidden from unpaid users. The teaser is selected from the next band.
+ */
+const JACKPOT_TIER_FRACTION = 0.25;
 
 /**
  * Mask keyword strings in an unpaid search response so the actual
- * keyword text never reaches the browser. The top N keywords by
- * jackpotScore stay visible as a sales teaser; the rest are replaced
- * with opaque placeholders. Numeric/aggregate fields (volume, CPC,
- * scores, intent) are preserved so the UI can still render the table.
+ * keyword text never reaches the browser. A band of mid-tier keywords
+ * (best scores excluding the top jackpot tier) stays visible as a
+ * teaser; the rest — including the goldmines — are replaced with
+ * opaque placeholders. Numeric/aggregate fields (volume, CPC, scores,
+ * intent) are preserved so the UI can still render the table.
  *
  * Cluster keywordKeys[] references are masked with the same mapping so
  * frontend cluster→keyword joins continue to work.
@@ -52,12 +60,10 @@ function maskUnpaidSearchResponse<
 >(result: T, paid: boolean): T {
   if (paid) return result;
 
-  const visibleSet = new Set(
-    [...result.keywords]
-      .sort((a, b) => b.jackpotScore - a.jackpotScore)
-      .slice(0, FREE_PREVIEW_KEYWORD_COUNT)
-      .map((k) => k.keyword),
-  );
+  const sorted = [...result.keywords].sort((a, b) => b.jackpotScore - a.jackpotScore);
+  const jackpotCutoff = Math.floor(sorted.length * JACKPOT_TIER_FRACTION);
+  const teaser = sorted.slice(jackpotCutoff, jackpotCutoff + FREE_PREVIEW_KEYWORD_COUNT);
+  const visibleSet = new Set(teaser.map((k) => k.keyword));
 
   // Build a stable original→masked mapping so the same keyword string
   // gets the same replacement everywhere it appears in the payload.
@@ -91,15 +97,18 @@ function maskUnpaidSearchResponse<
  * POST /api/search
  * Main search endpoint — orchestrates the 6-step pipeline
  */
-const searchRateLimit = anonymousRateLimit({
-  maxRequests: 5,
-  windowSeconds: 3600, // 5 anonymous searches per hour per IP
+// IP safety net — catches localStorage-clear abuse without being the primary gate.
+// Primary anon gate is anonSearchLimit (3 lifetime per anon_id).
+const searchIpSafetyNet = anonymousRateLimit({
+  maxRequests: 10,
+  windowSeconds: 86400, // 10 anonymous searches per IP per 24h
   collection: 'rateLimits_search',
 });
 
-router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthRequest, res) => {
+router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, async (req: AuthRequest, res) => {
   const startTime = Date.now();
   const userId = req.userId;
+  const anonId = req.anonId;
   const isAnonymous = !userId;
   const { description, url, budget, location } = req.body as SearchRequest;
 
@@ -122,18 +131,22 @@ router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthReques
     }
   }
 
+  let currentStep = 'init';
   try {
     // Step 0: Extract structured product context
+    currentStep = 'step0_extractContext';
     functions.logger.info('Step 0: Extracting product context...');
     const context = await extractProductContext(description, url);
     functions.logger.info(`Step 0 done: "${context.productLabel}" — ${context.keyFeatures.length} features, ${context.competitors.length} competitors, ${context.painPoints.length} pain points`);
 
     // Step 1: AI seed generation
+    currentStep = 'step1_generateSeeds';
     functions.logger.info('Step 1: Generating seeds...');
     const seeds = await generateSeeds(context, location);
     functions.logger.info(`Step 1 done: ${seeds.allSeeds.length} seeds, ${seeds.topSeeds.length} top seeds`);
 
     // Steps 1b + 2: Run competitor discovery and autocomplete expansion in parallel
+    currentStep = 'step1b2_competitorsAndAutocomplete';
     functions.logger.info('Steps 1b+2: Discovering competitors + expanding autocomplete (parallel)...');
     const [competitorSeeds, autocompleteKeywords] = await Promise.all([
       discoverCompetitors(seeds.productLabel, seeds.allSeeds),
@@ -145,23 +158,28 @@ router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthReques
     functions.logger.info(`Steps 1b+2 done: ${competitorSeeds.length} competitor seeds, ${autocompleteKeywords.length} autocomplete keywords`);
 
     // Step 3: Merge and deduplicate
+    currentStep = 'step3_merge';
     const masterList = mergeAndDeduplicate(seeds.allSeeds, autocompleteKeywords);
     functions.logger.info(`Step 3 done: ${masterList.length} unique keywords after merge`);
 
     // Step 4: Google Ads Keyword Planner enrichment
+    currentStep = 'step4_keywordPlanner';
     functions.logger.info('Step 4: Enriching via Keyword Planner...');
     const enriched = await enrichKeywords(masterList);
     functions.logger.info(`Step 4 done: ${enriched.length} enriched keywords`);
 
     // Step 5: Google Trends overlay (top 100 by volume)
+    currentStep = 'step5_trends';
     functions.logger.info('Step 5: Overlaying trends...');
     const withTrends = await overlayTrends(enriched);
     functions.logger.info(`Step 5 done: ${withTrends.filter((k) => k.trendDirection).length} with trend data`);
 
     // Step 6: AI scoring and classification
+    currentStep = 'step6_scoreAndClassify';
     functions.logger.info('Step 6: Scoring and classifying...');
     const scored = await scoreAndClassify(withTrends, context, budget);
     functions.logger.info(`Step 6 done: ${scored.keywords.length} scored keywords`);
+    currentStep = 'finalize';
 
     // Build result
     // Cap at top 1000 keywords by score to stay under Firestore 1MB doc limit
@@ -212,6 +230,7 @@ router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthReques
 
     await logActivity('search', {
       userId: userId || 'anonymous',
+      anonId: anonId || null,
       query: description?.slice(0, 100),
       url: url?.slice(0, 200) || null,
       inputType: description && url ? 'both' : url ? 'url' : 'description',
@@ -229,12 +248,16 @@ router.post('/', optionalAuthMiddleware, searchRateLimit, async (req: AuthReques
     res.json(maskedResult);
   } catch (error: any) {
     functions.logger.error('Search pipeline error:', error.stack || error.message);
-    // Refund credit on pipeline failure (skip for anonymous)
+    // Refund on pipeline failure so user isn't charged for broken runs
     if (!isAnonymous) {
       await refundCredits(userId!, 1, `Search failed: ${error.message}`);
+    } else if (anonId) {
+      await refundAnonSearch(anonId);
     }
     await logActivity('search_error', {
       userId: userId || 'anonymous',
+      anonId: anonId || null,
+      pipelineStep: currentStep,
       query: description?.slice(0, 100),
       error: error.message?.slice(0, 200),
     });
@@ -293,7 +316,7 @@ router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
     }
     const paid = !creditResult.isFreeSearch;
     functions.logger.info(`Search claimed by user ${userId} (paid: ${paid})`);
-    await logActivity('claim', { userId, paid });
+    await logActivity('claim', { userId, anonId: req.anonId || null, paid });
     res.json({ paid });
   } catch (error: any) {
     functions.logger.error('Claim error:', error.message);
@@ -341,6 +364,7 @@ router.post('/save', authMiddleware, async (req: AuthRequest, res) => {
     functions.logger.info(`Saved search: ${searchId} for user ${userId} (${keywords.length} keywords)`);
     await logActivity('save', {
       userId,
+      anonId: req.anonId || null,
       searchId,
       keywordCount: keywords.length,
       query: query?.slice(0, 100),
@@ -540,6 +564,7 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
 
     await logActivity('expand', {
       userId,
+      anonId: req.anonId || null,
       keywordCount: scored.length,
       platforms: platforms.join(','),
       executionTimeMs,

@@ -1,10 +1,12 @@
 import type { SearchResult, SeoAuditResult } from '@jackpotkeywords/shared';
+import { getAnonId } from '../lib/anonId';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
 
 async function apiFetch(path: string, token: string | null, options: RequestInit = {}) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Anon-Id': getAnonId(),
   };
   if (token) {
     headers.Authorization = `Bearer ${token}`;

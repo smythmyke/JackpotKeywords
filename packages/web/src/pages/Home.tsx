@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuthContext } from '../contexts/AuthContext';
 import { runSearch } from '../services/api';
 import { trackSearch } from '../services/analytics';
+import { trackEvent } from '../lib/analytics';
 import SearchForm from '../components/SearchForm';
 import SearchProgress from '../components/SearchProgress';
 
@@ -122,9 +123,19 @@ export default function Home() {
         location,
       });
 
+      if (!user) {
+        trackEvent('anon_search_completed', {
+          keywordCount: result.keywords?.length || 0,
+          productLabel: result.productLabel || null,
+        });
+      }
+
       // Results not saved to Firestore — pass via state for both auth and anonymous
       navigate('/results/anonymous', { state: { result, maxCpc } });
     } catch (err: any) {
+      if (err.message && err.message.toLowerCase().includes('free search limit')) {
+        trackEvent('paywall_viewed', { source: 'anon_searches_exhausted' });
+      }
       setError(err.message);
       setLoading(false);
     }

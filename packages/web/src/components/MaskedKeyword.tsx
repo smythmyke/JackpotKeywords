@@ -5,7 +5,8 @@ interface MaskedKeywordProps {
 }
 
 export default function MaskedKeyword({ keyword, paid, onClick }: MaskedKeywordProps) {
-  if (paid) {
+  const isLocked = keyword.startsWith('••• locked');
+  if (paid || !isLocked) {
     return <span className="text-white font-medium">{keyword}</span>;
   }
 

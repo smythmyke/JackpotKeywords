@@ -32,6 +32,9 @@ router.post('/init', async (req, res) => {
     const token = authHeader.split('Bearer ')[1];
     const decoded = await admin.auth().verifyIdToken(token);
     const userId = decoded.uid;
+    const rawAnonId = req.headers['x-anon-id'];
+    const anonIdHeader = Array.isArray(rawAnonId) ? rawAnonId[0] : rawAnonId;
+    const anonId = anonIdHeader ? anonIdHeader.toString().trim().slice(0, 128) || null : null;
 
     // Sanitize attribution from request body — only allow known string fields
     const rawAttr = (req.body && req.body.attribution) || null;
@@ -84,6 +87,7 @@ router.post('/init', async (req, res) => {
 
     await logActivity('auth_init', {
       userId,
+      anonId,
       email: decoded.email || '',
       isNewUser,
       ...(attribution && isNewUser ? {

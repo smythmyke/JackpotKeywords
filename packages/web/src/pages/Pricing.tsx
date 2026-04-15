@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useCredits } from '../hooks/useCredits';
+import { trackEvent } from '../lib/analytics';
 
 export default function Pricing() {
   const pro = SUBSCRIPTION_PLANS[0];
@@ -13,7 +14,9 @@ export default function Pricing() {
   const navigate = useNavigate();
 
   const handleBuyCredits = async (packId: string) => {
+    trackEvent('upgrade_clicked', { kind: 'credit', id: packId });
     if (!user) {
+      trackEvent('signin_prompted', { trigger: 'buy_credit', packId });
       await signInWithGoogle();
       return;
     }
@@ -26,7 +29,9 @@ export default function Pricing() {
   };
 
   const handleSubscribe = async (planId: string) => {
+    trackEvent('upgrade_clicked', { kind: 'subscription', id: planId });
     if (!user) {
+      trackEvent('signin_prompted', { trigger: 'subscribe', planId });
       await signInWithGoogle();
       return;
     }

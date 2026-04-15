@@ -48,6 +48,26 @@ interface FunnelStage {
   description: string;
 }
 
+interface EventFunnelStage {
+  label: string;
+  count: number;
+  pctOfTop: number;
+  pctOfPrev: number;
+}
+
+interface AnonStats {
+  uniqueAnonIds: number;
+  searchesPerAnon: number;
+  anonIdsThatSignedIn: number;
+  anonSigninRate: number;
+  exhaustedAnonIds: number;
+}
+
+interface ErrorsByStep {
+  step: string;
+  count: number;
+}
+
 interface DailyPoint {
   date: string; // YYYY-MM-DD
   label: string; // short display
@@ -104,6 +124,9 @@ export default function Admin() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [analytics, setAnalytics] = useState<SearchAnalytics | null>(null);
   const [funnel, setFunnel] = useState<FunnelStage[] | null>(null);
+  const [eventFunnel, setEventFunnel] = useState<EventFunnelStage[] | null>(null);
+  const [anonStats, setAnonStats] = useState<AnonStats | null>(null);
+  const [errorsByStep, setErrorsByStep] = useState<ErrorsByStep[] | null>(null);
   const [timeSeries, setTimeSeries] = useState<DailyPoint[] | null>(null);
   const [chartRange, setChartRange] = useState<7 | 30>(30);
   const [excludeAdmin, setExcludeAdmin] = useState(true);
@@ -310,6 +333,64 @@ export default function Admin() {
       }
     });
     setFunnel(funnelStages);
+
+    // Event-based funnel (uses new client-emitted events)
+    const evCount = (action: string) => filteredLogs.filter((l) => l.action === action).length;
+    const evStages: EventFunnelStage[] = [
+      { label: 'Anon Search Completed', count: evCount('anon_search_completed'), pctOfTop: 100, pctOfPrev: 100 },
+      { label: 'Paywall Viewed', count: evCount('paywall_viewed'), pctOfTop: 0, pctOfPrev: 0 },
+      { label: 'Signin Prompted', count: evCount('signin_prompted'), pctOfTop: 0, pctOfPrev: 0 },
+      { label: 'Signin Completed', count: evCount('signin_completed'), pctOfTop: 0, pctOfPrev: 0 },
+      { label: 'Upgrade Clicked', count: evCount('upgrade_clicked'), pctOfTop: 0, pctOfPrev: 0 },
+      { label: 'Checkout Started', count: evCount('checkout_started'), pctOfTop: 0, pctOfPrev: 0 },
+    ];
+    const evTop = evStages[0].count || 1;
+    evStages.forEach((s, i) => {
+      s.pctOfTop = (s.count / evTop) * 100;
+      if (i > 0) {
+        const prev = evStages[i - 1].count || 1;
+        s.pctOfPrev = (s.count / prev) * 100;
+      }
+    });
+    setEventFunnel(evStages);
+
+    // Anon tracking — unique anon_ids and signin correlation
+    const anonIdSet = new Set<string>();
+    const anonIdSearchCount = new Map<string, number>();
+    filteredLogs.forEach((l) => {
+      if (l.anonId && l.action === 'search' && l.userId === 'anonymous') {
+        anonIdSet.add(l.anonId);
+        anonIdSearchCount.set(l.anonId, (anonIdSearchCount.get(l.anonId) || 0) + 1);
+      }
+    });
+    const anonIdsWithSignin = new Set<string>();
+    filteredLogs.forEach((l) => {
+      if (l.anonId && (l.action === 'signin_completed' || l.action === 'auth_init')) {
+        if (anonIdSet.has(l.anonId)) anonIdsWithSignin.add(l.anonId);
+      }
+    });
+    const totalAnonSearches = Array.from(anonIdSearchCount.values()).reduce((a, b) => a + b, 0);
+    const exhaustedAnonIds = Array.from(anonIdSearchCount.values()).filter((c) => c >= 3).length;
+    setAnonStats({
+      uniqueAnonIds: anonIdSet.size,
+      searchesPerAnon: anonIdSet.size ? totalAnonSearches / anonIdSet.size : 0,
+      anonIdsThatSignedIn: anonIdsWithSignin.size,
+      anonSigninRate: anonIdSet.size ? (anonIdsWithSignin.size / anonIdSet.size) * 100 : 0,
+      exhaustedAnonIds,
+    });
+
+    // Errors by pipeline step
+    const stepMap = new Map<string, number>();
+    filteredLogs.forEach((l) => {
+      if (l.action === 'search_error') {
+        const step = (l as any).pipelineStep || 'unknown';
+        stepMap.set(step, (stepMap.get(step) || 0) + 1);
+      }
+    });
+    const stepRows: ErrorsByStep[] = Array.from(stepMap.entries())
+      .map(([step, count]) => ({ step, count }))
+      .sort((a, b) => b.count - a.count);
+    setErrorsByStep(stepRows);
 
     // Compute time series (last 30 days)
     const dayMap = new Map<string, DailyPoint>();
@@ -688,6 +769,100 @@ export default function Admin() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Event-based Conversion Funnel (new client events) */}
+          {eventFunnel && (
+            <div className="mb-10">
+              <h2 className="text-lg font-bold mb-4">Event Funnel <span className="text-xs font-normal text-gray-500">(client-side paywall/upgrade/signin events)</span></h2>
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                <div className="space-y-4">
+                  {eventFunnel.map((stage, i) => (
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm font-medium text-white">{stage.label}</span>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="text-white font-bold tabular-nums">{stage.count.toLocaleString()}</span>
+                          {i > 0 && (
+                            <span className={`text-xs tabular-nums ${stage.pctOfPrev >= 50 ? 'text-jackpot-400' : stage.pctOfPrev >= 20 ? 'text-yellow-400' : 'text-red-400'}`}>
+                              {stage.pctOfPrev.toFixed(1)}% of prev
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500 tabular-nums w-14 text-right">
+                            {stage.pctOfTop.toFixed(1)}% of top
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            i === 0 ? 'bg-gray-500' :
+                            i === eventFunnel.length - 1 ? 'bg-jackpot-500' :
+                            'bg-blue-500'
+                          }`}
+                          style={{ width: `${Math.max(stage.pctOfTop, 0.5)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-4">Events require fresh client deploy — counts grow from zero post-launch.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Anon ID Tracking */}
+          {anonStats && (
+            <div className="mb-10">
+              <h2 className="text-lg font-bold mb-4">Anonymous User Tracking <span className="text-xs font-normal text-gray-500">(by anon_id)</span></h2>
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Unique anon_ids</div>
+                  <div className="text-2xl font-bold text-white mt-1 tabular-nums">{anonStats.uniqueAnonIds.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Searches / anon_id</div>
+                  <div className="text-2xl font-bold text-white mt-1 tabular-nums">{anonStats.searchesPerAnon.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Signed in</div>
+                  <div className="text-2xl font-bold text-white mt-1 tabular-nums">{anonStats.anonIdsThatSignedIn.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Anon → Signin</div>
+                  <div className="text-2xl font-bold text-jackpot-400 mt-1 tabular-nums">{anonStats.anonSigninRate.toFixed(1)}%</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider">Exhausted (≥3)</div>
+                  <div className="text-2xl font-bold text-white mt-1 tabular-nums">{anonStats.exhaustedAnonIds.toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Errors by Pipeline Step */}
+          {errorsByStep && errorsByStep.length > 0 && (
+            <div className="mb-10">
+              <h2 className="text-lg font-bold mb-4">Search Errors by Pipeline Step</h2>
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-gray-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="text-left pb-2">Step</th>
+                      <th className="text-right pb-2">Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errorsByStep.map((row) => (
+                      <tr key={row.step} className="border-t border-gray-800">
+                        <td className="py-2 text-white">{row.step}</td>
+                        <td className="py-2 text-right text-white tabular-nums">{row.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
