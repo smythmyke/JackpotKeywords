@@ -28,6 +28,7 @@ export default function SeoAuditResults() {
   const [fetchError, setFetchError] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
   const fetchAttempted = useRef(false);
+  const fetchAttemptedAsAuthed = useRef(false);
   const [selectedGap, setSelectedGap] = useState<SeoAuditKeywordGap | null>(null);
   const [gapModalOpen, setGapModalOpen] = useState(false);
   const [keywordPreview, setKeywordPreview] = useState<MiniKeywordResult[] | null>(null);
@@ -77,15 +78,15 @@ export default function SeoAuditResults() {
     auditId,
   });
 
-  // Reset fetchAttempted when user logs in and we need to re-fetch masked data
-  if (shouldRefetchMasked && fetchAttempted.current && !fetchedResult) {
-    console.log('[AuditResults] Resetting fetchAttempted — user logged in with masked data');
-    fetchAttempted.current = false;
-  }
+  // NOTE: fetchAttempted invalidation is handled inside the useEffect below
+  // via fetchAttemptedAsAuthed. Mutating refs in the render phase caused an
+  // infinite re-render loop with Firebase auth's multi-step state transitions,
+  // because getToken's useCallback reference churns as state.user updates and
+  // the render-phase reset would flip the flag repeatedly (React error #300).
 
   useEffect(() => {
-    if (fetchAttempted.current || fetchedResult) {
-      console.log('[AuditResults] useEffect skipped:', { fetchAttempted: fetchAttempted.current, hasFetchedResult: !!fetchedResult });
+    if (fetchedResult) {
+      console.log('[AuditResults] useEffect skipped: already have fetched result');
       return;
     }
     if (!shouldFetchById && !shouldRefetchMasked) {
@@ -93,9 +94,20 @@ export default function SeoAuditResults() {
       return;
     }
 
+    // Invalidate a prior anon fetch once per auth transition — if the user
+    // just became authenticated and the previous fetch happened as anon, we
+    // need to refetch to get the unmasked data. The ref tracks the auth
+    // state of the last attempt so this only fires once per transition.
+    const needRefetchForAuth = !!user && fetchAttempted.current && !fetchAttemptedAsAuthed.current && shouldRefetchMasked;
+    if (fetchAttempted.current && !needRefetchForAuth) {
+      console.log('[AuditResults] useEffect skipped: already attempted', { fetchAttemptedAsAuthed: fetchAttemptedAsAuthed.current });
+      return;
+    }
+
     const targetId = shouldFetchById ? auditId! : stateResult!.id;
     fetchAttempted.current = true;
-    console.log('[AuditResults] Fetching audit:', { targetId, shouldFetchById, shouldRefetchMasked });
+    fetchAttemptedAsAuthed.current = !!user;
+    console.log('[AuditResults] Fetching audit:', { targetId, shouldFetchById, shouldRefetchMasked, needRefetchForAuth });
 
     async function loadAudit() {
       setFetchLoading(true);
@@ -119,7 +131,7 @@ export default function SeoAuditResults() {
       }
     }
     loadAudit();
-  }, [shouldFetchById, shouldRefetchMasked, auditId, stateResult?.id, getToken, fetchedResult]);
+  }, [shouldFetchById, shouldRefetchMasked, auditId, stateResult?.id, getToken, fetchedResult, user]);
 
   // Post-login redirect: if user just signed in via the keyword gap modal, navigate to keyword search
   useEffect(() => {

@@ -8,10 +8,28 @@ const db = admin.firestore();
 const MAX_ANON_LIFETIME_SEARCHES = 3;
 const COLLECTION = 'anonSearchCounts';
 
+// Admin testing bypass. If a request carries X-Admin-Bypass matching the token
+// below, skip the anon lifetime cap. Lets the admin test anon flows repeatedly
+// without signing in. The token is long enough that casual probing can't guess
+// it, and it only bypasses the free-tier counter — no data access escalation.
+const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
+
+function hasAdminBypass(req: AuthRequest): boolean {
+  const raw = req.headers['x-admin-bypass'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return !!value && value.toString().trim() === ADMIN_BYPASS_TOKEN;
+}
+
 export function anonSearchLimit() {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     // Authenticated users bypass — gated by credits instead
     if (req.userId) {
+      next();
+      return;
+    }
+
+    // Admin test bypass — see ADMIN_BYPASS_TOKEN comment above
+    if (hasAdminBypass(req)) {
       next();
       return;
     }

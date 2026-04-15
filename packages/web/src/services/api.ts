@@ -11,6 +11,14 @@ async function apiFetch(path: string, token: string | null, options: RequestInit
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+  // Admin testing bypass — if localStorage has the key, forward as header so
+  // the backend can skip anon rate limits and lifetime caps during testing.
+  try {
+    const bypass = localStorage.getItem('jk_admin_bypass');
+    if (bypass) headers['X-Admin-Bypass'] = bypass;
+  } catch {
+    // ignore
+  }
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,

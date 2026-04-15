@@ -12,6 +12,17 @@ const db = admin.firestore();
  * Uses Firestore document per IP with a sliding window counter.
  * TTL cleanup handled by Firestore TTL policy (set expiresAt field).
  */
+// Admin testing bypass — same token as anonSearchLimit.ts. Kept in both files
+// (instead of a shared constant) so the bypass logic is self-contained in each
+// middleware for review.
+const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
+
+function hasAdminBypass(req: Request | AuthRequest): boolean {
+  const raw = req.headers['x-admin-bypass'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return !!value && value.toString().trim() === ADMIN_BYPASS_TOKEN;
+}
+
 export function anonymousRateLimit(opts: {
   /** Max requests per window for anonymous users */
   maxRequests: number;
@@ -23,6 +34,12 @@ export function anonymousRateLimit(opts: {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     // Authenticated users bypass rate limiting
     if (req.userId) {
+      next();
+      return;
+    }
+
+    // Admin test bypass
+    if (hasAdminBypass(req)) {
       next();
       return;
     }
