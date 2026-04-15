@@ -466,22 +466,7 @@ export default function Home() {
         </a>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 px-4 text-center text-sm text-gray-600">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div>&copy; {new Date().getFullYear()} JackpotKeywords. All rights reserved.</div>
-          <div className="flex gap-6">
-            <Link to="/pricing" className="hover:text-gray-400 transition">Pricing</Link>
-            <Link to="/blog" className="hover:text-gray-400 transition">Blog</Link>
-            <Link to="/seo-audit" className="hover:text-gray-400 transition">SEO Audit</Link>
-            <Link to="/features/competitor-keyword-research" className="hover:text-gray-400 transition">Competitor Research</Link>
-            <Link to="/features/long-tail-keyword-generator" className="hover:text-gray-400 transition">Long-Tail Generator</Link>
-            <Link to="/features/keyword-competition-checker" className="hover:text-gray-400 transition">Competition Checker</Link>
-            <Link to="/help" className="hover:text-gray-400 transition">Help</Link>
-            <Link to="/disclaimer" className="hover:text-gray-400 transition">Disclaimer</Link>
-          </div>
-        </div>
-      </footer>
+      {/* Footer is rendered globally by Layout */}
     </div>
     </>
   );

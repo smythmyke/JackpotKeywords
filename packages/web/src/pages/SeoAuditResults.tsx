@@ -797,12 +797,14 @@ export default function SeoAuditResults() {
           </section>
         )}
 
-        {/* Sign-in CTA for anonymous users */}
+        {/* Sign-in CTA for anonymous users — copy reflects the pooled
+            3-free-runs model (search OR audit), not the old "audits are
+            free for all signed-in users" line. */}
         {!paid && (
           <section className="text-center py-10 border-t border-gray-800">
-            <h2 className="text-2xl font-bold text-white mb-3">Sign In to See the Full Report</h2>
+            <h2 className="text-2xl font-bold text-white mb-3">Sign In to Save This Report</h2>
             <p className="text-gray-400 mb-6 max-w-lg mx-auto">
-              Create a free account to see all {filteredChecks.length} checklist items, recommendations, keyword gaps, and specific fixes. No credit card required.
+              Sign in free to save your audit, see the full report, and unlock 3 lifetime runs of keyword research or SEO audits. No credit card required.
             </p>
             <button
               onClick={signInWithGoogle}
@@ -810,28 +812,18 @@ export default function SeoAuditResults() {
             >
               Sign In Free with Google
             </button>
-            <p className="text-sm text-gray-500 mt-3">
-              Full SEO audit reports are free for all signed-in users
-            </p>
           </section>
         )}
 
-        {/* Bottom keyword research CTA — shown for all users */}
-        <section className="py-10 border-t border-gray-800 relative overflow-hidden">
-          <div
-            className="absolute inset-0 bg-center bg-cover opacity-[0.08] pointer-events-none"
-            style={{ backgroundImage: "url('/bg-coins.png')" }}
-            role="presentation"
-            aria-hidden="true"
-          />
-          <div className="text-center relative z-10">
+        {/* Workflow continuation for paid users — anon/free users already
+            get the keyword-research upsell up top via "Want the Full Picture?" */}
+        {paid && (
+          <section className="py-10 border-t border-gray-800 text-center">
             <h2 className="text-2xl font-bold text-white mb-3">
-              Now Find the <span className="text-jackpot-400">Keywords</span> to Fix These Gaps
+              Find <span className="text-jackpot-400">Keywords</span> for {domain}
             </h2>
             <p className="text-gray-400 mb-6 max-w-lg mx-auto">
-              Your audit found {result.checks.filter((c) => c.status === 'warning' || c.status === 'fail').length} issues
-              {result.keywordGaps.length > 0 ? ` and ${result.keywordGaps.length} keyword gaps` : ''}.
-              Get 1,000+ scored keywords with real Google Ads data — volume, CPC, competition, and intent labels.
+              You&apos;ve got the audit. Now run a full keyword research to get 1,000+ scored opportunities with clustering, intent classification, and Jackpot Scores.
             </p>
             <Link
               to="/"
@@ -840,8 +832,8 @@ export default function SeoAuditResults() {
             >
               Find Keywords for {domain} &rarr;
             </Link>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Cross-link for all users */}
         <div className="text-center mt-8">

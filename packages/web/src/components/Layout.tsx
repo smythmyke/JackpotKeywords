@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
+import Footer from './Footer';
 
 const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
@@ -234,6 +235,7 @@ export default function Layout() {
       <main>
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 }
