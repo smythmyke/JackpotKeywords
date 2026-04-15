@@ -9,6 +9,9 @@
   "hosting": {
     "target": "jackpotkeywords",
     "public": "packages/web/dist",
+    "predeploy": [
+      "npm run build:web"
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
