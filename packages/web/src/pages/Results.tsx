@@ -823,6 +823,24 @@ export default function Results() {
                   </div>
                 </button>
                 <button
+                  onClick={async () => {
+                    setShowExportMenu(false);
+                    try {
+                      const data = selectedKeywords.size > 0 ? getSelectedResults() : allKeywords;
+                      const { exportKeywordsXlsx } = await import('../services/xlsxExport');
+                      await exportKeywordsXlsx(data, result.clusters, result.productLabel || 'keywords');
+                    } catch (err) {
+                      console.error('[Results] XLSX export failed:', err);
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition border-t border-gray-700"
+                >
+                  <div className="font-medium">Export Excel (.xlsx)</div>
+                  <div className="text-xs text-gray-500">
+                    Multi-sheet workbook with scores, categories, clusters
+                  </div>
+                </button>
+                <button
                   onClick={() => {
                     setShowExportMenu(false);
                     setShowAdsModal(true);

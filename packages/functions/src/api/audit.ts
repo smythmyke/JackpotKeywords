@@ -307,17 +307,25 @@ router.post('/:auditId/keywords', optionalAuthMiddleware, async (req: AuthReques
     const auditData = auditDoc.data()!;
 
     // Return cached preview if already computed. Re-apply the volume filter
-    // so audits cached before the filter landed no longer surface zero-volume rows.
+    // so audits cached before the filter landed no longer surface zero-volume
+    // rows. Also strip any "••• locked N" entries that may have leaked into
+    // cached data — the display mask should only ever be applied at serve
+    // time, never persisted.
     if (Array.isArray(auditData.keywordPreview) && auditData.keywordPreview.length > 0) {
       const filtered = (auditData.keywordPreview as MiniKeywordResult[]).filter(
-        (k) => (k.monthlyVolume ?? 0) >= 10,
+        (k) => (k.monthlyVolume ?? 0) >= 10 && !k.keyword.startsWith('\u2022\u2022\u2022'),
       );
-      res.json({
-        keywordPreview: maskKeywordPreview(filtered, isPaid),
-        paid: isPaid,
-        cached: true,
-      });
-      return;
+      if (filtered.length > 0) {
+        res.json({
+          keywordPreview: maskKeywordPreview(filtered, isPaid),
+          paid: isPaid,
+          cached: true,
+        });
+        return;
+      }
+      // Cached data was entirely corrupt/masked — fall through and re-run
+      // the pipeline to produce a fresh unmasked preview.
+      functions.logger.info(`Audit ${auditId}: cached preview was fully masked, rerunning pipeline`);
     }
 
     const auditUrl = typeof auditData.url === 'string' ? auditData.url : '';

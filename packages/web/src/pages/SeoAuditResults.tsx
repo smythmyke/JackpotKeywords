@@ -34,12 +34,14 @@ export default function SeoAuditResults() {
   const [keywordPreviewLoading, setKeywordPreviewLoading] = useState(false);
   const [keywordPreviewError, setKeywordPreviewError] = useState(false);
   const keywordPreviewFetched = useRef(false);
+  const keywordPreviewFetchedAsAuthed = useRef(false);
   type SortColumn = 'keyword' | 'volume' | 'cpc' | 'competition';
   type SortDirection = 'asc' | 'desc';
   const [sortColumn, setSortColumn] = useState<SortColumn>('volume');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const PAGE_SIZE = 50;
 
   // Try location state first, then sessionStorage
@@ -130,14 +132,36 @@ export default function SeoAuditResults() {
   // Lazy-fetch the bundled mini keyword preview once the audit has loaded.
   // Runs in the background so users see the audit instantly while the
   // preview (~3-5s of Keyword Planner) streams in behind.
+  //
+  // Refetches when the user transitions from anonymous → authenticated so
+  // a preview that was masked server-side under anon creds gets replaced
+  // with the full unmasked list. keywordPreviewFetchedAsAuthed tracks the
+  // auth state of the last fetch so we only invalidate once per transition.
   useEffect(() => {
-    if (!result || keywordPreviewFetched.current) return;
-    if (result.keywordPreview && result.keywordPreview.length > 0) {
-      setKeywordPreview(result.keywordPreview);
+    if (!result) return;
+
+    const resultPreview = result.keywordPreview;
+    const hasResultPreview = Array.isArray(resultPreview) && resultPreview.length > 0;
+    const resultPreviewIsLocked = hasResultPreview
+      && resultPreview.some((k) => k.keyword.startsWith('\u2022\u2022\u2022'));
+
+    // Fresh unmasked preview in the result object? Adopt directly.
+    if (hasResultPreview && !resultPreviewIsLocked) {
+      setKeywordPreview(resultPreview);
       keywordPreviewFetched.current = true;
+      keywordPreviewFetchedAsAuthed.current = !!user;
       return;
     }
+
+    // User just became authenticated after an earlier anon fetch — invalidate
+    // so we refetch with credentials and get the full unmasked list.
+    if (!!user && keywordPreviewFetched.current && !keywordPreviewFetchedAsAuthed.current) {
+      keywordPreviewFetched.current = false;
+    }
+
+    if (keywordPreviewFetched.current) return;
     if (!result.id) return;
+
     keywordPreviewFetched.current = true;
     setKeywordPreviewLoading(true);
     (async () => {
@@ -145,6 +169,7 @@ export default function SeoAuditResults() {
         const token = user ? await getToken() : null;
         const resp = await fetchAuditKeywords(token, result!.id);
         setKeywordPreview(resp.keywordPreview || []);
+        keywordPreviewFetchedAsAuthed.current = !!user;
       } catch {
         setKeywordPreviewError(true);
       } finally {
@@ -216,11 +241,19 @@ export default function SeoAuditResults() {
       if (sortColumn === 'keyword') {
         cmp = a.keyword.localeCompare(b.keyword);
       } else if (sortColumn === 'volume') {
-        cmp = a.monthlyVolume - b.monthlyVolume;
+        cmp = Number(a.monthlyVolume) - Number(b.monthlyVolume);
       } else if (sortColumn === 'cpc') {
-        cmp = (a.lowCpc + a.highCpc) / 2 - (b.lowCpc + b.highCpc) / 2;
+        const aAvg = (Number(a.lowCpc) + Number(a.highCpc)) / 2;
+        const bAvg = (Number(b.lowCpc) + Number(b.highCpc)) / 2;
+        cmp = aAvg - bAvg;
       } else if (sortColumn === 'competition') {
         cmp = (COMPETITION_RANK[a.competition] || 99) - (COMPETITION_RANK[b.competition] || 99);
+      }
+      // Tie-breaker: alphabetical by keyword. Without this, many rows sharing
+      // the same volume (e.g., 15 keywords all at "10") stay in insertion
+      // order on both asc and desc, making the sort look broken.
+      if (cmp === 0 && sortColumn !== 'keyword') {
+        cmp = a.keyword.localeCompare(b.keyword);
       }
       return sortDirection === 'asc' ? cmp : -cmp;
     });
@@ -284,7 +317,7 @@ export default function SeoAuditResults() {
         {/* Header */}
         <div className="flex flex-col md:flex-row items-center gap-6 mb-10">
           <ScoreGauge score={result.overallScore} size={140} />
-          <div className="text-center md:text-left">
+          <div className="text-center md:text-left flex-1">
             <h1 className="text-2xl font-bold text-white mb-1">SEO Audit: {domain}</h1>
             <p className="text-gray-500 text-sm">
               {result.metadata.pagesAnalyzed} pages analyzed in {(result.metadata.executionTimeMs / 1000).toFixed(0)}s
@@ -305,6 +338,39 @@ export default function SeoAuditResults() {
               </span>
             </div>
           </div>
+          <button
+            onClick={async () => {
+              if (!paid) {
+                trackEvent('upgrade_clicked', { source: 'audit_pdf_export' });
+                trackEvent('paywall_viewed', { source: 'audit_pdf_export' });
+                setShowUpgradeModal(true);
+                return;
+              }
+              if (pdfExporting) return;
+              setPdfExporting(true);
+              try {
+                const { exportAuditPdf } = await import('../services/pdfExport');
+                await exportAuditPdf(result, keywordPreview);
+                trackEvent('upgrade_clicked', { source: 'audit_pdf_exported', result: 'success' });
+              } catch (err) {
+                console.error('[AuditResults] PDF export failed:', err);
+              } finally {
+                setPdfExporting(false);
+              }
+            }}
+            disabled={pdfExporting}
+            className="bg-jackpot-500 hover:bg-jackpot-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-bold px-5 py-2.5 rounded-lg text-sm transition whitespace-nowrap flex items-center gap-2"
+            title={paid ? 'Download a branded PDF report' : 'PDF export available with Pro or a paid search credit'}
+          >
+            {pdfExporting ? (
+              <>
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-black/40 border-t-transparent" />
+                Generating…
+              </>
+            ) : (
+              <>&#128196; Export PDF{!paid && <span className="text-xs opacity-75">(Pro)</span>}</>
+            )}
+          </button>
         </div>
 
         {/* Category Score Cards */}
