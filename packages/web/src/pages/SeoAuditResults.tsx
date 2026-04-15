@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult, type SeoAuditKeywordGap, type MiniKeywordResult } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
 import { getAuditResult, fetchAuditKeywords } from '../services/api';
+import { trackEvent } from '../lib/analytics';
 import ScoreGauge from '../components/audit/ScoreGauge';
 import CategoryScoreCard from '../components/audit/CategoryScoreCard';
 import CheckItem from '../components/audit/CheckItem';
@@ -33,6 +34,13 @@ export default function SeoAuditResults() {
   const [keywordPreviewLoading, setKeywordPreviewLoading] = useState(false);
   const [keywordPreviewError, setKeywordPreviewError] = useState(false);
   const keywordPreviewFetched = useRef(false);
+  type SortColumn = 'keyword' | 'volume' | 'cpc' | 'competition';
+  type SortDirection = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn>('volume');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const PAGE_SIZE = 50;
 
   // Try location state first, then sessionStorage
   let stateResult = (location.state as any)?.result as SeoAuditResult | undefined;
@@ -196,6 +204,58 @@ export default function SeoAuditResults() {
   // Split checks into visible and blurred for unpaid
   const visibleChecks = paid ? filteredChecks : filteredChecks.slice(0, FREE_PREVIEW_CHECKS);
   const blurredChecks = paid ? [] : filteredChecks.slice(FREE_PREVIEW_CHECKS);
+
+  // Keyword preview: sort visible rows by selected column, pin locked rows to the end.
+  const COMPETITION_RANK: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, UNKNOWN: 4, UNSPECIFIED: 5 };
+  const sortedKeywords = useMemo(() => {
+    if (!keywordPreview) return [];
+    const locked = keywordPreview.filter((k) => k.keyword.startsWith('\u2022\u2022\u2022'));
+    const unlocked = keywordPreview.filter((k) => !k.keyword.startsWith('\u2022\u2022\u2022'));
+    const sorted = [...unlocked].sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === 'keyword') {
+        cmp = a.keyword.localeCompare(b.keyword);
+      } else if (sortColumn === 'volume') {
+        cmp = a.monthlyVolume - b.monthlyVolume;
+      } else if (sortColumn === 'cpc') {
+        cmp = (a.lowCpc + a.highCpc) / 2 - (b.lowCpc + b.highCpc) / 2;
+      } else if (sortColumn === 'competition') {
+        cmp = (COMPETITION_RANK[a.competition] || 99) - (COMPETITION_RANK[b.competition] || 99);
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+    return [...sorted, ...locked];
+  }, [keywordPreview, sortColumn, sortDirection]);
+
+  const totalKeywords = sortedKeywords.length;
+  const totalPages = Math.max(1, Math.ceil(totalKeywords / PAGE_SIZE));
+  const clampedPage = Math.min(currentPage, totalPages);
+  const pageStart = (clampedPage - 1) * PAGE_SIZE;
+  const paginatedKeywords = sortedKeywords.slice(pageStart, pageStart + PAGE_SIZE);
+
+  const handleSort = (col: SortColumn) => {
+    if (sortColumn === col) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection(col === 'keyword' ? 'asc' : 'desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (!paid && newPage > 1) {
+      trackEvent('upgrade_clicked', { source: 'audit_preview_pagination' });
+      trackEvent('paywall_viewed', { source: 'audit_preview_pagination' });
+      setShowUpgradeModal(true);
+      return;
+    }
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+  };
+
+  const sortArrow = (col: SortColumn) =>
+    sortColumn === col ? (sortDirection === 'asc' ? ' \u25b2' : ' \u25bc') : '';
 
   return (
     <>
@@ -421,18 +481,21 @@ export default function SeoAuditResults() {
                           <div>{gap.keyword}</div>
                           {samples.length > 0 && !isLocked && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {samples.map((kw, j) => (
-                                <span
-                                  key={j}
-                                  className={`text-xs px-2 py-0.5 rounded-full border ${
-                                    j < VISIBLE_SAMPLES
-                                      ? 'bg-jackpot-500/10 border-jackpot-500/30 text-jackpot-400'
-                                      : 'bg-gray-800 border-gray-700 text-gray-500 blur-[3px] select-none'
-                                  }`}
-                                >
-                                  {kw}
-                                </span>
-                              ))}
+                              {samples.map((kw, j) => {
+                                const isSampleLocked = !paid && j >= VISIBLE_SAMPLES;
+                                return (
+                                  <span
+                                    key={j}
+                                    className={`text-xs px-2 py-0.5 rounded-full border ${
+                                      isSampleLocked
+                                        ? 'bg-gray-800 border-gray-700 text-gray-500 blur-[3px] select-none'
+                                        : 'bg-jackpot-500/10 border-jackpot-500/30 text-jackpot-400'
+                                    }`}
+                                  >
+                                    {kw}
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
                         </td>
@@ -494,14 +557,34 @@ export default function SeoAuditResults() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-950 text-xs text-gray-500 uppercase tracking-wider">
                     <tr>
-                      <th className="text-left px-4 py-2">Keyword</th>
-                      <th className="text-right px-4 py-2">Volume</th>
-                      <th className="text-right px-4 py-2">CPC</th>
-                      <th className="text-right px-4 py-2">Competition</th>
+                      <th
+                        className={`text-left px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'keyword' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('keyword')}
+                      >
+                        Keyword{sortArrow('keyword')}
+                      </th>
+                      <th
+                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'volume' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('volume')}
+                      >
+                        Volume{sortArrow('volume')}
+                      </th>
+                      <th
+                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'cpc' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('cpc')}
+                      >
+                        CPC{sortArrow('cpc')}
+                      </th>
+                      <th
+                        className={`text-right px-4 py-2 cursor-pointer select-none hover:text-gray-300 ${sortColumn === 'competition' ? 'text-jackpot-400' : ''}`}
+                        onClick={() => handleSort('competition')}
+                      >
+                        Competition{sortArrow('competition')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {keywordPreview.map((kw, i) => (
+                    {paginatedKeywords.map((kw, i) => (
                       <tr key={i} className="border-t border-gray-800">
                         <td className="px-4 py-2">
                           <MaskedKeyword keyword={kw.keyword} paid={paid} />
@@ -524,6 +607,31 @@ export default function SeoAuditResults() {
                     ))}
                   </tbody>
                 </table>
+                {totalKeywords > 0 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800 text-sm text-gray-400">
+                    <div>
+                      Showing {pageStart + 1}&ndash;{Math.min(pageStart + PAGE_SIZE, totalKeywords)} of{' '}
+                      <span className="text-white font-medium">{totalKeywords.toLocaleString()}</span> keywords
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handlePageChange(clampedPage - 1)}
+                        disabled={clampedPage === 1}
+                        className="px-3 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        &larr; Prev
+                      </button>
+                      <span className="text-gray-500">Page {clampedPage} of {totalPages}</span>
+                      <button
+                        onClick={() => handlePageChange(clampedPage + 1)}
+                        disabled={clampedPage >= totalPages}
+                        className="px-3 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Next &rarr;
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </section>
@@ -679,6 +787,44 @@ export default function SeoAuditResults() {
           navigate(`/?prefill=${encodeURIComponent(domain)}`);
         }}
       />
+
+      {showUpgradeModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowUpgradeModal(false); }}
+        >
+          <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-md w-full p-6 relative" role="dialog" aria-modal="true">
+            <button
+              className="absolute top-3 right-3 text-gray-500 hover:text-white text-xl leading-none"
+              aria-label="Close"
+              onClick={() => setShowUpgradeModal(false)}
+            >
+              &times;
+            </button>
+            <h3 className="text-lg font-bold text-white mb-3">Unlock All {totalKeywords.toLocaleString()} Keywords</h3>
+            <p className="text-gray-400 text-sm leading-relaxed mb-5">
+              You&apos;re seeing the first page of keyword opportunities for {domain}. Upgrade to Pro or use a single-search credit to unlock every page, plus full Jackpot Scores and clustering in the keyword research tool.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  trackEvent('upgrade_clicked', { source: 'audit_preview_pagination_modal' });
+                  navigate('/pricing');
+                }}
+                className="w-full bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold py-2.5 rounded-lg transition"
+              >
+                See Pricing
+              </button>
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
