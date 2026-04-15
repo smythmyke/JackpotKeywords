@@ -258,8 +258,11 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
       userId: userId || 'anonymous',
       anonId: anonId || null,
       pipelineStep: currentStep,
-      query: description?.slice(0, 100),
-      error: error.message?.slice(0, 200),
+      query: description?.slice(0, 500) || null,
+      url: url?.slice(0, 500) || null,
+      budget: typeof budget === 'number' ? budget : null,
+      location: location?.slice(0, 100) || null,
+      error: error.message?.slice(0, 500),
     });
     res.status(500).json({ error: 'Search pipeline failed', details: error.message });
   }

@@ -5,11 +5,12 @@ interface SearchFormProps {
   onSearch: (description: string, url: string, maxCpc?: number, location?: string) => void;
   loading?: boolean;
   initialDescription?: string;
+  initialUrl?: string;
 }
 
-export default function SearchForm({ onSearch, loading, initialDescription }: SearchFormProps) {
+export default function SearchForm({ onSearch, loading, initialDescription, initialUrl }: SearchFormProps) {
   const [description, setDescription] = useState(initialDescription || '');
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(initialUrl || '');
   const [maxCpc, setMaxCpc] = useState<number | undefined>();
   const [showMaxCpc, setShowMaxCpc] = useState(false);
   const [includeLocal, setIncludeLocal] = useState(false);

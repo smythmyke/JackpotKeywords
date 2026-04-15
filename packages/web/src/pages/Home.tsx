@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuthContext } from '../contexts/AuthContext';
 import { runSearch } from '../services/api';
@@ -93,7 +93,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const prefillQuery = (location.state as any)?.prefillQuery || '';
+  const [searchParams] = useSearchParams();
+  const prefillQuery = (location.state as any)?.prefillQuery || searchParams.get('q') || '';
+  const prefillUrl = searchParams.get('url') || '';
   const { user, profile, credits, signInWithGoogle, getToken } = useAuthContext();
 
   const ADMIN_EMAILS = ['smythmyke@gmail.com'];
@@ -198,7 +200,7 @@ export default function Home() {
           </div>
         )}
 
-        <SearchForm onSearch={handleSearch} loading={loading} initialDescription={prefillQuery} />
+        <SearchForm onSearch={handleSearch} loading={loading} initialDescription={prefillQuery} initialUrl={prefillUrl} />
 
         {/* Pricing strip */}
         <div className="mt-12 flex items-center gap-6 md:gap-10 text-center text-sm">

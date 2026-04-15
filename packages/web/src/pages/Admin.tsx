@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { collection, getDocs, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -105,9 +105,13 @@ interface SearchConsoleData {
 interface ActivityLog {
   action: string;
   userId?: string;
+  anonId?: string | null;
   email?: string;
   query?: string;
   url?: string;
+  budget?: number | null;
+  location?: string | null;
+  pipelineStep?: string;
   inputType?: 'description' | 'url' | 'both';
   productLabel?: string;
   keywordCount?: number;
@@ -139,6 +143,7 @@ export default function Admin() {
   const [scDays, setScDays] = useState<7 | 28>(28);
   const [scLoading, setScLoading] = useState(false);
   const [scError, setScError] = useState<string | null>(null);
+  const [expandedErrorKey, setExpandedErrorKey] = useState<string | null>(null);
 
   const isAdmin = (profile?.email && ADMIN_EMAILS.includes(profile.email)) || (user?.email && ADMIN_EMAILS.includes(user.email));
 
@@ -525,6 +530,92 @@ export default function Admin() {
   if (authLoading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
   if (!isAdmin) return <Navigate to="/" replace />;
 
+  // Last 20 errors across both action types, newest first
+  const recentErrors: ActivityLog[] = logs.filter(
+    (l) => l.action === 'search_error' || l.action === 'audit_error',
+  ).slice(0, 20);
+
+  const reproUrl = (log: ActivityLog): string => {
+    if (log.action === 'audit_error') {
+      return log.url ? `/seo-audit?url=${encodeURIComponent(log.url)}` : '/seo-audit';
+    }
+    // search_error
+    const params = new URLSearchParams();
+    if (log.query) params.set('q', log.query);
+    if (log.url) params.set('url', log.url);
+    const qs = params.toString();
+    return qs ? `/?${qs}` : '/';
+  };
+
+  const copyDiagnostics = (log: ActivityLog) => {
+    const lines = [
+      `action: ${log.action}`,
+      `time: ${log.timestamp}`,
+      log.pipelineStep ? `pipelineStep: ${log.pipelineStep}` : null,
+      log.userId ? `userId: ${log.userId}` : null,
+      log.anonId ? `anonId: ${log.anonId}` : null,
+      log.query ? `query: ${log.query}` : null,
+      log.url ? `url: ${log.url}` : null,
+      log.budget != null ? `budget: ${log.budget}` : null,
+      log.location ? `location: ${log.location}` : null,
+      log.error ? `error: ${log.error}` : null,
+    ].filter(Boolean);
+    try {
+      void navigator.clipboard.writeText(lines.join('\n'));
+    } catch {
+      // ignore
+    }
+  };
+
+  const renderErrorDetails = (log: ActivityLog, keyPrefix: string) => (
+    <div className="bg-gray-950 border border-red-500/20 rounded-lg p-3 text-xs space-y-1.5">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-400">
+        <span><span className="text-gray-500">time:</span> <span className="text-gray-200">{log.timestamp}</span></span>
+        {log.pipelineStep && (
+          <span><span className="text-gray-500">step:</span> <span className="text-yellow-400">{log.pipelineStep}</span></span>
+        )}
+        <span>
+          <span className="text-gray-500">user:</span>{' '}
+          <span className="text-gray-200">
+            {log.userId === 'anonymous' ? 'anon' : log.userId?.slice(0, 10) || '—'}
+            {log.anonId ? ` (${log.anonId.slice(0, 8)})` : ''}
+          </span>
+        </span>
+      </div>
+      {log.query && (
+        <div className="text-gray-300"><span className="text-gray-500">query:</span> <span className="text-white break-words">{log.query}</span></div>
+      )}
+      {log.url && (
+        <div className="text-gray-300"><span className="text-gray-500">url:</span> <span className="text-cyan-400 break-all">{log.url}</span></div>
+      )}
+      {(log.budget != null || log.location) && (
+        <div className="text-gray-300">
+          {log.budget != null && (<><span className="text-gray-500">budget:</span> <span className="text-white">${log.budget}</span>{' '}</>)}
+          {log.location && (<><span className="text-gray-500">location:</span> <span className="text-white">{log.location}</span></>)}
+        </div>
+      )}
+      {log.error && (
+        <div className="text-red-400 break-words"><span className="text-gray-500">error:</span> {log.error}</div>
+      )}
+      <div className="flex gap-2 pt-2">
+        <button
+          onClick={(e) => { e.stopPropagation(); copyDiagnostics(log); }}
+          className="bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs px-3 py-1 rounded transition"
+        >
+          Copy
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); window.open(reproUrl(log), '_blank'); }}
+          className="bg-jackpot-500/20 hover:bg-jackpot-500/30 text-jackpot-400 text-xs px-3 py-1 rounded transition"
+        >
+          Reproduce ↗
+        </button>
+      </div>
+      {/* keyPrefix ensures stable key when this block re-renders */}
+      <span hidden data-key={keyPrefix} />
+    </div>
+  );
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
       <div className="flex items-center justify-between mb-8">
@@ -557,6 +648,27 @@ export default function Admin() {
             <StatCard label="Total Searches" value={stats.totalSearches} />
             <StatCard label="Free Searches Used" value={stats.totalFreeSearchesUsed} />
           </div>
+
+          {/* Recent Errors */}
+          {recentErrors.length > 0 && (
+            <div className="mb-10">
+              <h2 className="text-lg font-bold mb-4">Recent Errors <span className="text-xs font-normal text-gray-500">(last {recentErrors.length}, newest first)</span></h2>
+              <div className="bg-gray-900 border border-red-500/30 rounded-xl p-4 space-y-3">
+                {recentErrors.map((log, i) => (
+                  <div key={`err-${i}`} className="flex items-start gap-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${
+                      log.action === 'audit_error' ? 'bg-orange-500/10 text-orange-400' : 'bg-red-500/10 text-red-400'
+                    }`}>
+                      {log.action === 'audit_error' ? 'audit' : 'search'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      {renderErrorDetails(log, `recent-${i}`)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Plan Breakdown */}
           <div className="grid md:grid-cols-2 gap-6 mb-10">
@@ -1066,60 +1178,84 @@ export default function Admin() {
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log, i) => (
-                      <tr key={i} className="border-b border-gray-800/50">
-                        <td className="px-3 py-2 text-gray-500 whitespace-nowrap text-xs">{log.timestamp}</td>
-                        <td className="px-3 py-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            log.action === 'search' ? 'bg-blue-500/10 text-blue-400' :
-                            log.action === 'seo_audit' ? 'bg-green-500/10 text-green-400' :
-                            log.action === 'audit_error' ? 'bg-red-500/10 text-red-400' :
-                            log.action === 'search_error' ? 'bg-red-500/10 text-red-400' :
-                            log.action === 'save' ? 'bg-green-500/10 text-green-400' :
-                            log.action === 'claim' ? 'bg-jackpot-500/10 text-jackpot-400' :
-                            log.action === 'auth_init' ? 'bg-purple-500/10 text-purple-400' :
-                            'bg-gray-800 text-gray-400'
-                          }`}>
-                            {log.action}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-gray-300 text-xs">
-                          {log.action === 'search' && (
-                            <>
-                              <span className="text-gray-500">{log.userId === 'anonymous' ? 'anon' : log.userId?.slice(0, 8)}</span>
-                              {' '}&mdash; {log.productLabel || log.query}
-                              {log.inputType && (
-                                <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded ${
-                                  log.inputType === 'url' ? 'bg-cyan-500/10 text-cyan-400' :
-                                  log.inputType === 'both' ? 'bg-purple-500/10 text-purple-400' :
-                                  'bg-gray-800 text-gray-500'
-                                }`}>
-                                  {log.inputType === 'url' ? 'URL' : log.inputType === 'both' ? 'DESC+URL' : 'DESC'}
+                    {logs.map((log, i) => {
+                      const isError = log.action === 'search_error' || log.action === 'audit_error';
+                      const key = `log-${i}`;
+                      const isExpanded = isError && expandedErrorKey === key;
+                      return (
+                        <React.Fragment key={i}>
+                          <tr
+                            className={`border-b border-gray-800/50 ${isError ? 'cursor-pointer hover:bg-red-500/5' : ''}`}
+                            onClick={isError ? () => setExpandedErrorKey(isExpanded ? null : key) : undefined}
+                          >
+                            <td className="px-3 py-2 text-gray-500 whitespace-nowrap text-xs">{log.timestamp}</td>
+                            <td className="px-3 py-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                log.action === 'search' ? 'bg-blue-500/10 text-blue-400' :
+                                log.action === 'seo_audit' ? 'bg-green-500/10 text-green-400' :
+                                log.action === 'audit_error' ? 'bg-red-500/10 text-red-400' :
+                                log.action === 'search_error' ? 'bg-red-500/10 text-red-400' :
+                                log.action === 'save' ? 'bg-green-500/10 text-green-400' :
+                                log.action === 'claim' ? 'bg-jackpot-500/10 text-jackpot-400' :
+                                log.action === 'auth_init' ? 'bg-purple-500/10 text-purple-400' :
+                                'bg-gray-800 text-gray-400'
+                              }`}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-gray-300 text-xs">
+                              {log.action === 'search' && (
+                                <>
+                                  <span className="text-gray-500">{log.userId === 'anonymous' ? 'anon' : log.userId?.slice(0, 8)}</span>
+                                  {' '}&mdash; {log.productLabel || log.query}
+                                  {log.inputType && (
+                                    <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded ${
+                                      log.inputType === 'url' ? 'bg-cyan-500/10 text-cyan-400' :
+                                      log.inputType === 'both' ? 'bg-purple-500/10 text-purple-400' :
+                                      'bg-gray-800 text-gray-500'
+                                    }`}>
+                                      {log.inputType === 'url' ? 'URL' : log.inputType === 'both' ? 'DESC+URL' : 'DESC'}
+                                    </span>
+                                  )}
+                                  {' '}<span className="text-gray-500">({log.keywordCount} kw, {((log.executionTimeMs || 0) / 1000).toFixed(1)}s)</span>
+                                </>
+                              )}
+                              {log.action === 'search_error' && (
+                                <span className="text-red-400">
+                                  {log.error} <span className="text-gray-500 ml-2">{isExpanded ? '▼' : '▶'} click for details</span>
                                 </span>
                               )}
-                              {' '}<span className="text-gray-500">({log.keywordCount} kw, {((log.executionTimeMs || 0) / 1000).toFixed(1)}s)</span>
-                            </>
+                              {log.action === 'audit_error' && (
+                                <span className="text-red-400">
+                                  {log.error} <span className="text-gray-500 ml-2">{isExpanded ? '▼' : '▶'} click for details</span>
+                                </span>
+                              )}
+                              {log.action === 'save' && (
+                                <>
+                                  <span className="text-gray-500">{log.userId?.slice(0, 8)}</span>
+                                  {' '}&mdash; {log.query} <span className="text-gray-500">({log.keywordCount} kw)</span>
+                                </>
+                              )}
+                              {log.action === 'claim' && (
+                                <span className="text-gray-500">{log.userId?.slice(0, 8)} {log.paid ? '(paid)' : '(free)'}</span>
+                              )}
+                              {log.action === 'auth_init' && (
+                                <>
+                                  {log.email} {log.isNewUser && <span className="text-green-400 ml-1">NEW</span>}
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="border-b border-gray-800/50 bg-gray-950">
+                              <td colSpan={3} className="px-3 py-3">
+                                {renderErrorDetails(log, key)}
+                              </td>
+                            </tr>
                           )}
-                          {log.action === 'search_error' && (
-                            <span className="text-red-400">{log.error}</span>
-                          )}
-                          {log.action === 'save' && (
-                            <>
-                              <span className="text-gray-500">{log.userId?.slice(0, 8)}</span>
-                              {' '}&mdash; {log.query} <span className="text-gray-500">({log.keywordCount} kw)</span>
-                            </>
-                          )}
-                          {log.action === 'claim' && (
-                            <span className="text-gray-500">{log.userId?.slice(0, 8)} {log.paid ? '(paid)' : '(free)'}</span>
-                          )}
-                          {log.action === 'auth_init' && (
-                            <>
-                              {log.email} {log.isNewUser && <span className="text-green-400 ml-1">NEW</span>}
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

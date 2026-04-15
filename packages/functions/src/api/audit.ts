@@ -134,6 +134,7 @@ router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest
 
     await logActivity('seo_audit', {
       userId: userId || 'anonymous',
+      anonId: req.anonId || null,
       url: normalizedUrl.slice(0, 200),
       domain: parsedUrl.hostname,
       overallScore: result.overallScore,
@@ -149,8 +150,9 @@ router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest
 
     await logActivity('audit_error', {
       userId: userId || 'anonymous',
-      url: normalizedUrl?.slice(0, 200),
-      error: error.message?.slice(0, 200),
+      anonId: req.anonId || null,
+      url: normalizedUrl?.slice(0, 500) || null,
+      error: error.message?.slice(0, 500),
     });
 
     res.status(500).json({ error: 'SEO audit failed. Please try again.' });
