@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
-import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
+import { checkAndDeductCredits, refundCredits, getCreditBypassOptions } from '../middleware/credits';
 import { anonymousRateLimit } from '../middleware/rateLimit';
 import { anonSearchLimit, refundAnonSearch } from '../middleware/anonSearchLimit';
 import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
@@ -120,7 +120,7 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
   // Step 0: Check and deduct credits (skip for anonymous)
   let creditResult = { allowed: true, newBalance: 0, isFreeSearch: true };
   if (!isAnonymous) {
-    creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'keyword search');
+    creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'keyword search', getCreditBypassOptions(req));
 
     if (!creditResult.allowed) {
       res.status(402).json({
@@ -312,7 +312,7 @@ router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
       return;
     }
 
-    const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'claimed search');
+    const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'claimed search', getCreditBypassOptions(req));
     if (!creditResult.allowed) {
       res.status(402).json({ error: 'Insufficient credits', balance: creditResult.newBalance });
       return;
@@ -473,7 +473,7 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
   }
 
   // Half credit cost
-  const creditResult = await checkAndDeductCredits(userId, 0.5, 'expand_search', 'expand results');
+  const creditResult = await checkAndDeductCredits(userId, 0.5, 'expand_search', 'expand results', getCreditBypassOptions(req));
   if (!creditResult.allowed) {
     res.status(402).json({ error: 'Insufficient credits', balance: creditResult.newBalance });
     return;

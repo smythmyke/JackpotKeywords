@@ -4,6 +4,20 @@ import { auth, googleProvider } from '../services/firebase';
 import { initUser } from '../services/api';
 import { trackSignUp } from '../services/analytics';
 import { trackEvent } from '../lib/analytics';
+
+const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
+
+function maybeEnableAdminBypass(email: string | null | undefined) {
+  if (!email || !ADMIN_EMAILS.includes(email)) return;
+  try {
+    if (localStorage.getItem('jk_admin_bypass') !== ADMIN_BYPASS_TOKEN) {
+      localStorage.setItem('jk_admin_bypass', ADMIN_BYPASS_TOKEN);
+    }
+  } catch {
+    // ignore storage failures
+  }
+}
 import { readAttribution, clearAttribution } from '../services/attribution';
 import type { UserProfile, UserCredits } from '@jackpotkeywords/shared';
 
@@ -26,6 +40,10 @@ export function useAuth() {
 
   const initUserProfile = useCallback(async (user: User) => {
     try {
+      // Auto-enable admin bypass on first sign-in so admin testing (including
+      // signed-out flows afterwards) doesn't hit the free-tier cap. Persists
+      // in localStorage until explicitly removed.
+      maybeEnableAdminBypass(user.email);
       const token = await user.getIdToken();
       const attribution = readAttribution();
       const data = await initUser(token, attribution);

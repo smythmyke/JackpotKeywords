@@ -11,12 +11,46 @@ interface CreditResult {
   isFreeSearch: boolean;
 }
 
+const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
+
+/**
+ * Helper for route handlers: returns { tokenEmail, adminBypass } options ready
+ * to pass into checkAndDeductCredits. Centralises the bypass-header parsing
+ * and Firebase-token email lookup so every caller gets the same admin handling.
+ */
+export function getCreditBypassOptions(req: {
+  headers: Record<string, any>;
+  userEmail?: string;
+}): { tokenEmail?: string; adminBypass?: boolean } {
+  const raw = req.headers['x-admin-bypass'];
+  const bypassValue = Array.isArray(raw) ? raw[0] : raw;
+  const adminBypass = !!bypassValue && bypassValue.toString().trim() === ADMIN_BYPASS_TOKEN;
+  return {
+    tokenEmail: req.userEmail,
+    adminBypass,
+  };
+}
+
 export async function checkAndDeductCredits(
   userId: string,
   creditsNeeded: number,
   operation: OperationType,
   description: string,
+  options: { tokenEmail?: string; adminBypass?: boolean } = {},
 ): Promise<CreditResult> {
+  // Short-circuit admin bypass before opening a transaction. Checks three
+  // sources so we don't get stuck if the Firestore user doc is stale/missing:
+  // 1. Explicit header-based bypass (admin testing while signed in)
+  // 2. Firebase-token email (authoritative — set by authMiddleware)
+  // 3. (Below inside the transaction) Firestore userData.email fallback
+  if (options.adminBypass) {
+    return { allowed: true, newBalance: 0, isFreeSearch: false };
+  }
+  if (options.tokenEmail && ADMIN_EMAILS.includes(options.tokenEmail)) {
+    return { allowed: true, newBalance: 0, isFreeSearch: false };
+  }
+
   const creditsRef = db.doc(`users/${userId}/credits/balance`);
   const transactionsRef = db.collection(`users/${userId}/transactions`);
 
@@ -40,8 +74,7 @@ export async function checkAndDeductCredits(
       const plan = userData?.plan || 'free';
       const email = userData?.email || '';
 
-      // Admin bypass
-      const ADMIN_EMAILS = ['smythmyke@gmail.com'];
+      // Admin bypass via Firestore email (fallback if tokenEmail wasn't passed)
       if (ADMIN_EMAILS.includes(email)) {
         return { allowed: true, newBalance: currentBalance, isFreeSearch: false };
       }

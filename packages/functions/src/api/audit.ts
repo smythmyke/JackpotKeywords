@@ -4,7 +4,7 @@ import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { anonymousRateLimit } from '../middleware/rateLimit';
 import { anonSearchLimit, refundAnonSearch } from '../middleware/anonSearchLimit';
-import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
+import { checkAndDeductCredits, refundCredits, getCreditBypassOptions } from '../middleware/credits';
 import { runSeoAudit } from '../services/seoAudit';
 import { runMiniKeywordPipeline } from '../services/miniKeywordPipeline';
 import type { SeoAuditResult, MiniKeywordResult } from '@jackpotkeywords/shared';
@@ -131,7 +131,7 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), auditIpSafetyNet, as
   // Credit deduction for signed-in users — pooled with keyword search
   let creditResult = { allowed: true, newBalance: 0, isFreeSearch: true };
   if (!isAnonymous) {
-    creditResult = await checkAndDeductCredits(userId!, 1, 'seo_audit', 'SEO audit');
+    creditResult = await checkAndDeductCredits(userId!, 1, 'seo_audit', 'SEO audit', getCreditBypassOptions(req));
     if (!creditResult.allowed) {
       res.status(402).json({
         error: 'Insufficient credits',
