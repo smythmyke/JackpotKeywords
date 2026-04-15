@@ -199,6 +199,41 @@ export default function SeoAuditResults() {
     })();
   }, [result, user, getToken]);
 
+  // Keyword preview: sort visible rows by selected column, pin locked rows to the end.
+  // IMPORTANT: this useMemo must run BEFORE the early returns below. All hooks
+  // must be called unconditionally on every render — moving them after an
+  // early return causes hook-count mismatches and React to crash with #300
+  // when fetchLoading toggles during sign-in.
+  const COMPETITION_RANK: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, UNKNOWN: 4, UNSPECIFIED: 5 };
+  const sortedKeywords = useMemo(() => {
+    if (!keywordPreview) return [];
+    const locked = keywordPreview.filter((k) => k.keyword.startsWith('\u2022\u2022\u2022'));
+    const unlocked = keywordPreview.filter((k) => !k.keyword.startsWith('\u2022\u2022\u2022'));
+    const sorted = [...unlocked].sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === 'keyword') {
+        cmp = a.keyword.localeCompare(b.keyword);
+      } else if (sortColumn === 'volume') {
+        cmp = Number(a.monthlyVolume) - Number(b.monthlyVolume);
+      } else if (sortColumn === 'cpc') {
+        const aAvg = (Number(a.lowCpc) + Number(a.highCpc)) / 2;
+        const bAvg = (Number(b.lowCpc) + Number(b.highCpc)) / 2;
+        cmp = aAvg - bAvg;
+      } else if (sortColumn === 'competition') {
+        cmp = (COMPETITION_RANK[a.competition] || 99) - (COMPETITION_RANK[b.competition] || 99);
+      }
+      // Tie-breaker: alphabetical by keyword. Without this, many rows sharing
+      // the same volume (e.g., 15 keywords all at "10") stay in insertion
+      // order on both asc and desc, making the sort look broken.
+      if (cmp === 0 && sortColumn !== 'keyword') {
+        cmp = a.keyword.localeCompare(b.keyword);
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+    return [...sorted, ...locked];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keywordPreview, sortColumn, sortDirection]);
+
   if (fetchLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -250,36 +285,6 @@ export default function SeoAuditResults() {
   // Split checks into visible and blurred for unpaid
   const visibleChecks = paid ? filteredChecks : filteredChecks.slice(0, FREE_PREVIEW_CHECKS);
   const blurredChecks = paid ? [] : filteredChecks.slice(FREE_PREVIEW_CHECKS);
-
-  // Keyword preview: sort visible rows by selected column, pin locked rows to the end.
-  const COMPETITION_RANK: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, UNKNOWN: 4, UNSPECIFIED: 5 };
-  const sortedKeywords = useMemo(() => {
-    if (!keywordPreview) return [];
-    const locked = keywordPreview.filter((k) => k.keyword.startsWith('\u2022\u2022\u2022'));
-    const unlocked = keywordPreview.filter((k) => !k.keyword.startsWith('\u2022\u2022\u2022'));
-    const sorted = [...unlocked].sort((a, b) => {
-      let cmp = 0;
-      if (sortColumn === 'keyword') {
-        cmp = a.keyword.localeCompare(b.keyword);
-      } else if (sortColumn === 'volume') {
-        cmp = Number(a.monthlyVolume) - Number(b.monthlyVolume);
-      } else if (sortColumn === 'cpc') {
-        const aAvg = (Number(a.lowCpc) + Number(a.highCpc)) / 2;
-        const bAvg = (Number(b.lowCpc) + Number(b.highCpc)) / 2;
-        cmp = aAvg - bAvg;
-      } else if (sortColumn === 'competition') {
-        cmp = (COMPETITION_RANK[a.competition] || 99) - (COMPETITION_RANK[b.competition] || 99);
-      }
-      // Tie-breaker: alphabetical by keyword. Without this, many rows sharing
-      // the same volume (e.g., 15 keywords all at "10") stay in insertion
-      // order on both asc and desc, making the sort look broken.
-      if (cmp === 0 && sortColumn !== 'keyword') {
-        cmp = a.keyword.localeCompare(b.keyword);
-      }
-      return sortDirection === 'asc' ? cmp : -cmp;
-    });
-    return [...sorted, ...locked];
-  }, [keywordPreview, sortColumn, sortDirection]);
 
   const totalKeywords = sortedKeywords.length;
   const totalPages = Math.max(1, Math.ceil(totalKeywords / PAGE_SIZE));
