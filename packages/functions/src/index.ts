@@ -6,7 +6,12 @@ import cors from 'cors';
 admin.initializeApp();
 
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({
+  origin: true,
+  // Explicit allowed headers so custom keys (X-Anon-Id, X-Admin-Bypass) survive
+  // preflight on some proxies/CDNs that don't auto-mirror request headers.
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Anon-Id', 'X-Admin-Bypass'],
+}));
 app.use(express.json({ limit: '5mb' }));
 
 // Import routes

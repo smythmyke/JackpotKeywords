@@ -21,14 +21,20 @@ const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
  */
 export function getCreditBypassOptions(req: {
   headers: Record<string, any>;
+  query?: Record<string, any>;
+  body?: Record<string, any>;
   userEmail?: string;
 }): { tokenEmail?: string; adminBypass?: boolean } {
   const raw = req.headers['x-admin-bypass'];
-  const bypassValue = Array.isArray(raw) ? raw[0] : raw;
-  const adminBypass = !!bypassValue && bypassValue.toString().trim() === ADMIN_BYPASS_TOKEN;
+  const headerValue = Array.isArray(raw) ? raw[0] : raw;
+  const qp = (req.query?.adminBypass || req.query?.admin_bypass) as string | undefined;
+  const bodyBypass = (req.body?.adminBypass || req.body?.admin_bypass) as string | undefined;
+  const headerMatch = !!headerValue && headerValue.toString().trim() === ADMIN_BYPASS_TOKEN;
+  const qpMatch = !!qp && qp.trim() === ADMIN_BYPASS_TOKEN;
+  const bodyMatch = !!bodyBypass && bodyBypass.trim() === ADMIN_BYPASS_TOKEN;
   return {
     tokenEmail: req.userEmail,
-    adminBypass,
+    adminBypass: headerMatch || qpMatch || bodyMatch,
   };
 }
 

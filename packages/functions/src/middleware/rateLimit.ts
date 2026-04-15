@@ -20,7 +20,12 @@ const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
 function hasAdminBypass(req: Request | AuthRequest): boolean {
   const raw = req.headers['x-admin-bypass'];
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return !!value && value.toString().trim() === ADMIN_BYPASS_TOKEN;
+  if (value && value.toString().trim() === ADMIN_BYPASS_TOKEN) return true;
+  const qp = (req.query?.adminBypass || req.query?.admin_bypass) as string | undefined;
+  if (qp && qp.trim() === ADMIN_BYPASS_TOKEN) return true;
+  const bodyBypass = (req.body?.adminBypass || req.body?.admin_bypass) as string | undefined;
+  if (bodyBypass && bodyBypass.trim() === ADMIN_BYPASS_TOKEN) return true;
+  return false;
 }
 
 export function anonymousRateLimit(opts: {

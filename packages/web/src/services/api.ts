@@ -11,18 +11,38 @@ async function apiFetch(path: string, token: string | null, options: RequestInit
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  // Admin testing bypass — if localStorage has the key, forward as header so
-  // the backend can skip anon rate limits and lifetime caps during testing.
+  // Admin testing bypass — forward via header (primary), query param (fallback),
+  // and body field for POSTs (belt-and-suspenders). Any proxy that strips the
+  // header can't also strip the URL and body.
+  let bypass: string | null = null;
   try {
-    const bypass = localStorage.getItem('jk_admin_bypass');
-    if (bypass) headers['X-Admin-Bypass'] = bypass;
+    bypass = localStorage.getItem('jk_admin_bypass');
   } catch {
-    // ignore
+    // ignore storage failures
+  }
+  if (bypass) headers['X-Admin-Bypass'] = bypass;
+
+  let finalPath = path;
+  let finalOptions = options;
+  if (bypass) {
+    // Append query-param fallback
+    finalPath = path.includes('?')
+      ? `${path}&adminBypass=${encodeURIComponent(bypass)}`
+      : `${path}?adminBypass=${encodeURIComponent(bypass)}`;
+    // Merge into JSON body for POSTs that already have one
+    if (options.body && typeof options.body === 'string') {
+      try {
+        const parsed = JSON.parse(options.body);
+        finalOptions = { ...options, body: JSON.stringify({ ...parsed, adminBypass: bypass }) };
+      } catch {
+        // body isn't JSON, leave it alone
+      }
+    }
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { ...headers, ...options.headers },
+  const res = await fetch(`${API_URL}${finalPath}`, {
+    ...finalOptions,
+    headers: { ...headers, ...(finalOptions.headers || {}) },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

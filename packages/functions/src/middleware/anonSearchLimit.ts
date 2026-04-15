@@ -8,16 +8,24 @@ const db = admin.firestore();
 const MAX_ANON_LIFETIME_SEARCHES = 3;
 const COLLECTION = 'anonSearchCounts';
 
-// Admin testing bypass. If a request carries X-Admin-Bypass matching the token
-// below, skip the anon lifetime cap. Lets the admin test anon flows repeatedly
-// without signing in. The token is long enough that casual probing can't guess
-// it, and it only bypasses the free-tier counter — no data access escalation.
+// Admin testing bypass. If a request carries X-Admin-Bypass (or ?adminBypass=
+// query param) matching the token below, skip the anon lifetime cap. Lets the
+// admin test anon flows repeatedly without signing in. The token is long
+// enough that casual probing can't guess it, and it only bypasses the free-
+// tier counter — no data access escalation.
 const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
 
 function hasAdminBypass(req: AuthRequest): boolean {
   const raw = req.headers['x-admin-bypass'];
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return !!value && value.toString().trim() === ADMIN_BYPASS_TOKEN;
+  if (value && value.toString().trim() === ADMIN_BYPASS_TOKEN) return true;
+  // Query-param fallback (immune to CORS/proxy header stripping)
+  const qp = (req.query?.adminBypass || req.query?.admin_bypass) as string | undefined;
+  if (qp && qp.trim() === ADMIN_BYPASS_TOKEN) return true;
+  // Body-field fallback (for POSTs when headers are hard to control)
+  const bodyBypass = (req.body?.adminBypass || req.body?.admin_bypass) as string | undefined;
+  if (bodyBypass && bodyBypass.trim() === ADMIN_BYPASS_TOKEN) return true;
+  return false;
 }
 
 export function anonSearchLimit() {
@@ -30,9 +38,14 @@ export function anonSearchLimit() {
 
     // Admin test bypass — see ADMIN_BYPASS_TOKEN comment above
     if (hasAdminBypass(req)) {
+      functions.logger.info('[anonSearchLimit] admin bypass matched, skipping cap');
       next();
       return;
     }
+    functions.logger.info('[anonSearchLimit] no bypass — proceeding with cap check', {
+      anonId: req.anonId,
+      hasHeader: !!req.headers['x-admin-bypass'],
+    });
 
     const anonId = req.anonId;
     if (!anonId) {
