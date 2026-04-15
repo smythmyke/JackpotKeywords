@@ -457,19 +457,37 @@ export default function SeoAuditResults() {
           </section>
         )}
 
-        {/* Bundled mini keyword preview — real volume/CPC for gap keywords */}
-        {(keywordPreviewLoading || (keywordPreview && keywordPreview.length > 0)) && (
+        {/* Bundled mini keyword preview — real volume/CPC from Google Ads */}
+        {(keywordPreviewLoading || (keywordPreview !== null && keywordPreview.length > 0) || (keywordPreview !== null && keywordPreview.length < 3 && !keywordPreviewLoading) || keywordPreviewError) && (
           <section className="mb-12">
             <h2 className="text-xl font-bold text-white mb-2">
               Keyword Opportunities for {domain}
             </h2>
             <p className="text-sm text-gray-400 mb-4">
-              Real search volume &amp; CPC data for keywords your site is missing. Top opportunities locked — unlock with Pro or a single-search credit.
+              Real search volume &amp; CPC data from Google Ads. Top opportunities locked — unlock with Pro or a single-search credit.
             </p>
             {keywordPreviewLoading ? (
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
                 <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-jackpot-500 border-t-transparent mb-2" />
                 <div>Finding keyword opportunities…</div>
+                <div className="text-xs text-gray-500 mt-1">This takes ~10-15 seconds</div>
+              </div>
+            ) : keywordPreviewError || (keywordPreview !== null && keywordPreview.length < 3) ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                <p className="text-gray-300 mb-4">
+                  {keywordPreviewError
+                    ? 'Keyword preview unavailable right now.'
+                    : `We found limited keyword data for ${domain} from the audit alone.`}
+                </p>
+                <p className="text-sm text-gray-400 mb-4">
+                  Run a full keyword search for {domain} to uncover 1,000+ scored opportunities with clustering, intent classification, and Jackpot Scores.
+                </p>
+                <Link
+                  to={`/?url=${encodeURIComponent(result.url)}`}
+                  className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2.5 rounded-lg text-sm transition"
+                >
+                  Run full keyword research &rarr;
+                </Link>
               </div>
             ) : keywordPreview && keywordPreview.length > 0 ? (
               <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
@@ -508,13 +526,6 @@ export default function SeoAuditResults() {
                 </table>
               </div>
             ) : null}
-          </section>
-        )}
-        {keywordPreviewError && !keywordPreviewLoading && (
-          <section className="mb-12">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm text-gray-400">
-              Keyword preview unavailable. Run a full keyword search for {domain} to get scored opportunities.
-            </div>
           </section>
         )}
 

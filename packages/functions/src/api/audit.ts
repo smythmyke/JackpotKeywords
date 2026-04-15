@@ -306,29 +306,22 @@ router.post('/:auditId/keywords', optionalAuthMiddleware, async (req: AuthReques
 
     const auditData = auditDoc.data()!;
 
-    // Return cached preview if already computed
+    // Return cached preview if already computed. Re-apply the volume filter
+    // so audits cached before the filter landed no longer surface zero-volume rows.
     if (Array.isArray(auditData.keywordPreview) && auditData.keywordPreview.length > 0) {
+      const filtered = (auditData.keywordPreview as MiniKeywordResult[]).filter(
+        (k) => (k.monthlyVolume ?? 0) >= 10,
+      );
       res.json({
-        keywordPreview: maskKeywordPreview(auditData.keywordPreview as MiniKeywordResult[], isPaid),
+        keywordPreview: maskKeywordPreview(filtered, isPaid),
         paid: isPaid,
         cached: true,
       });
       return;
     }
 
-    // Collect seeds from Gemini-identified gap sampleKeywords
-    const gaps = Array.isArray(auditData.keywordGaps) ? auditData.keywordGaps : [];
-    const seeds: string[] = [];
-    for (const gap of gaps) {
-      if (Array.isArray(gap.sampleKeywords)) {
-        seeds.push(...gap.sampleKeywords);
-      }
-      if (typeof gap.keyword === 'string' && gap.keyword.trim()) {
-        seeds.push(gap.keyword);
-      }
-    }
-
-    const preview = await runMiniKeywordPipeline(seeds);
+    const auditUrl = typeof auditData.url === 'string' ? auditData.url : '';
+    const preview = await runMiniKeywordPipeline(auditUrl);
 
     // Persist full unmasked preview to audit doc(s)
     const updates = { keywordPreview: preview.length > 0 ? preview : [] };
@@ -345,7 +338,6 @@ router.post('/:auditId/keywords', optionalAuthMiddleware, async (req: AuthReques
       userId: userId || 'anonymous',
       anonId: req.anonId || null,
       auditId,
-      seedCount: seeds.length,
       keywordCount: preview.length,
     });
 
