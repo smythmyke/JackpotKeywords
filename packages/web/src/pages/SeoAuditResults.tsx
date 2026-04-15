@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult, type SeoAuditKeywordGap } from '@jackpotkeywords/shared';
+import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult, type SeoAuditKeywordGap, type MiniKeywordResult } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getAuditResult } from '../services/api';
+import { getAuditResult, fetchAuditKeywords } from '../services/api';
 import ScoreGauge from '../components/audit/ScoreGauge';
 import CategoryScoreCard from '../components/audit/CategoryScoreCard';
 import CheckItem from '../components/audit/CheckItem';
 import KeywordGapModal from '../components/audit/KeywordGapModal';
+import MaskedKeyword from '../components/MaskedKeyword';
 
 const CATEGORIES: SeoAuditCategory[] = [
   'technical', 'content', 'crawlability', 'structured_data', 'local_geo', 'social_sharing',
@@ -28,6 +29,10 @@ export default function SeoAuditResults() {
   const fetchAttempted = useRef(false);
   const [selectedGap, setSelectedGap] = useState<SeoAuditKeywordGap | null>(null);
   const [gapModalOpen, setGapModalOpen] = useState(false);
+  const [keywordPreview, setKeywordPreview] = useState<MiniKeywordResult[] | null>(null);
+  const [keywordPreviewLoading, setKeywordPreviewLoading] = useState(false);
+  const [keywordPreviewError, setKeywordPreviewError] = useState(false);
+  const keywordPreviewFetched = useRef(false);
 
   // Try location state first, then sessionStorage
   let stateResult = (location.state as any)?.result as SeoAuditResult | undefined;
@@ -113,6 +118,32 @@ export default function SeoAuditResults() {
 
   // Prefer fetched (unmasked) result over state (possibly masked) result
   let result = fetchedResult || stateResult;
+
+  // Lazy-fetch the bundled mini keyword preview once the audit has loaded.
+  // Runs in the background so users see the audit instantly while the
+  // preview (~3-5s of Keyword Planner) streams in behind.
+  useEffect(() => {
+    if (!result || keywordPreviewFetched.current) return;
+    if (result.keywordPreview && result.keywordPreview.length > 0) {
+      setKeywordPreview(result.keywordPreview);
+      keywordPreviewFetched.current = true;
+      return;
+    }
+    if (!result.id) return;
+    keywordPreviewFetched.current = true;
+    setKeywordPreviewLoading(true);
+    (async () => {
+      try {
+        const token = user ? await getToken() : null;
+        const resp = await fetchAuditKeywords(token, result!.id);
+        setKeywordPreview(resp.keywordPreview || []);
+      } catch {
+        setKeywordPreviewError(true);
+      } finally {
+        setKeywordPreviewLoading(false);
+      }
+    })();
+  }, [result, user, getToken]);
 
   if (fetchLoading) {
     return (
@@ -422,6 +453,67 @@ export default function SeoAuditResults() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {/* Bundled mini keyword preview — real volume/CPC for gap keywords */}
+        {(keywordPreviewLoading || (keywordPreview && keywordPreview.length > 0)) && (
+          <section className="mb-12">
+            <h2 className="text-xl font-bold text-white mb-2">
+              Keyword Opportunities for {domain}
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Real search volume &amp; CPC data for keywords your site is missing. Top opportunities locked — unlock with Pro or a single-search credit.
+            </p>
+            {keywordPreviewLoading ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-jackpot-500 border-t-transparent mb-2" />
+                <div>Finding keyword opportunities…</div>
+              </div>
+            ) : keywordPreview && keywordPreview.length > 0 ? (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-950 text-xs text-gray-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="text-left px-4 py-2">Keyword</th>
+                      <th className="text-right px-4 py-2">Volume</th>
+                      <th className="text-right px-4 py-2">CPC</th>
+                      <th className="text-right px-4 py-2">Competition</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {keywordPreview.map((kw, i) => (
+                      <tr key={i} className="border-t border-gray-800">
+                        <td className="px-4 py-2">
+                          <MaskedKeyword keyword={kw.keyword} paid={paid} />
+                        </td>
+                        <td className="px-4 py-2 text-right text-white tabular-nums">{kw.monthlyVolume.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-right text-white tabular-nums">
+                          ${kw.lowCpc.toFixed(2)}&ndash;${kw.highCpc.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            kw.competition === 'LOW' ? 'bg-green-500/10 text-green-400' :
+                            kw.competition === 'MEDIUM' ? 'bg-yellow-500/10 text-yellow-400' :
+                            kw.competition === 'HIGH' ? 'bg-red-500/10 text-red-400' :
+                            'bg-gray-800 text-gray-500'
+                          }`}>
+                            {kw.competition}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </section>
+        )}
+        {keywordPreviewError && !keywordPreviewLoading && (
+          <section className="mb-12">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm text-gray-400">
+              Keyword preview unavailable. Run a full keyword search for {domain} to get scored opportunities.
             </div>
           </section>
         )}

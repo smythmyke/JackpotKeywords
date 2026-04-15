@@ -1,4 +1,4 @@
-import type { SearchResult, SeoAuditResult } from '@jackpotkeywords/shared';
+import type { SearchResult, SeoAuditResult, MiniKeywordResult } from '@jackpotkeywords/shared';
 import { getAnonId } from '../lib/anonId';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
@@ -145,4 +145,11 @@ export async function listAudits(token: string): Promise<{ audits: any[] }> {
 
 export async function getAuditResult(token: string, auditId: string): Promise<SeoAuditResult> {
   return apiFetch(`/api/audit/${auditId}`, token);
+}
+
+export async function fetchAuditKeywords(
+  token: string | null,
+  auditId: string,
+): Promise<{ keywordPreview: MiniKeywordResult[] | null; paid: boolean; cached: boolean }> {
+  return apiFetch(`/api/audit/${auditId}/keywords`, token, { method: 'POST' });
 }

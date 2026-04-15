@@ -47,7 +47,7 @@ export default function Pricing() {
     <>
       <Helmet>
         <title>Pricing — JackpotKeywords</title>
-        <meta name="description" content="Keyword research from $1.99/search or $9.99/mo unlimited. 3 free searches, no credit card required. 14x cheaper than SEMrush." />
+        <meta name="description" content="Keyword research and SEO audits from $1.99/run or $9.99/mo unlimited. 3 free runs (search or audit), no credit card required. 14x cheaper than SEMrush." />
         <link rel="canonical" href="https://jackpotkeywords.web.app/pricing" />
         <script type="application/ld+json">
           {JSON.stringify({
@@ -61,7 +61,7 @@ export default function Pricing() {
                 name: 'Free Tier',
                 price: '0',
                 priceCurrency: 'USD',
-                description: '3 lifetime searches, no credit card required',
+                description: '3 lifetime runs (search or audit), no credit card required',
               },
               {
                 '@type': 'Offer',
@@ -93,7 +93,7 @@ export default function Pricing() {
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-white mb-4">Simple pricing</h1>
         <p className="text-gray-400 text-lg">
-          Try free. Pay per search. Or go unlimited.
+          Try free. Pay per run. Or go unlimited. Every plan covers keyword searches and SEO audits.
         </p>
       </div>
 
@@ -103,16 +103,16 @@ export default function Pricing() {
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 text-center">
           <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Start Here</div>
           <div className="text-3xl font-bold text-white">Free</div>
-          <div className="text-gray-400 text-sm mt-1">3 searches</div>
+          <div className="text-gray-400 text-sm mt-1">3 runs total</div>
           <ul className="mt-6 space-y-3 text-left">
             <li className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-score-green">&#10003;</span> 3 lifetime searches
+              <span className="text-score-green">&#10003;</span> 3 lifetime runs (search or audit)
             </li>
             <li className="flex items-center gap-2 text-sm text-gray-300">
               <span className="text-score-green">&#10003;</span> Full metrics visible
             </li>
             <li className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-score-green">&#10003;</span> Keywords blurred
+              <span className="text-score-green">&#10003;</span> 20 keywords revealed, rest locked
             </li>
             <li className="flex items-center gap-2 text-sm text-gray-300">
               <span className="text-score-green">&#10003;</span> No credit card required

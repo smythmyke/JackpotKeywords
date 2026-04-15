@@ -103,13 +103,13 @@ export default function Home() {
   const plan = profile?.plan || 'free';
 
   function getStatusLine(): string {
-    if (!user) return '3 free searches. No sign-up required.';
-    if (isAdmin) return 'Unlimited searches. Admin access.';
-    if (plan === 'pro') return 'Unlimited searches. Pro plan.';
-    if (plan === 'agency') return 'Unlimited searches. Agency plan.';
+    if (!user) return '3 free runs (search or audit). No sign-up required.';
+    if (isAdmin) return 'Unlimited runs. Admin access.';
+    if (plan === 'pro') return 'Unlimited searches and audits. Pro plan.';
+    if (plan === 'agency') return 'Unlimited searches and audits. Agency plan.';
     if (credits && credits.balance > 0) return `You have ${credits.balance} credit${credits.balance !== 1 ? 's' : ''} remaining.`;
-    if (credits && credits.freeSearchesUsed < 3) return `${3 - credits.freeSearchesUsed} of 3 free searches remaining.`;
-    return "You've used your free searches. Unlock more from $1.99.";
+    if (credits && credits.freeSearchesUsed < 3) return `${3 - credits.freeSearchesUsed} of 3 free runs remaining.`;
+    return "You've used your free runs. Unlock more from $1.99.";
   }
 
   const handleSearch = async (description: string, url: string, maxCpc?: number, location?: string) => {

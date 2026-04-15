@@ -3,8 +3,11 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { anonymousRateLimit } from '../middleware/rateLimit';
+import { anonSearchLimit, refundAnonSearch } from '../middleware/anonSearchLimit';
+import { checkAndDeductCredits, refundCredits } from '../middleware/credits';
 import { runSeoAudit } from '../services/seoAudit';
-import type { SeoAuditResult } from '@jackpotkeywords/shared';
+import { runMiniKeywordPipeline } from '../services/miniKeywordPipeline';
+import type { SeoAuditResult, MiniKeywordResult } from '@jackpotkeywords/shared';
 
 const router = Router();
 const db = admin.firestore();
@@ -28,6 +31,29 @@ async function logActivity(action: string, details: Record<string, any>) {
  */
 const FREE_PREVIEW_RECOMMENDATIONS = 2;
 const FREE_PREVIEW_GAPS = 2;
+
+/**
+ * Teaser size for mini keyword preview on audit — 20 mid-tier keywords
+ * after dropping the top 25% by volume (goldmines). Matches the keyword
+ * tool's masking pattern so the CTA to run a full search still shows real value.
+ */
+const KEYWORD_PREVIEW_TEASER_COUNT = 20;
+const KEYWORD_PREVIEW_JACKPOT_FRACTION = 0.25;
+
+function maskKeywordPreview(preview: MiniKeywordResult[], paid: boolean): MiniKeywordResult[] {
+  if (paid || preview.length === 0) return preview;
+  const sorted = [...preview].sort((a, b) => b.monthlyVolume - a.monthlyVolume);
+  const jackpotCutoff = Math.floor(sorted.length * KEYWORD_PREVIEW_JACKPOT_FRACTION);
+  const teaser = sorted.slice(jackpotCutoff, jackpotCutoff + KEYWORD_PREVIEW_TEASER_COUNT);
+  const visibleSet = new Set(teaser.map((k) => k.keyword));
+
+  let counter = 0;
+  return preview.map((kw) => {
+    if (visibleSet.has(kw.keyword)) return kw;
+    counter += 1;
+    return { ...kw, keyword: `••• locked ${counter}` };
+  });
+}
 
 function maskAnonymousAuditResponse(result: SeoAuditResult): SeoAuditResult {
   const maskedChecks = result.checks.map((check) => ({
@@ -66,14 +92,16 @@ function maskAnonymousAuditResponse(result: SeoAuditResult): SeoAuditResult {
  * POST /api/audit
  * Main SEO audit endpoint — free for signed-in users, preview for anonymous
  */
-const auditRateLimit = anonymousRateLimit({
-  maxRequests: 3,
-  windowSeconds: 3600, // 3 anonymous audits per hour per IP
+// IP safety net for anon — the primary gate is anonSearchLimit (3 lifetime per anon_id, pooled with keyword search).
+const auditIpSafetyNet = anonymousRateLimit({
+  maxRequests: 10,
+  windowSeconds: 86400,
   collection: 'rateLimits_audit',
 });
 
-router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest, res) => {
+router.post('/', optionalAuthMiddleware, anonSearchLimit(), auditIpSafetyNet, async (req: AuthRequest, res) => {
   const userId = req.userId;
+  const anonId = req.anonId;
   const isAnonymous = !userId;
   const { url } = req.body as { url?: string };
 
@@ -100,7 +128,18 @@ router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest
     return;
   }
 
-  // No credit deduction — SEO audit is free for signed-in users
+  // Credit deduction for signed-in users — pooled with keyword search
+  let creditResult = { allowed: true, newBalance: 0, isFreeSearch: true };
+  if (!isAnonymous) {
+    creditResult = await checkAndDeductCredits(userId!, 1, 'seo_audit', 'SEO audit');
+    if (!creditResult.allowed) {
+      res.status(402).json({
+        error: 'Insufficient credits',
+        balance: creditResult.newBalance,
+      });
+      return;
+    }
+  }
 
   try {
     const auditData = await runSeoAudit(normalizedUrl);
@@ -111,6 +150,7 @@ router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest
       id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       createdAt: new Date().toISOString(),
       paid,
+      keywordPreview: null,
     };
 
     // Save audit to Firestore (strip undefined values to avoid Firestore rejection)
@@ -147,6 +187,13 @@ router.post('/', optionalAuthMiddleware, auditRateLimit, async (req: AuthRequest
     res.json(response);
   } catch (error: any) {
     functions.logger.error(`SEO Audit error: ${error.message}`, error);
+
+    // Refund on pipeline failure so user isn't charged for broken runs
+    if (!isAnonymous) {
+      await refundCredits(userId!, 1, `SEO audit failed: ${error.message}`);
+    } else if (anonId) {
+      await refundAnonSearch(anonId);
+    }
 
     await logActivity('audit_error', {
       userId: userId || 'anonymous',
@@ -225,6 +272,91 @@ router.get('/:auditId', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error: any) {
     functions.logger.error('Get audit error:', error);
     res.status(500).json({ error: 'Failed to load audit' });
+  }
+});
+
+/**
+ * POST /api/audit/:auditId/keywords
+ * Bundled with the original audit credit — no additional deduction.
+ * Lazy-loaded from the frontend after the audit renders so users see
+ * results immediately and the KP enrichment (~3-5s) happens async.
+ * Result cached on the audit doc for idempotency.
+ */
+router.post('/:auditId/keywords', optionalAuthMiddleware, async (req: AuthRequest, res) => {
+  const { auditId } = req.params;
+  const userId = req.userId;
+  const isPaid = !!userId;
+
+  try {
+    // Load the audit — check user's personal collection first, then global
+    let auditDoc: admin.firestore.DocumentSnapshot | null = null;
+    if (userId) {
+      const userAudit = await db.doc(`users/${userId}/audits/${auditId}`).get();
+      if (userAudit.exists) auditDoc = userAudit;
+    }
+    if (!auditDoc || !auditDoc.exists) {
+      const global = await db.doc(`audits/${auditId}`).get();
+      if (global.exists) auditDoc = global;
+    }
+
+    if (!auditDoc || !auditDoc.exists) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    const auditData = auditDoc.data()!;
+
+    // Return cached preview if already computed
+    if (Array.isArray(auditData.keywordPreview) && auditData.keywordPreview.length > 0) {
+      res.json({
+        keywordPreview: maskKeywordPreview(auditData.keywordPreview as MiniKeywordResult[], isPaid),
+        paid: isPaid,
+        cached: true,
+      });
+      return;
+    }
+
+    // Collect seeds from Gemini-identified gap sampleKeywords
+    const gaps = Array.isArray(auditData.keywordGaps) ? auditData.keywordGaps : [];
+    const seeds: string[] = [];
+    for (const gap of gaps) {
+      if (Array.isArray(gap.sampleKeywords)) {
+        seeds.push(...gap.sampleKeywords);
+      }
+      if (typeof gap.keyword === 'string' && gap.keyword.trim()) {
+        seeds.push(gap.keyword);
+      }
+    }
+
+    const preview = await runMiniKeywordPipeline(seeds);
+
+    // Persist full unmasked preview to audit doc(s)
+    const updates = { keywordPreview: preview.length > 0 ? preview : [] };
+    try {
+      await db.doc(`audits/${auditId}`).set(updates, { merge: true });
+      if (userId) {
+        await db.doc(`users/${userId}/audits/${auditId}`).set(updates, { merge: true });
+      }
+    } catch (saveErr) {
+      functions.logger.warn('Audit keyword preview save failed:', saveErr);
+    }
+
+    await logActivity('audit_keyword_preview', {
+      userId: userId || 'anonymous',
+      anonId: req.anonId || null,
+      auditId,
+      seedCount: seeds.length,
+      keywordCount: preview.length,
+    });
+
+    res.json({
+      keywordPreview: maskKeywordPreview(preview, isPaid),
+      paid: isPaid,
+      cached: false,
+    });
+  } catch (error: any) {
+    functions.logger.error('Audit keyword preview error:', error.message);
+    res.status(500).json({ error: 'Failed to generate keyword preview' });
   }
 });
 

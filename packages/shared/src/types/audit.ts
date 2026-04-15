@@ -67,6 +67,14 @@ export interface SeoAuditRecommendation {
   category: SeoAuditCategory;
 }
 
+export interface MiniKeywordResult {
+  keyword: string;
+  monthlyVolume: number;
+  lowCpc: number;
+  highCpc: number;
+  competition: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
+}
+
 export interface SeoAuditResult {
   id: string;
   url: string;
@@ -79,6 +87,7 @@ export interface SeoAuditResult {
   pageResults: SeoAuditPageResult[];
   keywordGaps: SeoAuditKeywordGap[];
   recommendations: SeoAuditRecommendation[];
+  keywordPreview?: MiniKeywordResult[] | null;
   metadata: {
     pagesAnalyzed: number;
     executionTimeMs: number;
