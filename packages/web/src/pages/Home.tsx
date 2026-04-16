@@ -154,7 +154,28 @@ export default function Home() {
   return (
     <>
       <Helmet>
+        <title>JackpotKeywords — AI Keyword Research Tool</title>
+        <meta
+          name="description"
+          content="Describe your product. Find your goldmine keywords. AI-powered keyword research with real Google data at 1/14th the price of SEMrush."
+        />
         <link rel="canonical" href="https://jackpotkeywords.web.app/" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'JackpotKeywords',
+            applicationCategory: 'BusinessApplication',
+            operatingSystem: 'Web',
+            description:
+              'AI-powered keyword research tool with real Google Ads data. Discover 1,000+ keyword opportunities across 12 intent categories — scored, ranked, and ready to act on.',
+            url: 'https://jackpotkeywords.web.app',
+            offers: [
+              { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free tier — 3 searches' },
+              { '@type': 'Offer', price: '9.99', priceCurrency: 'USD', description: 'Pro — unlimited searches' },
+            ],
+          })}
+        </script>
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',

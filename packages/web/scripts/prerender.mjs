@@ -15,10 +15,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { marked } from 'marked';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '../dist');
 const BASE_URL = 'https://jackpotkeywords.web.app';
+
+marked.setOptions({ gfm: true, breaks: false });
 
 // Read the built index.html as our template
 const template = fs.readFileSync(path.join(DIST, 'index.html'), 'utf-8');
@@ -54,18 +57,11 @@ function extractArray(content, field) {
   return [...match[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map((m) => m[1] || m[2]);
 }
 
-function extractMarkdownExcerpt(content, maxLen = 300) {
+function renderMarkdown(content) {
   if (!content) return '';
-  // Get first ~300 chars of visible text from markdown
-  return content
-    .replace(/^#+\s+/gm, '')         // remove headings markers
-    .replace(/\*\*([^*]+)\*\*/g, '$1') // bold
-    .replace(/\*([^*]+)\*/g, '$1')     // italic
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
-    .replace(/^[-*]\s+/gm, '')        // list markers
-    .replace(/\n{2,}/g, '\n')
-    .trim()
-    .slice(0, maxLen);
+  // Unescape template-literal escape sequences (\`, \\, \$) captured from the TS source.
+  const normalized = content.replace(/\\([\s\S])/g, '$1');
+  return marked.parse(normalized);
 }
 
 const blogPosts = blogFiles.map((filename) => {
@@ -82,7 +78,8 @@ const blogPosts = blogFiles.map((filename) => {
   const heroImage = extractField(src, 'heroImage');
 
   // Extract markdown content between backticks after content:
-  const contentMatch = src.match(/content:\s*`([\s\S]*?)`\s*[,}]/);
+  // Must allow escaped backticks (\`) inside the template literal body.
+  const contentMatch = src.match(/content:\s*`((?:[^`\\]|\\[\s\S])*)`\s*[,}]/);
   const markdownContent = contentMatch ? contentMatch[1] : '';
 
   return { slug, title, description, date, author, readTime, keywords, heroImage, markdownContent };
@@ -171,7 +168,7 @@ const pages = [
 
 // Add blog posts as pages
 for (const post of blogPosts) {
-  const excerpt = extractMarkdownExcerpt(post.markdownContent);
+  const bodyHtml = renderMarkdown(post.markdownContent);
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -196,7 +193,7 @@ for (const post of blogPosts) {
 <h1>${post.title}</h1>
 <p><time datetime="${post.date}">${post.date}</time> &middot; ${post.readTime} &middot; ${post.author}</p>
 <p>${post.description}</p>
-<div>${excerpt}</div>
+${bodyHtml}
 <p><a href="${BASE_URL}/blog">Read more on the JackpotKeywords Blog</a></p>
 </article>`,
   });
@@ -256,9 +253,13 @@ function generatePage(page) {
     `<meta name="twitter:description" content="${escapeAttr(page.description)}"`,
   );
 
-  // Add canonical URL
+  // Set canonical URL — replace the shell's homepage canonical with the per-page one
   const canonicalTag = `<link rel="canonical" href="${BASE_URL}${page.path}" />`;
-  html = html.replace('</head>', `${canonicalTag}\n</head>`);
+  if (/<link rel="canonical"[^>]*>/.test(html)) {
+    html = html.replace(/<link rel="canonical"[^>]*>/, canonicalTag);
+  } else {
+    html = html.replace('</head>', `${canonicalTag}\n</head>`);
+  }
 
   // Add keywords meta if present
   if (page.keywords && page.keywords.length) {

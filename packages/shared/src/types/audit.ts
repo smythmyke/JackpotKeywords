@@ -82,7 +82,7 @@ export interface SeoAuditResult {
   createdAt: string;
   paid: boolean;
   overallScore: number;
-  categoryScores: Record<SeoAuditCategory, { score: number; passed: number; total: number }>;
+  categoryScores: Record<SeoAuditCategory, { score: number | null; passed: number; total: number }>;
   checks: SeoAuditCheckItem[];
   pageResults: SeoAuditPageResult[];
   keywordGaps: SeoAuditKeywordGap[];

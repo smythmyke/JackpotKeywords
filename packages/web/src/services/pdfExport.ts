@@ -123,11 +123,12 @@ export async function exportAuditPdf(
   const passed = result.checks.filter((c) => c.status === 'pass').length;
   const warnings = result.checks.filter((c) => c.status === 'warning').length;
   const failed = result.checks.filter((c) => c.status === 'fail').length;
+  const info = result.checks.filter((c) => c.status === 'info').length;
   const highPriorityIssues = result.checks.filter((c) => c.status !== 'pass' && c.priority === 'high').length;
 
   const summaryLines = [
     `We analyzed ${result.metadata.pagesAnalyzed} page${result.metadata.pagesAnalyzed === 1 ? '' : 's'} on ${domain} across ${totalChecks} SEO checks.`,
-    `${passed} checks passed, ${warnings} have warnings, and ${failed} failed outright.`,
+    `${passed} passed, ${warnings} warning${warnings === 1 ? '' : 's'}, ${failed} failed, and ${info} informational.`,
     highPriorityIssues > 0
       ? `${highPriorityIssues} high-priority issue${highPriorityIssues === 1 ? '' : 's'} require attention.`
       : 'No high-priority issues were detected.',
@@ -145,11 +146,12 @@ export async function exportAuditPdf(
     head: [['Category', 'Score', 'Passed', 'Total']],
     body: CATEGORIES.map((cat) => {
       const cs = result.categoryScores[cat];
+      const notApplicable = cs.score === null || cs.total === 0;
       return [
         SEO_AUDIT_CATEGORY_LABELS[cat],
-        `${cs.score}/100`,
-        String(cs.passed),
-        String(cs.total),
+        notApplicable ? 'N/A' : `${cs.score}/100`,
+        notApplicable ? '—' : String(cs.passed),
+        notApplicable ? '—' : String(cs.total),
       ];
     }),
     styles: { fontSize: 10, cellPadding: 3 },
@@ -162,6 +164,9 @@ export async function exportAuditPdf(
           const score = parseInt(match[1], 10);
           data.cell.styles.textColor = scoreColor(score);
           data.cell.styles.fontStyle = 'bold';
+        } else if (scoreStr === 'N/A') {
+          data.cell.styles.textColor = [140, 140, 140];
+          data.cell.styles.fontStyle = 'italic';
         }
       }
     },

@@ -665,21 +665,27 @@ RULES:
 // Scoring
 // ---------------------------------------------------------------------------
 
+// Warnings are graded at half credit — they signal a real issue but aren't a
+// hard failure. Empty categories return score: null so the UI can render "N/A"
+// instead of a misleading 100/100.
+const WARNING_CREDIT = 0.5;
+
 function calculateCategoryScores(
   checks: SeoAuditCheckItem[],
-): Record<SeoAuditCategory, { score: number; passed: number; total: number }> {
+): Record<SeoAuditCategory, { score: number | null; passed: number; total: number }> {
   const categories: SeoAuditCategory[] = [
     'technical', 'content', 'local_geo', 'structured_data', 'crawlability', 'social_sharing',
   ];
 
-  const scores = {} as Record<SeoAuditCategory, { score: number; passed: number; total: number }>;
+  const scores = {} as Record<SeoAuditCategory, { score: number | null; passed: number; total: number }>;
 
   for (const cat of categories) {
     const catChecks = checks.filter((c) => c.category === cat && c.status !== 'info');
     const passed = catChecks.filter((c) => c.status === 'pass').length;
+    const warnings = catChecks.filter((c) => c.status === 'warning').length;
     const total = catChecks.length;
     scores[cat] = {
-      score: total > 0 ? Math.round((passed / total) * 100) : 100,
+      score: total > 0 ? Math.round(((passed + warnings * WARNING_CREDIT) / total) * 100) : null,
       passed,
       total,
     };
@@ -689,14 +695,14 @@ function calculateCategoryScores(
 }
 
 function calculateOverallScore(
-  categoryScores: Record<SeoAuditCategory, { score: number; passed: number; total: number }>,
+  categoryScores: Record<SeoAuditCategory, { score: number | null; passed: number; total: number }>,
 ): number {
   let weightedSum = 0;
   let totalWeight = 0;
 
   for (const [cat, weight] of Object.entries(CATEGORY_WEIGHTS)) {
     const catScore = categoryScores[cat as SeoAuditCategory];
-    if (catScore && catScore.total > 0) {
+    if (catScore && catScore.total > 0 && catScore.score !== null) {
       weightedSum += catScore.score * weight;
       totalWeight += weight;
     }

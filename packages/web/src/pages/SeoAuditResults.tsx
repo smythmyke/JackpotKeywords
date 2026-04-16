@@ -349,7 +349,7 @@ export default function SeoAuditResults() {
               {result.metadata.pagesAnalyzed} pages analyzed in {(result.metadata.executionTimeMs / 1000).toFixed(0)}s
               &middot; {new Date(result.createdAt).toLocaleDateString()}
             </p>
-            <div className="flex gap-4 mt-3">
+            <div className="flex flex-wrap gap-4 mt-3">
               <span className="text-sm">
                 <span className="text-green-400 font-bold">{result.checks.filter((c) => c.status === 'pass').length}</span>
                 <span className="text-gray-500"> passed</span>
@@ -361,6 +361,10 @@ export default function SeoAuditResults() {
               <span className="text-sm">
                 <span className="text-red-400 font-bold">{result.checks.filter((c) => c.status === 'fail').length}</span>
                 <span className="text-gray-500"> failures</span>
+              </span>
+              <span className="text-sm">
+                <span className="text-gray-400 font-bold">{result.checks.filter((c) => c.status === 'info').length}</span>
+                <span className="text-gray-500"> info</span>
               </span>
             </div>
           </div>
@@ -418,7 +422,7 @@ export default function SeoAuditResults() {
               <CategoryScoreCard
                 key={cat}
                 category={cat}
-                score={cs?.score ?? 0}
+                score={cs?.score ?? null}
                 passed={cs?.passed ?? 0}
                 total={cs?.total ?? 0}
                 active={activeCategory === cat}
