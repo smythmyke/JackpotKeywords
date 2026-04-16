@@ -183,7 +183,7 @@ for (const post of blogPosts) {
 
   pages.push({
     path: `/blog/${post.slug}`,
-    title: `${post.title} — JackpotKeywords Blog`,
+    title: post.title,
     description: post.description,
     keywords: post.keywords,
     ogType: 'article',

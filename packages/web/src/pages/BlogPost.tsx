@@ -12,7 +12,7 @@ export default function BlogPost() {
   return (
     <>
       <Helmet>
-        <title>{post.title} — JackpotKeywords Blog</title>
+        <title>{post.title}</title>
         <meta name="description" content={post.description} />
         <meta name="keywords" content={post.keywords.join(', ')} />
         <meta property="og:title" content={post.title} />

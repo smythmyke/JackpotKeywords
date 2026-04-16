@@ -576,7 +576,9 @@ async function generateInsights(
   const hasBlog = allPaths.some((p) => /\/blog/i.test(p));
   const hasAbout = allPaths.some((p) => /\/about/i.test(p));
   const hasPricing = allPaths.some((p) => /\/pricing/i.test(p));
-  const hasComparisonPages = allPaths.some((p) => /\/(vs|alternative|compare)/i.test(p));
+  // Match dedicated comparison pages (/vs/foo, /compare/foo, /foo-alternative)
+  // AND blog-post-style comparison content (/blog/x-vs-y, /blog/x-alternative)
+  const hasComparisonPages = allPaths.some((p) => /(?:\/|-)(vs|alternative|compare)(?:\/|-|$)/i.test(p));
   const hasFeaturePages = allPaths.some((p) => /\/(features?|tools?)\//i.test(p));
   const hasJsonLdTypes = primary.jsonLdTypes;
 
