@@ -305,69 +305,53 @@ function selectSecondaryPages(
 async function analyzeSecondaryPages(urls: string[]): Promise<SeoAuditPageResult[]> {
   if (urls.length === 0) return [];
 
-  const urlList = urls.map((u, i) => `${i + 1}. ${u}`).join('\n');
-  const prompt = `You are an SEO auditor. For each URL below, fetch and analyze the page. Return ONLY valid JSON, no markdown.
+  const settled = await Promise.allSettled(urls.map((u) => fetchAndParse(u)));
+  const results: SeoAuditPageResult[] = [];
 
-URLs:
-${urlList}
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    const r = settled[i];
+    if (r.status !== 'fulfilled' || !r.value.fetchedHtml) {
+      const reason = r.status === 'rejected'
+        ? (r.reason?.message || 'unknown error')
+        : (r.value.fetchError || 'fetch failed');
+      functions.logger.warn(`Secondary page ${url} unfetchable: ${reason}`);
+      results.push({ url, wordCount: 0, issues: [] });
+      continue;
+    }
 
-Return a JSON array:
-[
-  {
-    "url": "the full URL",
-    "title": "page title tag or null",
-    "metaDescription": "meta description or null",
-    "h1": "first H1 tag or null",
-    "wordCount": 0,
-    "hasCanonical": true,
-    "hasJsonLd": false,
-    "jsonLdTypes": []
-  }
-]
+    const p = r.value;
+    const issues: SeoAuditCheckItem[] = [];
 
-If a page is unreachable, still include it with null values.`;
+    if (!p.title) {
+      issues.push({ id: `page_title_${url}`, category: 'technical', label: 'Missing title tag', status: 'fail', details: `${url} has no title tag`, priority: 'high' });
+    } else if (p.titleLength > 60) {
+      issues.push({ id: `page_title_long_${url}`, category: 'technical', label: 'Title too long', status: 'warning', details: `Title is ${p.titleLength} chars (recommended: under 60)`, priority: 'medium' });
+    }
 
-  const config = { config: { tools: [{ urlContext: {} }] } };
+    if (!p.metaDescription) {
+      issues.push({ id: `page_meta_${url}`, category: 'technical', label: 'Missing meta description', status: 'fail', details: `${url} has no meta description`, priority: 'high' });
+    }
 
-  try {
-    const text = await geminiGenerate(prompt, config);
-    functions.logger.info(`Secondary pages Gemini response (first 300 chars): ${text.slice(0, 300)}`);
-    const parsed = await safeParseGeminiJSON(text, 'array');
+    if (p.h1s.length === 0) {
+      issues.push({ id: `page_h1_${url}`, category: 'content', label: 'Missing H1', status: 'warning', details: `${url} has no H1 heading`, priority: 'medium' });
+    }
 
-    return (parsed || []).map((page: any) => {
-      const issues: SeoAuditCheckItem[] = [];
+    if (p.wordCount > 0 && p.wordCount < 300) {
+      issues.push({ id: `page_thin_${url}`, category: 'content', label: 'Thin content', status: 'warning', details: `Only ${p.wordCount} words (recommended: 300+)`, priority: 'medium' });
+    }
 
-      if (!page.title) {
-        issues.push({ id: `page_title_${page.url}`, category: 'technical', label: 'Missing title tag', status: 'fail', details: `${page.url} has no title tag`, priority: 'high' });
-      } else if (page.title.length > 60) {
-        issues.push({ id: `page_title_long_${page.url}`, category: 'technical', label: 'Title too long', status: 'warning', details: `Title is ${page.title.length} chars (recommended: under 60)`, priority: 'medium' });
-      }
-
-      if (!page.metaDescription) {
-        issues.push({ id: `page_meta_${page.url}`, category: 'technical', label: 'Missing meta description', status: 'fail', details: `${page.url} has no meta description`, priority: 'high' });
-      }
-
-      if (!page.h1) {
-        issues.push({ id: `page_h1_${page.url}`, category: 'content', label: 'Missing H1', status: 'warning', details: `${page.url} has no H1 heading`, priority: 'medium' });
-      }
-
-      if (page.wordCount && page.wordCount < 300) {
-        issues.push({ id: `page_thin_${page.url}`, category: 'content', label: 'Thin content', status: 'warning', details: `Only ${page.wordCount} words (recommended: 300+)`, priority: 'medium' });
-      }
-
-      return {
-        url: page.url,
-        title: page.title || undefined,
-        metaDescription: page.metaDescription || undefined,
-        h1: page.h1 || undefined,
-        wordCount: page.wordCount || 0,
-        issues,
-      };
+    results.push({
+      url,
+      title: p.title,
+      metaDescription: p.metaDescription,
+      h1: p.h1s[0],
+      wordCount: p.wordCount,
+      issues,
     });
-  } catch (err: any) {
-    functions.logger.warn(`Secondary page analysis failed: ${err.message}`);
-    return [];
   }
+
+  return results;
 }
 
 // ---------------------------------------------------------------------------
