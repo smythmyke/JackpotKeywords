@@ -103,7 +103,7 @@ export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id
 
   // Step 5: Generate keyword gaps + recommendations (Gemini)
   functions.logger.info('Step 5: Generating recommendations...');
-  const { keywordGaps, recommendations } = await generateInsights(primaryAnalysis, checks, domain);
+  const { keywordGaps, recommendations } = await generateInsights(primaryAnalysis, checks, domain, structure);
   functions.logger.info(`Step 5 done: ${keywordGaps.length} gaps, ${recommendations.length} recommendations`);
 
   // Calculate scores
@@ -577,9 +577,24 @@ async function generateInsights(
   primary: PrimaryPageAnalysis,
   checks: SeoAuditCheckItem[],
   domain: string,
+  structure: SiteStructure,
 ): Promise<{ keywordGaps: SeoAuditKeywordGap[]; recommendations: SeoAuditRecommendation[] }> {
-  const failedChecks = checks.filter((c) => c.status === 'fail' || c.status === 'warning');
-  const checkSummary = failedChecks.map((c) => `- [${c.status}] ${c.label}: ${c.details}`).join('\n');
+  const failingChecks = checks.filter((c) => c.status === 'fail' || c.status === 'warning');
+  const passingChecks = checks.filter((c) => c.status === 'pass');
+  const failingSummary = failingChecks.map((c) => `- [${c.status}] ${c.label}: ${c.details}`).join('\n');
+  const passingSummary = passingChecks.map((c) => `- ${c.label}: ${c.details}`).join('\n');
+
+  // Discover what the site has across both shell links and the sitemap
+  const allPaths = [
+    ...primary.internalLinks,
+    ...structure.sitemapUrls.map((u) => { try { return new URL(u).pathname; } catch { return u; } }),
+  ];
+  const hasBlog = allPaths.some((p) => /\/blog/i.test(p));
+  const hasAbout = allPaths.some((p) => /\/about/i.test(p));
+  const hasPricing = allPaths.some((p) => /\/pricing/i.test(p));
+  const hasComparisonPages = allPaths.some((p) => /\/(vs|alternative|compare)/i.test(p));
+  const hasFeaturePages = allPaths.some((p) => /\/(features?|tools?)\//i.test(p));
+  const hasJsonLdTypes = primary.jsonLdTypes;
 
   const prompt = `You are an SEO expert. Based on the following website analysis, provide keyword gap opportunities and prioritized recommendations.
 
@@ -588,10 +603,21 @@ Content summary: ${primary.contentSummary}
 Current title: "${primary.title || 'none'}"
 H1: "${primary.h1s[0] || 'none'}"
 Word count: ${primary.wordCount}
-Has blog: ${primary.internalLinks.some((l) => /\/blog/i.test(l))}
 
-Issues found:
-${checkSummary || 'No major issues found'}
+What this site already has (do NOT recommend adding these):
+- Has blog/content section: ${hasBlog}
+- Has about page: ${hasAbout}
+- Has pricing page: ${hasPricing}
+- Has competitor comparison/alternative pages: ${hasComparisonPages}
+- Has feature pages: ${hasFeaturePages}
+- JSON-LD schema types present: ${hasJsonLdTypes.length ? hasJsonLdTypes.join(', ') : 'none'}
+- Sitemap URL count: ${structure.sitemapUrls.length}
+
+Checks already passing (do NOT recommend fixing these):
+${passingSummary || 'none'}
+
+Issues to address:
+${failingSummary || 'No major issues found'}
 
 Return ONLY valid JSON, no markdown:
 {
@@ -618,9 +644,10 @@ RULES:
 - Return 5-10 keyword gaps based on what the site is about and what's missing
 - Return 5-10 recommendations, sorted by impact (highest first)
 - Be specific — reference the actual site content, not generic SEO advice
-- For keyword gaps: focus on topics/keywords the site doesn't currently target but should
+- For keyword gaps: focus on topics/keywords the site doesn't currently target but should. Stay strictly on-topic for the product described in the content summary — do NOT suggest seasonal, holiday, or off-topic keywords just because they have high search volume
 - For each keyword gap, include 4-6 specific long-tail keyword phrases a user could actually search for in Google. Make them realistic search queries, not just topic names
-- For recommendations: each should be directly actionable with a clear next step`;
+- For recommendations: each should be directly actionable with a clear next step
+- IMPORTANT: never recommend adding something the "What this site already has" list says is present, and never recommend fixing something in the "Checks already passing" list. Read those carefully before drafting recommendations.`;
 
   try {
     const text = await geminiGenerate(prompt);

@@ -30,8 +30,8 @@ export async function runMiniKeywordPipeline(auditUrl: string): Promise<MiniKeyw
     functions.logger.info(`Mini pipeline: extractProductContext for ${auditUrl}`);
     const context = await extractProductContext('', auditUrl);
 
-    functions.logger.info(`Mini pipeline: generateSeeds`);
-    const seedResult = await generateSeeds(context);
+    functions.logger.info(`Mini pipeline: generateSeeds (skipSeasonal=true)`);
+    const seedResult = await generateSeeds(context, undefined, { skipSeasonal: true });
     const aiSeeds = seedResult.allSeeds;
     const topSeeds = seedResult.topSeeds.slice(0, MAX_AUTOCOMPLETE_SEEDS);
     functions.logger.info(`Mini pipeline: ${aiSeeds.length} AI seeds, expanding top ${topSeeds.length}`);

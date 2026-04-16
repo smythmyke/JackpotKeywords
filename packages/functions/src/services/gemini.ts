@@ -272,8 +272,11 @@ RULES:
 export async function generateSeeds(
   context: ProductContext,
   location?: string,
+  options?: { skipSeasonal?: boolean },
 ): Promise<SeedResult> {
-  const upcomingHoliday = getUpcomingHoliday();
+  // Audit pipeline opts out of seasonal — recommendations should be evergreen,
+  // not contaminated with whichever holiday happens to be within 60 days.
+  const upcomingHoliday = options?.skipSeasonal ? null : getUpcomingHoliday();
   const contextBlock = `Product: "${context.productName}" — ${context.whatItDoes}
 Key features: ${context.keyFeatures.join(', ') || 'not specified'}
 Target audience: ${context.targetAudience.join(', ') || 'not specified'}
