@@ -164,6 +164,83 @@ const pages = [
     body: `<h1>SEO Audit</h1>
 <p>Enter your website URL and we'll analyze 20+ SEO factors across your site. Free audit with preview, full report from $1.99.</p>`,
   },
+
+  // About
+  {
+    path: '/about',
+    title: 'About — JackpotKeywords',
+    description: 'JackpotKeywords delivers real Google Ads keyword data and instant SEO audits at a fraction of SEMrush or Ahrefs prices. Built for indie founders, small SEO teams, and agencies.',
+    body: `<h1>About JackpotKeywords</h1>
+<p>AI-powered keyword research and SEO audits, without the SEMrush price tag.</p>
+<h2>Why we built this</h2>
+<p>Keyword research and SEO audit tools used to cost $99-$140 a month — locking out indie founders, side-project builders, and small businesses who needed real data to make ranking decisions. JackpotKeywords delivers the same advertiser-grade metrics (search volume, CPC, competition, trend direction) for $9.99/mo Pro or $1.99 a search. The first three runs are free. No credit card, no trial sign-up, no asterisks.</p>
+<h2>What we do</h2>
+<p>Keyword research: describe a product or paste a URL, and we generate 1,000+ scored keywords across 10 intent categories — direct, feature, problem, audience, competitor, alternative, use case, niche, benefit, and adjacent. Each keyword gets a Jackpot Score combining volume, CPC, competition, and trend direction.</p>
+<p>SEO audits: point us at a domain and we crawl up to 10 pages, score across 6 categories (technical, content, crawlability, structured data, local/geo, social), and surface keyword gap opportunities with real volume and CPC data — all in under a minute.</p>
+<h2>Where the data comes from</h2>
+<p>Four data sources combine to produce every search: Google Ads Keyword Planner (real search volume, CPC ranges, competition), Google Autocomplete (real queries expanded a-z from each seed), Google Trends (rising/stable/falling overlay), and Gemini AI (seed generation, intent classification, opportunity scoring, clustering).</p>
+<h2>Pricing in plain English</h2>
+<p>Free: 3 lifetime runs. Single search: $1.99. 3-pack: $4.99 ($1.66 each). Pro: $9.99/mo unlimited.</p>
+<h2>Who it's for</h2>
+<p>Indie founders launching a SaaS or product, small SEO teams who want real data without enterprise contracts, marketing agencies running site audits for clients, content writers researching topics with real demand, and PPC managers planning Google Ads campaigns.</p>
+<p>Questions or feedback? Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a>.</p>`,
+  },
+
+  // Privacy
+  {
+    path: '/privacy',
+    title: 'Privacy Policy — JackpotKeywords',
+    description: 'How JackpotKeywords collects, uses, and protects your data. Account info via Google sign-in, payments via Stripe, anonymous identifiers for free-tier limits, no PII sale.',
+    body: `<h1>Privacy Policy</h1>
+<p>Last updated: April 2026. JackpotKeywords takes your privacy seriously. This policy explains what we collect, why we collect it, who we share it with, and what control you have over your data.</p>
+<h2>Information we collect</h2>
+<p>Account data: when you sign in with Google, we receive your email address, display name, and profile photo. Payment data: handled entirely by Stripe — we never see or store full card numbers. Search and audit history: stored against your account so you can revisit results. Anonymous identifier: a UUID stored in your browser's localStorage to count free searches before sign-in. IP address: collected for rate limiting and abuse protection. Attribution: UTM parameters and Google Ads gclid stored once on first sign-in to understand marketing channels.</p>
+<h2>Why we collect it</h2>
+<p>To authenticate your account, process payments, enforce free-tier limits, prevent abuse, improve the product, and understand which marketing channels bring valuable users.</p>
+<h2>Third-party services we use</h2>
+<p>Firebase / Google Cloud (auth, database, hosting), Stripe (payment processing), Google Ads Keyword Planner API (keyword data), Google Gemini API (AI processing), Google Analytics 4 + Google Ads conversion tracking, and Google Trends. Each operates under its own privacy policy.</p>
+<h2>Cookies and storage</h2>
+<p>jk_anon_id (localStorage), GA4 cookies, attribution storage (localStorage), Firebase auth cookies, and Stripe cookies during checkout. You can clear localStorage and cookies at any time.</p>
+<h2>Data retention</h2>
+<p>Account data is retained until you request deletion. Anonymous logs are retained ~30 days for abuse and analytics.</p>
+<h2>Your rights</h2>
+<p>You can request access to or deletion of your data by emailing <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a>. We don't sell your data to anyone.</p>
+<h2>Changes to this policy</h2>
+<p>If we make material changes we'll update the date at the top of this page and notify signed-in users via email.</p>`,
+  },
+
+  // Terms
+  {
+    path: '/terms',
+    title: 'Terms of Service — JackpotKeywords',
+    description: 'Terms of Service for JackpotKeywords — service description, account requirements, acceptable use, payment terms, refund policy, and limitations of liability.',
+    body: `<h1>Terms of Service</h1>
+<p>Last updated: April 2026. By using JackpotKeywords you agree to these Terms. If you don't agree, don't use the service.</p>
+<h2>1. The Service</h2>
+<p>JackpotKeywords provides AI-powered keyword research and SEO audits via the website at jackpotkeywords.web.app. The service includes search volume estimates, CPC ranges, competition data, intent classification, keyword scoring, and site audits across technical, content, crawlability, structured data, and social categories.</p>
+<h2>2. Account requirements</h2>
+<p>You must be 18 or older. Sign-in is via Google OAuth — you're responsible for keeping your account credentials secure. One account per person.</p>
+<h2>3. Acceptable use</h2>
+<p>Don't scrape, abuse rate limits, attempt to bypass paywalls, share account credentials, or use the service to violate any law. We may suspend accounts that abuse the service.</p>
+<h2>4. Pricing and payment</h2>
+<p>3 free lifetime runs are included with sign-up. Beyond that, $1.99 per single search, $4.99 for a 3-pack, or $9.99/month for Pro unlimited. Payments are processed by Stripe. Subscriptions auto-renew monthly until cancelled in your account.</p>
+<h2>5. Refund policy</h2>
+<p>Pro subscriptions can be cancelled any time and won't renew. Single-search and 3-pack credits are non-refundable once a search has been run. Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a> for billing disputes.</p>
+<h2>6. Intellectual property</h2>
+<p>You own your search inputs and the saved results in your account. We own the platform, code, and methodology. You can export your data at any time via CSV/Excel.</p>
+<h2>7. No warranty</h2>
+<p>Keyword data is sourced from Google Ads Keyword Planner and other public sources — accuracy is best-effort but not guaranteed. SEO audit recommendations are informational and don't guarantee ranking improvements.</p>
+<h2>8. Limitation of liability</h2>
+<p>JackpotKeywords is provided "as is." We're not liable for indirect, incidental, or consequential damages. Total liability for any claim is capped at the amount you paid us in the prior 12 months.</p>
+<h2>9. Termination</h2>
+<p>You can delete your account anytime. We may suspend or terminate accounts that violate these Terms.</p>
+<h2>10. Changes to these Terms</h2>
+<p>We may update these Terms; material changes will be posted with a new "Last updated" date and notified to signed-in users.</p>
+<h2>11. Governing law</h2>
+<p>These Terms are governed by the laws of the State of California, USA.</p>
+<h2>12. Contact</h2>
+<p>Questions? Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a>.</p>`,
+  },
 ];
 
 // Add blog posts as pages
