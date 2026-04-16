@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { geminiGenerate, safeParseGeminiJSON } from './gemini';
+import { fetchAndParse, type ParsedPage } from './htmlParser';
 import type {
   SeoAuditResult,
   SeoAuditCheckItem,
@@ -143,75 +144,55 @@ export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id
 // ---------------------------------------------------------------------------
 
 async function analyzePrimaryPage(url: string): Promise<PrimaryPageAnalysis> {
-  const prompt = `You are an SEO auditor. Analyze the webpage at the URL provided and extract the following data. Return ONLY valid JSON, no markdown.
-
-{
-  "title": "the page's <title> tag text, or null if missing",
-  "titleLength": 0,
-  "metaDescription": "the meta description content, or null if missing",
-  "metaDescriptionLength": 0,
-  "h1s": ["all H1 tags on the page"],
-  "h2s": ["all H2 tags on the page"],
-  "h3s": ["first 10 H3 tags"],
-  "hasViewportMeta": true,
-  "hasCanonical": true,
-  "canonicalUrl": "the canonical URL if present",
-  "isHttps": true,
-  "ogTags": { "title": "og:title value", "description": "og:description", "image": "og:image URL" },
-  "twitterCard": "summary_large_image or null",
-  "jsonLdTypes": ["types found in JSON-LD, e.g. Organization, Product"],
-  "internalLinks": ["list of unique internal link paths found, e.g. /about, /blog, /pricing — max 50"],
-  "wordCount": 0,
-  "hasRobotsMetaNoindex": false,
-  "isSpaShell": false,
-  "contentSummary": "2-3 sentence summary of what this website/page is about"
+  const parsed = await fetchAndParse(url);
+  if (!parsed.fetchedHtml) {
+    functions.logger.warn(`Primary page fetch failed for ${url}: ${parsed.fetchError}`);
+  }
+  const contentSummary = await summarizeContent(parsed);
+  return parsedToPrimaryAnalysis(parsed, contentSummary);
 }
 
-RULES:
-- For isSpaShell: true if the page has very little visible text content and seems to rely heavily on JavaScript to render (e.g., empty body with just a script tag, or "Loading..." text only)
-- For internalLinks: only include links to the same domain, as path only (e.g., /about not https://example.com/about). Skip anchors (#), javascript:, mailto:, tel: links. Max 50.
-- For wordCount: estimate the visible body text word count (excluding navigation, footer, scripts)
-- For jsonLdTypes: look for <script type="application/ld+json"> blocks and report the @type values found`;
-
-  const config = { config: { tools: [{ urlContext: {} }] } };
-  let text: string;
-  let parsed: any;
-
-  try {
-    text = await geminiGenerate(prompt, config);
-    functions.logger.info(`Primary page Gemini response (first 500 chars): ${text.slice(0, 500)}`);
-    parsed = await safeParseGeminiJSON(text, 'object');
-  } catch (err: any) {
-    // URL context may fail — retry without it, asking Gemini to use its knowledge
-    functions.logger.warn(`Primary page analysis with URL context failed: ${err.message}. Retrying without URL context...`);
-    const fallbackPrompt = `${prompt}\n\nURL to analyze: ${url}\n\nIMPORTANT: Visit and analyze this URL. If you cannot access it, analyze what you know about the domain and return your best assessment with null for fields you cannot determine.`;
-    text = await geminiGenerate(fallbackPrompt);
-    functions.logger.info(`Fallback Gemini response (first 500 chars): ${text.slice(0, 500)}`);
-    parsed = await safeParseGeminiJSON(text, 'object');
-  }
-
+function parsedToPrimaryAnalysis(p: ParsedPage, contentSummary: string): PrimaryPageAnalysis {
   return {
-    title: parsed.title || undefined,
-    titleLength: parsed.titleLength || (parsed.title?.length || 0),
-    metaDescription: parsed.metaDescription || undefined,
-    metaDescriptionLength: parsed.metaDescriptionLength || (parsed.metaDescription?.length || 0),
-    h1s: Array.isArray(parsed.h1s) ? parsed.h1s : [],
-    h2s: Array.isArray(parsed.h2s) ? parsed.h2s : [],
-    h3s: Array.isArray(parsed.h3s) ? parsed.h3s : [],
-    hasViewportMeta: !!parsed.hasViewportMeta,
-    hasCanonical: !!parsed.hasCanonical,
-    canonicalUrl: parsed.canonicalUrl || undefined,
-    isHttps: parsed.isHttps !== false,
-    ogTags: parsed.ogTags || {},
-    twitterCard: parsed.twitterCard || undefined,
-    jsonLdTypes: Array.isArray(parsed.jsonLdTypes) ? parsed.jsonLdTypes : [],
-    jsonLdData: [],
-    internalLinks: Array.isArray(parsed.internalLinks) ? parsed.internalLinks : [],
-    wordCount: parsed.wordCount || 0,
-    hasRobotsMetaNoindex: !!parsed.hasRobotsMetaNoindex,
-    isSpaShell: !!parsed.isSpaShell,
-    contentSummary: parsed.contentSummary || '',
+    title: p.title,
+    titleLength: p.titleLength,
+    metaDescription: p.metaDescription,
+    metaDescriptionLength: p.metaDescriptionLength,
+    h1s: p.h1s,
+    h2s: p.h2s,
+    h3s: p.h3s,
+    hasViewportMeta: p.hasViewportMeta,
+    hasCanonical: p.hasCanonical,
+    canonicalUrl: p.canonicalUrl,
+    isHttps: p.isHttps,
+    ogTags: p.ogTags,
+    twitterCard: p.twitterCard,
+    jsonLdTypes: p.jsonLdTypes,
+    jsonLdData: p.jsonLdData,
+    internalLinks: p.internalLinks,
+    wordCount: p.wordCount,
+    hasRobotsMetaNoindex: p.hasRobotsMetaNoindex,
+    isSpaShell: p.isSpaShell,
+    contentSummary,
   };
+}
+
+async function summarizeContent(p: ParsedPage): Promise<string> {
+  if (!p.fetchedHtml || !p.bodyText) return '';
+  const prompt = `Summarize what this webpage is about in 2-3 sentences. Be specific about the product/service offered. Return only the summary, no preamble.
+
+URL: ${p.url}
+Title: ${p.title || '(no title)'}
+H1: ${p.h1s[0] || '(no H1)'}
+Page text (first 8KB):
+${p.bodyText}`;
+  try {
+    const text = await geminiGenerate(prompt);
+    return text.trim().slice(0, 1000);
+  } catch (err: any) {
+    functions.logger.warn(`Content summary failed: ${err.message}`);
+    return '';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -517,9 +498,21 @@ function buildChecklist(
     checks.push({ id: 'noindex', category: 'crawlability', label: 'Meta robots noindex', status: 'fail', details: 'Page has a noindex meta robots tag — it will not appear in search results', recommendation: 'Remove the noindex tag if you want this page to be indexed by search engines', priority: 'high' });
   }
 
-  // SPA detection
+  // SPA detection — warning only when content is essentially empty (Wix/Squarespace
+  // sites are partial SPAs but render meaningful HTML; don't false-alarm on those)
   if (primary.isSpaShell) {
-    checks.push({ id: 'spa_shell', category: 'crawlability', label: 'JavaScript rendering dependency', status: 'warning', details: 'Page appears to be a JavaScript SPA that requires JS to render content', recommendation: 'Implement server-side rendering (SSR) or pre-rendering so search engines can read your content without executing JavaScript', priority: 'high' });
+    const isSevere = primary.wordCount < 20;
+    checks.push({
+      id: 'spa_shell',
+      category: 'crawlability',
+      label: 'JavaScript rendering dependency',
+      status: isSevere ? 'warning' : 'info',
+      details: isSevere
+        ? `Page renders almost entirely via JavaScript (${primary.wordCount} words in static HTML)`
+        : `Page relies on JavaScript to render some content (${primary.wordCount} words in static HTML)`,
+      recommendation: 'Implement server-side rendering (SSR) or pre-rendering so search engines see ranking signals (title, meta, content) without executing JavaScript',
+      priority: isSevere ? 'high' : 'low',
+    });
   }
 
   // --- STRUCTURED DATA ---
