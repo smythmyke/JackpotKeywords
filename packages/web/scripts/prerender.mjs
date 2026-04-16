@@ -174,16 +174,17 @@ const pages = [
 <p>AI-powered keyword research and SEO audits, without the SEMrush price tag.</p>
 <h2>Why we built this</h2>
 <p>Keyword research and SEO audit tools used to cost $99-$140 a month — locking out indie founders, side-project builders, and small businesses who needed real data to make ranking decisions. JackpotKeywords delivers the same advertiser-grade metrics (search volume, CPC, competition, trend direction) for $9.99/mo Pro or $1.99 a search. The first three runs are free. No credit card, no trial sign-up, no asterisks.</p>
+<p>The big SEO platforms are built for enterprise teams running thousands of keyword searches a month. Most of our users run two or three searches a week — and their old options were either pay $1,680 a year or guess at keywords with ChatGPT and hope for the best. We exist to be the third option: real data, fair pricing, no annual contract.</p>
 <h2>What we do</h2>
-<p>Keyword research: describe a product or paste a URL, and we generate 1,000+ scored keywords across 10 intent categories — direct, feature, problem, audience, competitor, alternative, use case, niche, benefit, and adjacent. Each keyword gets a Jackpot Score combining volume, CPC, competition, and trend direction.</p>
-<p>SEO audits: point us at a domain and we crawl up to 10 pages, score across 6 categories (technical, content, crawlability, structured data, local/geo, social), and surface keyword gap opportunities with real volume and CPC data — all in under a minute.</p>
+<p>Keyword research: describe a product or paste a URL, and we generate 1,000+ scored keywords across 10 intent categories — direct, feature, problem, audience, competitor, alternative, use case, niche, benefit, and adjacent. Each keyword gets a Jackpot Score combining volume, CPC, competition, and trend direction so the goldmine opportunities surface to the top automatically.</p>
+<p>SEO audits: point us at a domain and we crawl up to 10 pages, score across 6 categories (technical, content, crawlability, structured data, local/geo, social), and surface keyword gap opportunities with real volume and CPC data — all in under a minute. Every audit ships with a downloadable PDF so you can hand it to a client or developer.</p>
 <h2>Where the data comes from</h2>
-<p>Four data sources combine to produce every search: Google Ads Keyword Planner (real search volume, CPC ranges, competition), Google Autocomplete (real queries expanded a-z from each seed), Google Trends (rising/stable/falling overlay), and Gemini AI (seed generation, intent classification, opportunity scoring, clustering).</p>
+<p>Four data sources combine to produce every search: Google Ads Keyword Planner (real search volume, CPC ranges, competition), Google Autocomplete (real queries expanded a-z from each seed), Google Trends (rising/stable/falling overlay), and Gemini AI (seed generation, intent classification, opportunity scoring, clustering). No estimated metrics. No third-party scraping. Just direct integrations with Google's own data sources.</p>
 <h2>Pricing in plain English</h2>
-<p>Free: 3 lifetime runs. Single search: $1.99. 3-pack: $4.99 ($1.66 each). Pro: $9.99/mo unlimited.</p>
+<p>Free: 3 lifetime runs (search or audit, your choice). Single search: $1.99. 3-pack: $4.99 ($1.66 each). Pro: $9.99/mo unlimited searches and audits. Cancel anytime — no annual lock-in, no upsell calls, no auto-upgrade tricks.</p>
 <h2>Who it's for</h2>
-<p>Indie founders launching a SaaS or product, small SEO teams who want real data without enterprise contracts, marketing agencies running site audits for clients, content writers researching topics with real demand, and PPC managers planning Google Ads campaigns.</p>
-<p>Questions or feedback? Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a>.</p>`,
+<p>Indie founders launching a SaaS or product and needing keywords fast. Small SEO teams who want real data without enterprise contracts. Marketing agencies running site audits for clients. Content writers researching topics that actually have demand. PPC managers planning Google Ads campaigns who want CPC data before committing budget.</p>
+<p>Built by smythmyke. Questions or feedback? Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a>.</p>`,
   },
 
   // Privacy

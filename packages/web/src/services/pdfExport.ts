@@ -231,7 +231,9 @@ export async function exportAuditPdf(
 
   let curY = 30;
   for (const cat of CATEGORIES) {
-    const checks = result.checks.filter((c) => c.category === cat);
+    // Page-scoped issues (id prefix `page_`) are already detailed in the
+    // Page-by-Page Findings section — skip them here to avoid duplication.
+    const checks = result.checks.filter((c) => c.category === cat && !c.id.startsWith('page_'));
     if (checks.length === 0) continue;
 
     if (curY > pageH - 60) {

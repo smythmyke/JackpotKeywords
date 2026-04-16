@@ -276,9 +276,12 @@ export default function SeoAuditResults() {
     resultPaid: result.paid,
   });
 
+  // Page-scoped issues (id prefix `page_`) live in the Page-by-Page section;
+  // exclude them from the per-category Detailed Checklist to avoid duplication.
+  const detailedChecks = result.checks.filter((c) => !c.id.startsWith('page_'));
   const filteredChecks = activeCategory
-    ? result.checks.filter((c) => c.category === activeCategory)
-    : result.checks;
+    ? detailedChecks.filter((c) => c.category === activeCategory)
+    : detailedChecks;
 
   const domain = result.domain.replace(/^https?:\/\//, '');
 

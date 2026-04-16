@@ -99,14 +99,21 @@ export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id
 
   // Step 4: Build the checklist (deterministic, no AI)
   functions.logger.info('Step 4: Building checklist...');
-  const checks = buildChecklist(primaryAnalysis, pageResults, structure);
+  const siteChecks = buildChecklist(primaryAnalysis, pageResults, structure);
+  // Fold per-page issues into the main checks array so the score and summary
+  // counts reflect per-page warnings (title-too-long on blogs, thin content on
+  // /about, etc.). Their `id` starts with `page_` so renderers can choose to
+  // skip them in the per-category Detailed Checklist if they're already shown
+  // in the page-by-page section.
+  const pageIssues = pageResults.flatMap((r) => r.issues);
+  const checks = [...siteChecks, ...pageIssues];
 
   // Step 5: Generate keyword gaps + recommendations (Gemini)
   functions.logger.info('Step 5: Generating recommendations...');
   const { keywordGaps, recommendations } = await generateInsights(primaryAnalysis, checks, domain, structure);
   functions.logger.info(`Step 5 done: ${keywordGaps.length} gaps, ${recommendations.length} recommendations`);
 
-  // Calculate scores
+  // Calculate scores (now includes per-page issues)
   const categoryScores = calculateCategoryScores(checks);
   const overallScore = calculateOverallScore(categoryScores);
 
