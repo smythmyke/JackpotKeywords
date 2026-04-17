@@ -34,6 +34,7 @@ export default function BlogPost() {
             publisher: { '@type': 'Organization', name: 'JackpotKeywords' },
             url: `https://jackpotkeywords.web.app/blog/${post.slug}`,
             ...(post.heroImage ? { image: post.heroImage } : {}),
+            ...(post.audioUrl ? { audio: { '@type': 'AudioObject', contentUrl: `https://jackpotkeywords.web.app${post.audioUrl}`, encodingFormat: 'audio/mpeg' } } : {}),
           })}
         </script>
         {post.faq && post.faq.length > 0 && (
@@ -67,6 +68,24 @@ export default function BlogPost() {
             <span>{post.readTime}</span>
           </div>
         </header>
+
+        {post.audioUrl && (
+          <div className="mb-10 bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-jackpot-400 text-lg">&#x1F3A7;</span>
+              <span className="text-white font-medium text-sm">Listen to this article</span>
+            </div>
+            <audio
+              controls
+              preload="metadata"
+              className="w-full h-10 rounded-lg"
+              style={{ filter: 'invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.2)' }}
+            >
+              <source src={post.audioUrl} type="audio/mpeg" />
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        )}
 
         <div className="prose prose-invert prose-lg max-w-none
           prose-headings:text-white prose-headings:font-bold

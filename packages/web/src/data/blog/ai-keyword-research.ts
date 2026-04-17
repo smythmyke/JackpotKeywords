@@ -9,6 +9,7 @@ export const post: BlogPost = {
   readTime: '8 min read',
   category: 'guide',
   keywords: ['ai keyword research', 'ai keyword research tool', 'ai keyword generator', 'ai seo keyword research', 'keyword research with ai'],
+  audioUrl: '/blog/audio/ranking-in-the-zero-click-era.mp3',
   faq: [
     { question: 'What is AI keyword research?', answer: 'AI keyword research uses artificial intelligence to discover keywords from a product or service description rather than requiring you to enter seed keywords manually. The AI understands your market context and generates keyword opportunities across multiple intent categories that you would not find through traditional seed-based expansion.' },
     { question: 'Is AI keyword research better than traditional keyword tools?', answer: 'AI keyword research solves the cold-start problem that traditional tools have — you do not need to already know your keywords to find keywords. It is better for discovery and new markets. Traditional tools are better for deep analysis of specific keywords you already know about, especially when combined with backlink data and rank tracking.' },

@@ -9,6 +9,7 @@ export interface BlogPost {
   keywords: string[];
   heroImage?: string;
   faq?: { question: string; answer: string }[];
+  audioUrl?: string;
   content: string;
 }
 
