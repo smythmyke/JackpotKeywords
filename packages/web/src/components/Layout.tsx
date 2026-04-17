@@ -92,67 +92,84 @@ export default function Layout() {
           <Link to="/" className="flex items-center gap-2">
             <img src="/logo-header.png" alt="JackpotKeywords" className="h-[50px]" />
           </Link>
-          <div className="flex items-center gap-6 text-base">
-            <Link to="/pricing" className="text-gray-400 hover:text-white transition">
-              Pricing
-            </Link>
-            <Link to="/seo-audit" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
-              SEO Audit
-            </Link>
-            <Link to="/blog" className="text-gray-400 hover:text-white transition">
-              Blog
-            </Link>
-            {hasAnyResults && !isOnResultsPage && (
-              hasBothResults ? (
-                // Dropdown for both result types
-                <div className="relative" ref={resultsRef}>
-                  <button
-                    onMouseEnter={() => setResultsDropdownOpen(true)}
-                    onClick={() => setResultsDropdownOpen((v) => !v)}
-                    className="text-jackpot-400 hover:text-jackpot-300 font-medium transition flex items-center gap-1"
-                  >
-                    Results
-                    <svg className="w-3.5 h-3.5 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {resultsDropdownOpen && (
-                    <div
-                      onMouseLeave={() => setResultsDropdownOpen(false)}
-                      className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-800 bg-gray-900 shadow-xl py-1 z-50"
-                    >
-                      <Link
-                        to={keywordResultsPath}
-                        onClick={() => setResultsDropdownOpen(false)}
-                        className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition"
-                      >
-                        Keyword Results
-                      </Link>
-                      <Link
-                        to={auditResultsPath}
-                        onClick={() => setResultsDropdownOpen(false)}
-                        className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition border-t border-gray-800"
-                      >
-                        SEO Audit Results
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Direct link for single result type
-                <Link to={singleResultPath} className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
-                  Results
-                </Link>
-              )
-            )}
-            {user ? (
+          <div className="flex items-center gap-5 text-base">
+            {/* Group 1: Core actions */}
+            {user && (
               <>
-                <Link to="/my-ideas" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
-                  My Ideas
-                </Link>
                 <Link to="/" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
                   New Search
                 </Link>
+                <Link to="/seo-audit" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                  SEO Audit
+                </Link>
+                <Link to="/my-ideas" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                  My Ideas
+                </Link>
+                {hasAnyResults && !isOnResultsPage && (
+                  hasBothResults ? (
+                    <div className="relative" ref={resultsRef}>
+                      <button
+                        onMouseEnter={() => setResultsDropdownOpen(true)}
+                        onClick={() => setResultsDropdownOpen((v) => !v)}
+                        className="text-jackpot-400 hover:text-jackpot-300 font-medium transition flex items-center gap-1"
+                      >
+                        Results
+                        <svg className="w-3.5 h-3.5 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {resultsDropdownOpen && (
+                        <div
+                          onMouseLeave={() => setResultsDropdownOpen(false)}
+                          className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-800 bg-gray-900 shadow-xl py-1 z-50"
+                        >
+                          <Link
+                            to={keywordResultsPath}
+                            onClick={() => setResultsDropdownOpen(false)}
+                            className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition"
+                          >
+                            Keyword Results
+                          </Link>
+                          <Link
+                            to={auditResultsPath}
+                            onClick={() => setResultsDropdownOpen(false)}
+                            className="block px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition border-t border-gray-800"
+                          >
+                            SEO Audit Results
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <Link to={singleResultPath} className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                      Results
+                    </Link>
+                  )
+                )}
+                {/* Separator */}
+                <div className="w-px h-5 bg-gray-700" />
+              </>
+            )}
+
+            {/* Group 2: Resources (always visible) */}
+            <Link to="/blog" className="text-gray-400 hover:text-white transition">
+              Blog
+            </Link>
+            <Link to="/pricing" className="text-gray-400 hover:text-white transition">
+              Pricing
+            </Link>
+
+            {/* Anonymous: SEO Audit visible without sign-in */}
+            {!user && (
+              <Link to="/seo-audit" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                SEO Audit
+              </Link>
+            )}
+
+            {user ? (
+              <>
+                {/* Separator */}
+                <div className="w-px h-5 bg-gray-700" />
                 <button
                   onClick={handleLogout}
                   className="text-gray-400 hover:text-white transition"
