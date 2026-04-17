@@ -424,6 +424,109 @@ export async function exportAuditPdf(
     }
   }
 
+  // ----- AEO / AI Visibility section (if available) -----
+  if (result.aeoResult && result.aeoResult.queriesChecked > 0) {
+    doc.addPage();
+    const aeo = result.aeoResult;
+    const aeoMargin = 14;
+    let aeoY = 22;
+
+    doc.setFontSize(16);
+    doc.setTextColor(...BRAND_COLOR);
+    doc.text('AI Visibility (AEO)', aeoMargin, aeoY);
+    aeoY += 8;
+
+    doc.setFontSize(9);
+    doc.setTextColor(...LIGHT_GRAY);
+    doc.text('How often AI assistants cite your product when buyers ask relevant questions.', aeoMargin, aeoY);
+    aeoY += 8;
+
+    // Score summary
+    const aeoScoreCol: [number, number, number] = aeo.visibilityScore >= 60
+      ? [34, 197, 94] : aeo.visibilityScore >= 30
+      ? [234, 179, 8] : [239, 68, 68];
+    doc.setFontSize(28);
+    doc.setTextColor(...aeoScoreCol);
+    doc.text(`${aeo.visibilityScore}/100`, aeoMargin, aeoY + 8);
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Cited in ${aeo.queriesCited}/${aeo.queriesChecked} queries  |  Mentioned in ${aeo.queriesMentioned}/${aeo.queriesChecked} answers`, aeoMargin + 45, aeoY + 6);
+    aeoY += 18;
+
+    // Query results table
+    const queryRows = aeo.queries.map((q, qi) => [
+      String(qi + 1),
+      q.query.length > 70 ? q.query.substring(0, 67) + '...' : q.query,
+      q.productCited ? 'CITED' : q.productMentionedInAnswer ? 'MENTIONED' : 'NOT FOUND',
+      q.competitorsCited.join(', ') || '\u2014',
+    ]);
+
+    autoTable(doc, {
+      startY: aeoY,
+      head: [['#', 'Buyer Query', 'Status', 'Competitors']],
+      body: queryRows,
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55], textColor: [156, 163, 175], fontSize: 7.5, fontStyle: 'bold' },
+      bodyStyles: { fillColor: [17, 24, 39], textColor: [209, 213, 219], fontSize: 7 },
+      alternateRowStyles: { fillColor: [24, 30, 44] },
+      columnStyles: {
+        0: { cellWidth: 8 },
+        1: { cellWidth: 80 },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 55 },
+      },
+      margin: { left: aeoMargin, right: aeoMargin },
+    });
+
+    // Competitor dominance
+    const aeoCompetitors = Object.entries(aeo.competitorFrequency).sort(([, a], [, b]) => b - a);
+    if (aeoCompetitors.length > 0) {
+      let compY = finalY(doc) + 10;
+      if (compY > 250) { doc.addPage(); compY = 22; }
+
+      doc.setFontSize(12);
+      doc.setTextColor(...BRAND_COLOR);
+      doc.text('Competitor Dominance', aeoMargin, compY);
+
+      autoTable(doc, {
+        startY: compY + 4,
+        head: [['Competitor', 'Citations', '%']],
+        body: aeoCompetitors.map(([comp, count]) => [
+          comp,
+          `${count}/${aeo.queriesChecked}`,
+          `${Math.round((count / aeo.queriesChecked) * 100)}%`,
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [31, 41, 55], textColor: [156, 163, 175], fontSize: 7.5, fontStyle: 'bold' },
+        bodyStyles: { fillColor: [17, 24, 39], textColor: [209, 213, 219], fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [24, 30, 44] },
+        columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 25, halign: 'center' }, 2: { cellWidth: 20, halign: 'center' } },
+        margin: { left: aeoMargin, right: aeoMargin },
+      });
+    }
+
+    // Action items
+    if (aeo.actionItems.length > 0) {
+      let actY = finalY(doc) + 10;
+      if (actY > 240) { doc.addPage(); actY = 22; }
+
+      doc.setFontSize(12);
+      doc.setTextColor(...BRAND_COLOR);
+      doc.text('AI Visibility Action Items', aeoMargin, actY);
+      actY += 6;
+
+      doc.setFontSize(8);
+      doc.setTextColor(209, 213, 219);
+      for (let ai = 0; ai < aeo.actionItems.length; ai++) {
+        const text = `${ai + 1}. ${aeo.actionItems[ai]}`;
+        const lines = doc.splitTextToSize(text, pageW - aeoMargin * 2);
+        if (actY + lines.length * 4.5 > 280) { doc.addPage(); actY = 22; }
+        doc.text(lines, aeoMargin, actY);
+        actY += lines.length * 4.5 + 3;
+      }
+    }
+  }
+
   // ----- Footers on every page -----
   const totalPages = doc.internal.pages.length - 1;
   for (let i = 1; i <= totalPages; i++) {
