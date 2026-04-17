@@ -9,7 +9,14 @@ export const post: BlogPost = {
   readTime: '9 min read',
   category: 'guide',
   keywords: ['how to do an seo audit', 'seo audit', 'seo audit guide', 'website seo audit', 'diy seo audit'],
+  faq: [
+    { question: 'How long does an SEO audit take?', answer: 'A basic SEO audit using an automated tool takes 1 to 2 minutes. A manual audit covering technical, content, and off-page factors takes 2 to 4 hours for a small site. Enterprise sites with thousands of pages may require days of analysis. JackpotKeywords free audit tool completes a comprehensive check in about 60 seconds.' },
+    { question: 'How much does an SEO audit cost?', answer: 'Free options include JackpotKeywords SEO audit tool and Google Search Console. Professional SEO audits from agencies typically cost 500 to 5000 dollars. Monthly audit tools like SEMrush and Ahrefs cost 99 to 140 per month. For most small businesses, a free automated audit covers the essential checks.' },
+    { question: 'What should an SEO audit include?', answer: 'A thorough audit checks technical foundation (title tags, meta descriptions, HTTPS, site speed), content structure (headings, depth, internal links), crawlability (sitemap, robots.txt), structured data (JSON-LD schema), and social sharing tags (Open Graph, Twitter Cards). The best audits also identify keyword opportunities based on the site content.' },
+  ],
   content: `
+> **Key Takeaway:** An SEO audit identifies technical issues, content gaps, and missed opportunities that silently cost your website traffic. You do not need expensive tools — a systematic check of 6 core areas using free tools catches the issues that matter most.
+
 ## What Is an SEO Audit?
 
 An SEO audit is a systematic review of everything that affects how search engines see your website. It covers technical setup, content quality, site structure, and how your pages appear in search results.
@@ -179,6 +186,24 @@ It is free for signed-in users. No credit card required, no trial period, no bai
 ## After the Audit: Next Steps
 
 Once you have your audit results, the next question is: what keywords should you target? Fixing technical issues is the foundation, but you also need to know which keywords to optimize for.
+
+For the specific on-page factors to check and fix, see our [on-page SEO checklist](/blog/on-page-seo-checklist). To find the right keywords to optimize for after your audit, our [keyword research beginner\'s guide](/blog/what-is-keyword-research) covers the fundamentals, and our [best free keyword tools guide](/blog/best-free-keyword-research-tools) helps you choose the right tool for your budget.
+
+![JackpotKeywords SEO Audit showing keyword gap opportunities with difficulty ratings](/blog/screenshot-audit-gaps.png)
+
+## Frequently Asked Questions
+
+### How long does an SEO audit take?
+
+A basic audit using an automated tool like [JackpotKeywords SEO audit](https://jackpotkeywords.web.app/seo-audit) takes about 60 seconds. A manual audit covering technical, content, and off-page factors takes 2-4 hours for a small site (under 50 pages). Enterprise sites with thousands of pages may require days of analysis across multiple tools.
+
+### How much does an SEO audit cost?
+
+Free options include JackpotKeywords\' SEO audit tool and Google Search Console. Professional audits from agencies typically cost $500-$5,000 depending on site complexity. Monthly tools like SEMrush ($140/mo) and Ahrefs ($99/mo) include site audit features. For most small businesses, a free automated audit covers the essential checks.
+
+### What should an SEO audit include?
+
+A thorough audit checks six areas: technical foundation (title tags, meta descriptions, HTTPS, site speed), content structure (headings, depth, internal links), crawlability (sitemap, robots.txt), structured data (JSON-LD schema), local and geo SEO signals, and social sharing tags (Open Graph, Twitter Cards). The best audits also identify keyword opportunities based on the existing site content.
 
 [JackpotKeywords keyword research](https://jackpotkeywords.web.app/) finds 1,000+ keyword opportunities with real Google Ads data. Describe your product and get scored, categorized keywords in under 30 seconds.
 `,

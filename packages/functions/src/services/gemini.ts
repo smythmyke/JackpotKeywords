@@ -203,9 +203,25 @@ const EMPTY_CONTEXT: ProductContext = {
 export async function extractProductContext(
   description: string,
   url: string | undefined,
+  parsedPage?: { fetchedHtml: boolean; title?: string; metaDescription?: string; h1s: string[]; h2s: string[]; bodyText: string; wordCount: number },
 ): Promise<ProductContext> {
-  const prompt = `You are a product analyst. The user is describing a product, service, or business idea. It may be an existing product or an early-stage concept that doesn't exist yet. Extract as much structured information as possible, inferring where the user hasn't been explicit — do not leave fields empty unless truly impossible to determine.
+  // Build verified page data block when we have real HTML
+  const verifiedBlock = parsedPage?.fetchedHtml ? `
+VERIFIED PAGE DATA (from actual HTML — treat as factual, prefer over inference):
+Page title: "${parsedPage.title || 'none'}"
+Meta description: "${parsedPage.metaDescription || 'none'}"
+H1 headings: ${parsedPage.h1s.join(', ') || 'none'}
+H2 headings: ${parsedPage.h2s.slice(0, 10).join(', ') || 'none'}
+Body text (first 2000 chars): "${parsedPage.bodyText.substring(0, 2000)}"
+Word count: ${parsedPage.wordCount}
+` : '';
 
+  const competitorRule = parsedPage?.fetchedHtml
+    ? '- For competitors: ONLY include competitors explicitly mentioned on the page OR that you are highly confident exist as real, currently active products in this exact space. Do NOT guess or invent competitor names.'
+    : '- For competitors: ONLY include competitors you are CERTAIN exist as real, currently active products that solve the SAME specific problem. If unsure about a product name, leave it out rather than guessing. Do NOT invent product names.';
+
+  const prompt = `You are a product analyst. The user is describing a product, service, or business idea. It may be an existing product or an early-stage concept that doesn't exist yet. Extract structured information from what is provided. Leave fields empty rather than guessing — accurate sparse data is better than hallucinated details.
+${verifiedBlock}
 ${url ? `Product/Reference URL: ${url}` : ''}
 ${description ? `User's description: "${description}"` : ''}
 
@@ -216,9 +232,9 @@ Extract the following and return ONLY valid JSON, no markdown:
   "productLabel": "3-5 word label describing what this product/concept is",
   "whatItDoes": "1-2 sentence summary of what this product does or would do",
   "targetAudience": ["who uses or would use this — roles, job titles, or user types"],
-  "keyFeatures": ["each distinct feature as a short phrase — infer likely features if not stated"],
+  "keyFeatures": ["each distinct feature as a short phrase${parsedPage?.fetchedHtml ? ' — extract from verified page data' : ''}"],
   "painPoints": ["specific problems/frustrations this solves — what users struggle with without this product"],
-  "competitors": ["names of REAL products/tools that already exist in this space or solve similar problems — search your knowledge thoroughly, find ALL overlapping products"],
+  "competitors": ["names of REAL products/tools that already exist in this space"],
   "differentiators": ["what makes or would make this product different from competitors"],
   "useCases": ["specific scenarios or workflows where someone would need this"],
   "industryNiche": ["industries, verticals, or sub-niches this serves"],
@@ -227,14 +243,14 @@ Extract the following and return ONLY valid JSON, no markdown:
 }
 
 RULES:
-- Every array should have at least 2-3 items. Infer from context if the user didn't explicitly state them.
-- For competitors: find tools that solve the SAME specific problem, not general-purpose tools. These must be real products you know exist.
+- Arrays may have 0 items if you cannot determine them with confidence. Do not pad arrays with guesses.
+${competitorRule}
 - For painPoints: think about what users experience WITHOUT this product — the frustration that drives someone to search for a solution.
 - For benefits: translate features into outcomes. "auto-detects audio" → "never go live with broken audio".
-- For relatedTopics: what else does this audience search for? Complementary tools, adjacent workflows.`;
+- For relatedTopics: what else does this audience search for? Complementary tools, adjacent workflows.${parsedPage?.fetchedHtml ? '\n- For features and pain points: prefer what the page explicitly states over inference.' : ''}`;
 
-  // Use URL context tool when a URL is provided so Gemini reads the actual page
-  const config = url ? { config: { tools: [{ urlContext: {} }] } } : undefined;
+  // Only use urlContext when we DON'T have local parsed data
+  const config = (url && !parsedPage?.fetchedHtml) ? { config: { tools: [{ urlContext: {} }] } } : undefined;
   const text = await geminiGenerate(prompt, config);
 
   let parsed: any;
@@ -248,6 +264,13 @@ RULES:
       whatItDoes: description.substring(0, 200),
     };
   }
+
+  // Determine source confidence
+  const _sourceConfidence: ProductContext['_sourceConfidence'] = parsedPage?.fetchedHtml
+    ? 'url_verified'
+    : url
+      ? 'url_unverified'
+      : 'description_only';
 
   // Validate and fill defaults for every field
   return {
@@ -263,6 +286,7 @@ RULES:
     industryNiche: Array.isArray(parsed.industryNiche) ? parsed.industryNiche : [],
     benefits: Array.isArray(parsed.benefits) ? parsed.benefits : [],
     relatedTopics: Array.isArray(parsed.relatedTopics) ? parsed.relatedTopics : [],
+    _sourceConfidence,
   };
 }
 
@@ -297,7 +321,7 @@ IMPORTANT RULES:
 - Use the structured data above — do NOT invent unrelated keywords
 - For each feature, generate a keyword that someone searching for THAT feature would type
 - For each pain point, generate a "how to" or problem query
-- For competitors, use the names listed AND add any others you know that solve the same problem
+- For competitors, use ONLY the names listed in "Known competitors" above. Do NOT add competitors beyond this list — they have been verified. If the list says "none identified", generate only generic category terms (e.g., "best [product type]") without naming specific tools
 - Keywords should be what a potential BUYER would search, not a developer or researcher
 - For EVERY category, include at least 1 long-tail variant (4+ words). Example: "keyword research tool" AND "best free keyword research tool for small business"
 
@@ -370,8 +394,8 @@ async function boostWeakCategories(
   weakCategories: string[],
 ): Promise<{ keyword: string; category: string; source: string }[]> {
   const categoryInstructions: Record<string, string> = {
-    competitor_brand: `Find 5-8 DIRECT competitors to "${context.productName || context.productLabel}". Known competitors: ${context.competitors.join(', ') || 'none identified'}. These must be real products that solve the same problem: ${context.whatItDoes}. Search your knowledge thoroughly.`,
-    competitor_alt: `Generate 5-8 "alternative to", comparison, and pricing queries. Known competitors: ${context.competitors.join(', ') || 'none'}. Use format: "[competitor] alternative", "[competitor] vs [competitor]", "[competitor] pricing", "cheaper than [competitor]", "best [product type]".`,
+    competitor_brand: `Use ONLY the verified competitors listed here: ${context.competitors.join(', ') || 'none identified'}. If fewer than 5 are listed, generate generic comparison queries instead (e.g., "best ${context.productLabel}", "${context.productLabel} comparison", "top ${context.productLabel} tools"). Do NOT invent competitor names.`,
+    competitor_alt: `Generate "alternative to", comparison, and pricing queries using ONLY the verified competitors listed here: ${context.competitors.join(', ') || 'none identified'}. Use format: "[competitor] alternative", "[competitor] vs [competitor]", "[competitor] pricing", "cheaper than [competitor]", "best [product type]". If no competitors are listed, use only generic terms like "best ${context.productLabel}".`,
     problem: `Generate 5-8 pain-point and "how to" queries. Known pain points: ${context.painPoints.join(', ') || 'not specified'}. What frustrations lead someone to need: ${context.whatItDoes}?`,
     use_case: `Generate 5-8 specific use-case keywords. Known use cases: ${context.useCases.join(', ') || 'not specified'}. Target audience: ${context.targetAudience.join(', ') || 'not specified'}. When exactly does someone need this product?`,
     benefit: `Generate 5-8 outcome-focused keywords. Known benefits: ${context.benefits.join(', ') || 'not specified'}. What results does this product deliver? "save time [doing X]", "best tool for [result]".`,

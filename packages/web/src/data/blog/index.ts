@@ -8,6 +8,7 @@ export interface BlogPost {
   category: 'guide' | 'comparison' | 'use-case' | 'tutorial';
   keywords: string[];
   heroImage?: string;
+  faq?: { question: string; answer: string }[];
   content: string;
 }
 
@@ -39,6 +40,12 @@ import { post as keywordClusteringSeo } from './keyword-clustering-seo';
 import { post as ubersuggestAlternative } from './ubersuggest-alternative';
 import { post as seRankingAlternative } from './se-ranking-alternative';
 import { post as mangoolsAlternative } from './mangools-alternative';
+import { post as seoKeywordAnalysisTools } from './seo-keyword-analysis-tools';
+import { post as googleAdsKeywordPlannerGuide } from './google-ads-keyword-planner-guide';
+import { post as googleKeywordResearchTool } from './google-keyword-research-tool';
+import { post as bestFreeKeywordResearchTools } from './best-free-keyword-research-tools';
+import { post as semrushCompetitorAnalysis } from './semrush-competitor-analysis';
+import { post as howToFindLowCompetitionKeywords } from './how-to-find-low-competition-keywords';
 
 export const BLOG_POSTS: BlogPost[] = [
   whatIsKeywordResearch,
@@ -68,6 +75,12 @@ export const BLOG_POSTS: BlogPost[] = [
   ubersuggestAlternative,
   seRankingAlternative,
   mangoolsAlternative,
+  seoKeywordAnalysisTools,
+  googleAdsKeywordPlannerGuide,
+  googleKeywordResearchTool,
+  bestFreeKeywordResearchTools,
+  semrushCompetitorAnalysis,
+  howToFindLowCompetitionKeywords,
 ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 export function getPostBySlug(slug: string): BlogPost | undefined {

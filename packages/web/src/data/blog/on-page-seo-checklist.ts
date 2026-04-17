@@ -9,7 +9,14 @@ export const post: BlogPost = {
   readTime: '10 min read',
   category: 'guide',
   keywords: ['on page seo checklist', 'on page seo checker', 'on page seo factors', 'on page seo optimization checklist', 'seo checklist 2026'],
+  faq: [
+    { question: 'What is on-page SEO?', answer: 'On-page SEO refers to the optimization of content and HTML source code on individual web pages to rank higher in search results. It includes title tags, meta descriptions, heading structure, content quality, internal linking, structured data, images, and URL structure — everything within your direct control on the page itself.' },
+    { question: 'How do I check my on-page SEO?', answer: 'The fastest way is to run a free SEO audit at jackpotkeywords.web.app/seo-audit which checks 20 plus ranking factors automatically. You can also manually inspect title tags, meta descriptions, heading hierarchy, structured data, and content depth using browser developer tools and Google Search Console.' },
+    { question: 'How often should I audit my on-page SEO?', answer: 'Run a comprehensive on-page audit quarterly and check key pages monthly after content updates. Any time you redesign your site, migrate to a new platform, or make significant content changes, run an audit immediately to catch issues before they affect rankings.' },
+  ],
   content: `
+> **Key Takeaway:** On-page SEO is the only part of SEO you have complete control over. This checklist covers 20 specific, measurable factors that affect rankings in 2026 — from title tags and heading hierarchy to structured data and content depth — with how to check each one and what to fix.
+
 ## Why On-Page SEO Still Matters
 
 Google's algorithm uses over 200 ranking factors, but on-page SEO remains the foundation. It is the only part of SEO you have complete control over. Backlinks depend on other sites. Technical infrastructure depends on your hosting. But the content and markup on your pages? That is entirely in your hands.
@@ -171,6 +178,24 @@ It is free for signed-in users. No credit card, no subscription, no trial period
 ## After the Checklist: Finding the Right Keywords
 
 Fixing on-page issues is step one. Step two is making sure you are targeting the right keywords. Even a perfectly optimized page will not rank if nobody searches for what it is about.
+
+For a complete site-wide audit beyond on-page factors, see our [how to do an SEO audit guide](/blog/how-to-do-seo-audit) or [run a free SEO audit](https://jackpotkeywords.web.app/seo-audit) on your site in 60 seconds. To find the right keywords to optimize your pages for, our [keyword research beginner\'s guide](/blog/what-is-keyword-research) covers the fundamentals, and our [low competition keywords guide](/blog/how-to-find-low-competition-keywords) helps you find terms you can realistically rank for.
+
+![JackpotKeywords SEO Audit results showing category scores and checklist items](/blog/screenshot-audit-score.png)
+
+## Frequently Asked Questions
+
+### What is on-page SEO?
+
+On-page SEO refers to the optimization of content and HTML source code on individual web pages to rank higher in search results. It includes title tags, meta descriptions, heading structure, content quality, internal linking, structured data, images, and URL structure — everything within your direct control on the page itself, as opposed to off-page factors like backlinks.
+
+### How do I check my on-page SEO?
+
+The fastest way is to [run a free SEO audit](https://jackpotkeywords.web.app/seo-audit) which checks 20+ ranking factors automatically and scores your site across six categories. You can also manually inspect elements using browser developer tools and Google Search Console\'s Performance and URL Inspection reports.
+
+### How often should I audit my on-page SEO?
+
+Run a comprehensive audit quarterly and check key pages monthly after content updates. Any time you redesign your site, migrate platforms, or make significant content changes, audit immediately to catch issues before they affect rankings.
 
 [JackpotKeywords keyword research](https://jackpotkeywords.web.app/) helps you find 1,000+ keyword opportunities with real Google Ads data — search volume, CPC, competition, and intent labels. Describe your product in plain English and get scored results in 30 seconds.
 `,

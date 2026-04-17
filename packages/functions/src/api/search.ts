@@ -10,6 +10,7 @@ import { inferCategory, inferCategoryFromSeeds } from '../services/categoryInfer
 import { classifyIntent } from '../services/intentClassifier';
 import { expandAutocomplete, discoverCompetitors, expandAutocompleteMultiPlatform, selectExpandPlatforms } from '../services/autocomplete';
 import { enrichKeywords, forecastKeywords } from '../services/keywordPlanner';
+import { fetchAndParse } from '../services/htmlParser';
 import { overlayTrends } from '../services/googleTrends';
 import { scoreAndClassify, nameClustersBatch, scoreRelevance } from '../services/gemini';
 import { clusterKeywords } from '../services/clustering';
@@ -133,11 +134,21 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
 
   let currentStep = 'init';
   try {
-    // Step 0: Extract structured product context
+    // Step 0: Fetch URL with Cheerio (if provided) then extract product context
     currentStep = 'step0_extractContext';
-    functions.logger.info('Step 0: Extracting product context...');
-    const context = await extractProductContext(description, url);
-    functions.logger.info(`Step 0 done: "${context.productLabel}" — ${context.keyFeatures.length} features, ${context.competitors.length} competitors, ${context.painPoints.length} pain points`);
+    let parsedPage: Awaited<ReturnType<typeof fetchAndParse>> | undefined;
+    if (url) {
+      functions.logger.info('Step 0a: Fetching URL with Cheerio for verification...');
+      parsedPage = await fetchAndParse(url);
+      if (!parsedPage.fetchedHtml) {
+        functions.logger.warn(`Step 0a: URL fetch failed: ${parsedPage.fetchError || 'unknown'} — continuing with description only`);
+      } else {
+        functions.logger.info(`Step 0a: URL verified — "${parsedPage.title}", ${parsedPage.wordCount} words`);
+      }
+    }
+    functions.logger.info('Step 0b: Extracting product context...');
+    const context = await extractProductContext(description, url, parsedPage);
+    functions.logger.info(`Step 0 done: "${context.productLabel}" [${context._sourceConfidence}] — ${context.keyFeatures.length} features, ${context.competitors.length} competitors, ${context.painPoints.length} pain points`);
 
     // Step 1: AI seed generation
     currentStep = 'step1_generateSeeds';

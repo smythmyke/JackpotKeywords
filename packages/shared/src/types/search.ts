@@ -54,6 +54,7 @@ export interface ProductContext {
   industryNiche: string[];
   benefits: string[];
   relatedTopics: string[];
+  _sourceConfidence?: 'url_verified' | 'url_unverified' | 'description_only';
 }
 
 export interface SearchRequest {

@@ -36,6 +36,22 @@ export default function BlogPost() {
             ...(post.heroImage ? { image: post.heroImage } : {}),
           })}
         </script>
+        {post.faq && post.faq.length > 0 && (
+          <script type="application/ld+json">
+            {JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: post.faq.map((item) => ({
+                '@type': 'Question',
+                name: item.question,
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: item.answer,
+                },
+              })),
+            })}
+          </script>
+        )}
       </Helmet>
 
       <article className="max-w-3xl mx-auto px-4 py-16">

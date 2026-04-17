@@ -9,7 +9,15 @@ export const post: BlogPost = {
   readTime: '7 min read',
   category: 'use-case',
   keywords: ['keyword research for a new website', 'new website keywords', 'seo for new website', 'new site keyword strategy'],
+  faq: [
+    { question: 'How do you do keyword research for a brand new website?', answer: 'Focus on low-competition, long-tail keywords that established sites ignore. Describe your product using JackpotKeywords to discover keywords across 12 intent categories, then filter by LOW competition and sort by Jackpot Score. Target 10 to 20 keywords initially with dedicated pages for each.' },
+    { question: 'Can a new website rank on Google?', answer: 'Yes, but you need to target keywords appropriate for your domain authority. New websites can rank for low-competition keywords within 2 to 4 months. Avoid high-competition head terms initially — build authority with consistent content targeting achievable keywords, then expand to more competitive terms over time.' },
+    { question: 'How long does it take for a new website to rank?', answer: 'For low-competition keywords, expect initial rankings within 2 to 4 weeks and page 1 positions within 2 to 4 months. High-competition keywords can take 6 to 12 months or longer. Consistent content publishing and building topical authority accelerate the timeline.' },
+  ],
   content: `
+> **Key Takeaway:** New websites should target low-competition, long-tail keywords where established sites have not focused their efforts. Start with 10-20 achievable keywords, build authority with quality content, and expand to more competitive terms as your domain gains trust with Google.
+
+
 ## The New Website Problem
 
 You just launched a website. It looks great, the content is solid, and you are ready for traffic. But weeks go by and Google sends you almost nothing. What happened?
@@ -131,6 +139,22 @@ The websites that struggle are the ones that either target impossibly competitiv
 JackpotKeywords was built for exactly this scenario — discovering untapped keyword opportunities without needing years of SEO experience. Describe your product or business, and the tool surfaces keywords across every intent category, scored by their opportunity-to-competition ratio.
 
 Whether you are launching a blog, an online store, or a SaaS product, the right keywords are out there. You just need the data to find them.
+
+For a deep dive into finding keywords with minimal competition, see our [low competition keywords guide](/blog/how-to-find-low-competition-keywords). To understand the fundamentals of keyword metrics and what makes a keyword worth targeting, our [beginner\'s guide to keyword research](/blog/what-is-keyword-research) covers everything. And to group your initial keywords into efficient content clusters, see our [keyword clustering guide](/blog/keyword-clustering-seo).
+
+## Frequently Asked Questions
+
+### How do you do keyword research for a brand new website?
+
+Focus on low-competition, long-tail keywords that established sites ignore. Describe your product using [JackpotKeywords](https://jackpotkeywords.web.app) to discover keywords across 12 intent categories, then filter by LOW competition and sort by Jackpot Score. Start with 10-20 keywords and create dedicated, comprehensive pages for each.
+
+### Can a new website rank on Google?
+
+Yes, but you need to target keywords appropriate for a new domain\'s authority level. New websites can rank for low-competition keywords within 2-4 months with quality content. Avoid high-competition head terms initially — build authority with consistent content targeting achievable keywords, then expand to more competitive terms over time.
+
+### How long does it take for a new website to rank?
+
+For low-competition keywords, expect initial visibility within 2-4 weeks and page 1 positions within 2-4 months. High-competition keywords can take 6-12 months or longer even with strong content. Consistent publishing and building topical authority accelerate the timeline.
 
 [Try JackpotKeywords free](https://jackpotkeywords.web.app) and find the low-competition keywords your new website should target first.
 `,

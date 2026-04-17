@@ -68,23 +68,31 @@ const CATEGORIES = [
 const FAQS = [
   {
     q: 'Where does the keyword data come from?',
-    a: 'Real advertiser-grade data — actual search volumes, CPC ranges, and competition levels. We combine multiple data sources with AI analysis for the most complete picture.',
+    a: 'Real advertiser-grade data from the Google Ads API — the same source as Google Keyword Planner. Every keyword includes actual monthly search volume, CPC bid ranges, competition levels, and 12-month trend data. We combine this with Google Autocomplete, Google Trends, and Gemini AI analysis for discovery, scoring, and intent classification.',
   },
   {
     q: 'How is this different from ChatGPT keyword suggestions?',
-    a: "ChatGPT can brainstorm keywords but has no real data behind them. We give you actual monthly search volume, CPC ranges, competition levels, and opportunity scores — all from Google's live data.",
+    a: "ChatGPT can brainstorm keywords but has no real data behind them — no search volume, no CPC, no competition levels. JackpotKeywords gives you actual monthly search volume, CPC ranges, competition data, and opportunity scores from Google's live advertising data. Every keyword is backed by numbers, not guesses.",
   },
   {
     q: 'What is a Jackpot Score?',
-    a: 'Our proprietary score (0-100) that combines volume, CPC, competition, and trend direction to find keywords that are high-traffic, low-cost, and rising. Green = goldmine.',
+    a: 'Our proprietary score (0-100) that combines search volume, CPC, competition level, and trend direction into a single metric. High scores identify keywords that are high-traffic, low-cost, and rising in demand — the goldmine opportunities hiding in your market.',
   },
   {
     q: 'Do my results expire?',
-    a: 'Never. Your saved searches are permanent. Come back anytime to review, export, or act on your keywords.',
+    a: 'Never. Your saved searches are permanent. Come back anytime to review, filter, export to CSV or Excel, or act on your keywords. Pro subscribers can save up to 200 individual keywords per search for quick access.',
   },
   {
     q: 'Can I use this for SEO and paid ads?',
-    a: 'Yes. Toggle between Ad Score and SEO Score views. Ad Score optimizes for low CPC + high volume. SEO Score optimizes for rankability + search intent.',
+    a: 'Yes. Toggle between Ad Score and SEO Score views in your results. Ad Score optimizes for low CPC and high volume — ideal for Google Ads campaign planning. SEO Score optimizes for rankability and search intent — ideal for content strategy and organic traffic.',
+  },
+  {
+    q: 'How does JackpotKeywords compare to SEMrush or Ahrefs?',
+    a: 'JackpotKeywords focuses on keyword discovery with real Google Ads data for $9.99/month. SEMrush ($140/month) and Ahrefs ($99/month) are full SEO suites that include backlink analysis, rank tracking, and site audits alongside keyword research. If your primary need is finding the right keywords, JackpotKeywords provides more accurate keyword data at 1/14th the price.',
+  },
+  {
+    q: 'What is an SEO audit and do you offer one?',
+    a: 'An SEO audit checks your website for technical issues that affect search rankings — title tags, structured data, crawlability, content depth, and more. JackpotKeywords includes a free SEO audit tool that checks 20+ ranking factors and provides AI-powered fix recommendations in about 60 seconds.',
   },
 ];
 
@@ -409,6 +417,72 @@ export default function Home() {
           >
             Try Free SEO Audit &rarr;
           </Link>
+        </div>
+      </section>
+
+      {/* What Is JackpotKeywords — Expanded Content for SEO */}
+      <section className="py-20 px-4 border-t border-gray-800">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold mb-6">What Is JackpotKeywords?</h2>
+          <div className="space-y-4 text-gray-300 leading-relaxed">
+            <p>
+              JackpotKeywords is an AI-powered keyword research tool that finds the search terms your customers
+              actually use — without requiring you to know any seed keywords. Describe your product or service
+              in plain English, and our AI analyzes your market, identifies competitors, and generates keyword
+              opportunities across 12 intent categories: direct, feature-based, problem-based, audience,
+              competitor brands, alternatives, use case, industry, benefit, adjacent, seasonal, and local.
+            </p>
+            <p>
+              Every keyword is enriched with data from the Google Ads API — the same source that powers
+              Google Keyword Planner. You get exact monthly search volumes (not ranges), actual CPC bid data,
+              competition levels, and 12-month trend direction. Our Jackpot Score combines these metrics into
+              a single 0-100 rating that surfaces the best opportunities first.
+            </p>
+            <p>
+              Traditional keyword tools like SEMrush ($140/month) and Ahrefs ($99/month) require you to
+              already know what keywords to search for. JackpotKeywords eliminates this cold-start problem
+              entirely — you describe what you sell, and the AI discovers keywords you would never think to
+              search for manually. At $9.99/month for unlimited searches, it costs a fraction of enterprise
+              SEO platforms while providing more accurate keyword data from Google&apos;s own systems.
+            </p>
+          </div>
+
+          <h3 className="text-xl font-bold mt-10 mb-4">Who Is JackpotKeywords For?</h3>
+          <div className="space-y-4 text-gray-300 leading-relaxed">
+            <p>
+              JackpotKeywords is built for small business owners, indie founders, content creators, and
+              marketing teams who need real keyword data without enterprise pricing or SEO expertise.
+              Whether you are launching a new SaaS product, optimizing an{' '}
+              <Link to="/blog/ecommerce-keyword-research" className="text-jackpot-400 hover:underline">
+                e-commerce store
+              </Link>
+              , planning{' '}
+              <Link to="/blog/ppc-keyword-research" className="text-jackpot-400 hover:underline">
+                Google Ads campaigns
+              </Link>
+              , or building a content strategy around{' '}
+              <Link to="/blog/how-to-find-low-competition-keywords" className="text-jackpot-400 hover:underline">
+                low-competition keywords
+              </Link>
+              , the tool adapts to your use case.
+            </p>
+            <p>
+              New to keyword research? Our{' '}
+              <Link to="/blog/what-is-keyword-research" className="text-jackpot-400 hover:underline">
+                beginner&apos;s guide
+              </Link>{' '}
+              explains the fundamentals — search volume, CPC, competition, and intent — in plain language.
+              Already familiar with keyword tools? See how we compare in our{' '}
+              <Link to="/blog/best-keyword-research-tool-2026" className="text-jackpot-400 hover:underline">
+                2026 tool comparison
+              </Link>{' '}
+              or read our{' '}
+              <Link to="/blog/seo-keyword-analysis-tools" className="text-jackpot-400 hover:underline">
+                SEO keyword analysis tools guide
+              </Link>
+              .
+            </p>
+          </div>
         </div>
       </section>
 

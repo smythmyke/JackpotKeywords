@@ -9,7 +9,14 @@ export const post: BlogPost = {
   readTime: '7 min read',
   category: 'use-case',
   keywords: ['find keywords competitors rank for', 'competitor keyword research', 'competitor keyword analysis', 'spy on competitor keywords'],
+  faq: [
+    { question: 'How do I find what keywords my competitors rank for?', answer: 'You can use Google Search Console to find keywords where competitors outrank you, domain analysis tools like SEMrush or SpyFu to see a competitor domain\'s keyword profile, or JackpotKeywords to automatically generate competitor brand and alternative keywords from your product description. Each approach surfaces different types of competitive intelligence.' },
+    { question: 'Is competitor keyword research legal?', answer: 'Yes. Analyzing publicly available search results and using keyword research tools to understand competitor strategies is completely legal and a standard marketing practice. You are looking at public data — what ranks in Google, what keywords appear in tools — not accessing private information.' },
+    { question: 'How often should I check competitor keywords?', answer: 'Monthly checks on your most important keywords and quarterly full competitive analysis is a good cadence. Your competitors are constantly publishing new content and adjusting strategy. More frequent monitoring may be warranted in fast-moving or highly competitive markets.' },
+  ],
   content: `
+> **Key Takeaway:** Competitor keyword research reveals which keywords drive traffic to your competitors and where they have left gaps for you to target. The most actionable approach combines automated competitor keyword discovery with manual SERP analysis to find opportunities your competitors are missing.
+
 ## Why Competitor Keyword Research Matters
 
 Every business has competitors who are already ranking in search results. Some of them are doing it well; others are leaving gaps wide open. Competitor keyword research lets you answer two critical questions:
@@ -167,6 +174,24 @@ Set up Google Alerts for competitor brand names and key industry terms. When a c
 Understanding what keywords drive traffic to your competitors transforms your SEO strategy from guesswork to informed decision-making. Whether you use free methods, paid tools, or a combination, the goal is the same: find where the traffic flows and identify the gaps you can fill.
 
 JackpotKeywords automates the competitor keyword discovery process — including identifying competitors you might not know about. Describe your product, and the tool generates competitor brand and alternative keywords alongside every other intent category.
+
+For a detailed look at SEMrush\'s competitor analysis capabilities and their cost, see our [SEMrush competitor analysis guide](/blog/semrush-competitor-analysis). If you want to understand how AI changes the competitive keyword discovery process, our [AI keyword research guide](/blog/ai-keyword-research) covers the approach. And for identifying keywords with minimal competition once you have found gaps, see our [low competition keywords guide](/blog/how-to-find-low-competition-keywords).
+
+![JackpotKeywords results showing Competitor Brands and Competitor Alternatives keyword categories](/blog/jk-competitor-categories-results.png)
+
+## Frequently Asked Questions
+
+### How do I find what keywords my competitors rank for?
+
+Several approaches work. Google Search Console shows keywords where competitors outrank you for queries your site appears in. Domain analysis tools like SEMrush, SpyFu, or Ahrefs let you enter a competitor URL and see their estimated keyword profile. [JackpotKeywords](https://jackpotkeywords.web.app) automatically generates competitor brand keywords and "alternative to" queries from your product description — surfacing the highest-intent competitive terms without requiring you to know competitor domains.
+
+### Is competitor keyword research legal?
+
+Yes, completely. Analyzing publicly available search results and using keyword research tools to understand competitor strategies is standard marketing practice. You are examining public data — what pages rank in Google, what keywords tools associate with domains — not accessing any private or proprietary information.
+
+### How often should I check competitor keywords?
+
+Monthly checks on your top 20-30 keywords and quarterly full competitive gap analysis is a good cadence for most businesses. Your competitors are constantly publishing new content and adjusting their keyword strategy. Set up Google Alerts for competitor brand names to catch major new content as it publishes.
 
 [Try JackpotKeywords free](https://jackpotkeywords.web.app) and see which competitor keywords you should be targeting.
 `,

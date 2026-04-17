@@ -9,7 +9,14 @@ export const post: BlogPost = {
   readTime: '9 min read',
   category: 'guide',
   keywords: ['e commerce keyword research', 'ecommerce keywords', 'product keyword research', 'keyword research for online store'],
+  faq: [
+    { question: 'How do you find keywords for an e-commerce store?', answer: 'Describe your products in plain English using a tool like JackpotKeywords to discover keywords across buying intent categories. Also mine Amazon and Google autocomplete for product-specific long-tail terms. Focus on transactional keywords with buying intent rather than informational queries.' },
+    { question: 'What is the best keyword research tool for e-commerce?', answer: 'JackpotKeywords is well-suited for e-commerce because it generates keywords across 12 intent categories including product-specific, competitor brand, and seasonal keywords from a product description. For Amazon-specific keywords, Helium 10 and Jungle Scout specialize in Amazon search data.' },
+    { question: 'How many keywords should an e-commerce product page target?', answer: 'Each product page should target one primary keyword and 3 to 5 closely related variations. Trying to target too many unrelated keywords on a single page dilutes relevance and confuses search engines about the page topic.' },
+  ],
   content: `
+> **Key Takeaway:** E-commerce keyword research is about finding the specific terms people use when they are ready to buy — not just browse. Focus on product-specific long-tail keywords with buying intent, use real CPC data to understand commercial value, and target keywords across multiple platforms (Google, Amazon, Etsy) where your customers shop.
+
 ## Why E-Commerce Keyword Research Is Its Own Discipline
 
 Keyword research for an e-commerce store is fundamentally different from keyword research for a blog, a local business, or a SaaS product. The keywords you target directly determine which products people find in your store — and whether those people are ready to buy.
@@ -215,6 +222,22 @@ Focus on era and style keywords ("mid century modern lamp," "90s vintage denim j
 The products in your store should match the keywords people are searching for. That sounds obvious, but most e-commerce sellers list products with creative names and descriptions that never appear in search results.
 
 Data-driven keyword research changes that. You find out exactly what people search for, how often they search for it, and how hard it is to compete — then you build your listings and ads around that data.
+
+For platform-specific strategies, see our [Etsy keyword research guide](/blog/keyword-research-for-etsy-sellers). If you are also running Google Ads for your store, our [PPC keyword research guide](/blog/ppc-keyword-research) covers campaign-specific keyword selection. And for finding product niches with less competition, our [low competition keywords guide](/blog/how-to-find-low-competition-keywords) explains how to validate opportunities.
+
+## Frequently Asked Questions
+
+### How do you find keywords for an e-commerce store?
+
+Describe your products in plain English using [JackpotKeywords](https://jackpotkeywords.web.app) to discover keywords across buying intent categories — direct product searches, feature-based queries, problem-based searches, and competitor brand terms. Also mine Amazon and Google autocomplete for product-specific long-tail terms. Focus on transactional keywords with buying intent rather than broad informational queries.
+
+### What is the best keyword research tool for e-commerce?
+
+JackpotKeywords is well-suited because it generates keywords across 12 intent categories including product-specific, competitor brand, seasonal, and use-case keywords from a product description. For Amazon-specific keywords, tools like Helium 10 specialize in Amazon search data. Google Keyword Planner provides CPC data useful for shopping ads.
+
+### How many keywords should an e-commerce product page target?
+
+Each product page should target one primary keyword and 3-5 closely related variations. Trying to target too many unrelated keywords on a single page dilutes relevance. Create separate pages or blog posts for informational keywords related to your products.
 
 [Try JackpotKeywords free](https://jackpotkeywords.web.app) to research your product keywords. Describe what you sell in plain English and get 1,000+ keywords with real search volume, CPC, competition data, and buying intent categories. Three free searches, no credit card required.
 `,

@@ -57,6 +57,18 @@ function extractArray(content, field) {
   return [...match[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map((m) => m[1] || m[2]);
 }
 
+function extractFaq(content) {
+  // Match the faq array block — ends at ], followed by optional comma and content: or end
+  const faqMatch = content.match(/faq:\s*\[([\s\S]*?)\]\s*,?\s*(?=content:)/);
+  if (!faqMatch) return [];
+  const faqBlock = faqMatch[1];
+  const pairs = [...faqBlock.matchAll(/question:\s*'((?:[^'\\]|\\.)*)'\s*,\s*answer:\s*'((?:[^'\\]|\\.)*)'/g)];
+  return pairs.map((m) => ({
+    question: m[1].replace(/\\'/g, "'"),
+    answer: m[2].replace(/\\'/g, "'"),
+  }));
+}
+
 function renderMarkdown(content) {
   if (!content) return '';
   // Unescape template-literal escape sequences (\`, \\, \$) captured from the TS source.
@@ -76,21 +88,86 @@ const blogPosts = blogFiles.map((filename) => {
   const readTime = extractField(src, 'readTime');
   const keywords = extractArray(src, 'keywords');
   const heroImage = extractField(src, 'heroImage');
+  const faq = extractFaq(src);
 
   // Extract markdown content between backticks after content:
   // Must allow escaped backticks (\`) inside the template literal body.
   const contentMatch = src.match(/content:\s*`((?:[^`\\]|\\[\s\S])*)`\s*[,}]/);
   const markdownContent = contentMatch ? contentMatch[1] : '';
 
-  return { slug, title, description, date, author, readTime, keywords, heroImage, markdownContent };
+  return { slug, title, description, date, author, readTime, keywords, heroImage, faq, markdownContent };
 }).filter((p) => p.slug);
 
 // -------------------------------------------------------------------
 // Page definitions — all routes that should be pre-rendered
 // -------------------------------------------------------------------
 const pages = [
-  // Home page — keep the existing rich content in index.html as-is
-  // (it already has good crawler content)
+  // Home page
+  {
+    path: '/',
+    title: 'JackpotKeywords — AI Keyword Research Tool',
+    description: 'Describe your product. Find your goldmine keywords. AI-powered keyword research with real Google data at 1/14th the price of SEMrush.',
+    extraHead: `<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'JackpotKeywords',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      description: 'AI-powered keyword research tool with real Google Ads data. Discover 1,000+ keyword opportunities across 12 intent categories.',
+      url: 'https://jackpotkeywords.web.app',
+      offers: [
+        { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free tier — 3 searches' },
+        { '@type': 'Offer', price: '9.99', priceCurrency: 'USD', description: 'Pro — unlimited searches' },
+      ],
+    })}</script>
+<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: [
+        { '@type': 'Question', name: 'Where does the keyword data come from?', acceptedAnswer: { '@type': 'Answer', text: 'Real advertiser-grade data from the Google Ads API — the same source as Google Keyword Planner. Every keyword includes actual monthly search volume, CPC bid ranges, competition levels, and 12-month trend data.' } },
+        { '@type': 'Question', name: 'How is this different from ChatGPT keyword suggestions?', acceptedAnswer: { '@type': 'Answer', text: 'ChatGPT can brainstorm keywords but has no real data behind them. JackpotKeywords gives you actual monthly search volume, CPC ranges, competition data, and opportunity scores from Google live advertising data.' } },
+        { '@type': 'Question', name: 'What is a Jackpot Score?', acceptedAnswer: { '@type': 'Answer', text: 'Our proprietary score (0-100) that combines search volume, CPC, competition level, and trend direction into a single metric. High scores identify keywords that are high-traffic, low-cost, and rising in demand.' } },
+        { '@type': 'Question', name: 'How does JackpotKeywords compare to SEMrush or Ahrefs?', acceptedAnswer: { '@type': 'Answer', text: 'JackpotKeywords focuses on keyword discovery with real Google Ads data for $9.99/month. SEMrush ($140/month) and Ahrefs ($99/month) are full SEO suites. If your primary need is finding the right keywords, JackpotKeywords provides more accurate keyword data at 1/14th the price.' } },
+        { '@type': 'Question', name: 'Can I use this for SEO and paid ads?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. Toggle between Ad Score and SEO Score views. Ad Score optimizes for low CPC + high volume for Google Ads. SEO Score optimizes for rankability + search intent for organic content.' } },
+        { '@type': 'Question', name: 'What is an SEO audit and do you offer one?', acceptedAnswer: { '@type': 'Answer', text: 'An SEO audit checks your website for technical issues affecting rankings. JackpotKeywords includes a free SEO audit tool that checks 20+ ranking factors with AI-powered recommendations in about 60 seconds.' } },
+      ],
+    })}</script>`,
+    body: `<h1>JackpotKeywords — AI Keyword Research Tool</h1>
+<p>Describe your product. Find your goldmine keywords. AI-powered keyword research with real Google Ads data at 1/14th the price of SEMrush.</p>
+<h2>How It Works</h2>
+<p><strong>Step 1: Describe Your Product.</strong> Tell us what you sell in plain English. No keyword knowledge needed.</p>
+<p><strong>Step 2: AI Finds Opportunities.</strong> 4 data sources. 12 intent categories. 1,000+ keywords analyzed in seconds.</p>
+<p><strong>Step 3: Get Your Goldmine.</strong> Ranked keywords with real volume, CPC, and Jackpot Scores. Export and act.</p>
+<h2>12 Intent Categories</h2>
+<p>We organize keywords by how people search: Direct Intent, Feature-Based, Problem-Based, Audience, Competitor Brands, Competitor Alternatives, Use Case, Industry/Niche, Benefit/Outcome, Adjacent, Seasonal, and Local.</p>
+<h2>Stop Overpaying for Keywords</h2>
+<p>JackpotKeywords: $9.99/mo with real Google data, AI scoring, 12 categories. SEMrush: $140/mo. Ahrefs: $99/mo. SE Ranking: $44/mo. Ubersuggest: $29/mo. KeywordTool.io: $89/mo. All with estimated data — not Google-sourced.</p>
+<h2>What Is JackpotKeywords?</h2>
+<p>JackpotKeywords is an AI-powered keyword research tool that finds the search terms your customers actually use — without requiring you to know any seed keywords. Describe your product or service in plain English, and our AI analyzes your market, identifies competitors, and generates keyword opportunities across 12 intent categories.</p>
+<p>Every keyword is enriched with data from the Google Ads API — the same source that powers Google Keyword Planner. You get exact monthly search volumes (not ranges), actual CPC bid data, competition levels, and 12-month trend direction. Our Jackpot Score combines these metrics into a single 0-100 rating.</p>
+<p>Traditional keyword tools like SEMrush ($140/month) and Ahrefs ($99/month) require you to already know what keywords to search for. JackpotKeywords eliminates this cold-start problem entirely. At $9.99/month for unlimited searches, it costs a fraction of enterprise SEO platforms while providing more accurate keyword data from Google's own systems.</p>
+<h2>Who Is JackpotKeywords For?</h2>
+<p>Small business owners, indie founders, content creators, and marketing teams who need real keyword data without enterprise pricing. Whether you are launching a SaaS product, optimizing an <a href="${BASE_URL}/blog/ecommerce-keyword-research">e-commerce store</a>, planning <a href="${BASE_URL}/blog/ppc-keyword-research">Google Ads campaigns</a>, or building a content strategy around <a href="${BASE_URL}/blog/how-to-find-low-competition-keywords">low-competition keywords</a>.</p>
+<p>New to keyword research? Our <a href="${BASE_URL}/blog/what-is-keyword-research">beginner's guide</a> explains the fundamentals. See how we compare in our <a href="${BASE_URL}/blog/best-keyword-research-tool-2026">2026 tool comparison</a> or read our <a href="${BASE_URL}/blog/seo-keyword-analysis-tools">SEO keyword analysis tools guide</a>.</p>
+<h2>Real Data, Not Guesswork</h2>
+<p>Search Volume: real monthly data. CPC and Competition: actual advertiser bid ranges. Trend Analysis: 12-month trends and seasonality. AI Scoring: intent mapping, scoring, and categorization.</p>
+<h2>Already Have a Website?</h2>
+<p>Audit your site's SEO in 60 seconds. Check title tags, structured data, crawlability, and 20+ ranking factors with AI-powered recommendations.</p>
+<h2>Frequently Asked Questions</h2>
+<h3>Where does the keyword data come from?</h3>
+<p>Real advertiser-grade data from the Google Ads API — the same source as Google Keyword Planner. Every keyword includes actual monthly search volume, CPC bid ranges, competition levels, and 12-month trend data.</p>
+<h3>How is this different from ChatGPT keyword suggestions?</h3>
+<p>ChatGPT brainstorms keywords but has no real data. JackpotKeywords gives you actual volume, CPC, competition, and scores from Google's live data.</p>
+<h3>What is a Jackpot Score?</h3>
+<p>A proprietary score (0-100) combining volume, CPC, competition, and trend direction to surface high-traffic, low-cost, rising keywords.</p>
+<h3>How does JackpotKeywords compare to SEMrush or Ahrefs?</h3>
+<p>JackpotKeywords focuses on keyword discovery with real Google data for $9.99/mo. SEMrush ($140/mo) and Ahrefs ($99/mo) are full SEO suites with backlinks, rank tracking, and audits. For keyword research specifically, JackpotKeywords provides more accurate data at 1/14th the price.</p>
+<h3>Can I use this for SEO and paid ads?</h3>
+<p>Yes. Toggle between Ad Score (for Google Ads campaigns) and SEO Score (for organic content strategy).</p>
+<h3>What is an SEO audit and do you offer one?</h3>
+<p>An SEO audit checks your website for technical issues affecting rankings. JackpotKeywords includes a free audit checking 20+ factors with AI-powered fix recommendations in 60 seconds.</p>
+<p><a href="${BASE_URL}">Start Your Free Search</a> — 3 free searches, no credit card required.</p>`,
+  },
 
   // Pricing
   {
@@ -259,6 +336,20 @@ for (const post of blogPosts) {
     ...(post.heroImage ? { image: `${BASE_URL}${post.heroImage}` } : {}),
   });
 
+  let extraHead = `<script type="application/ld+json">${jsonLd}</script>`;
+  if (post.faq && post.faq.length > 0) {
+    const faqJsonLd = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: post.faq.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      })),
+    });
+    extraHead += `\n<script type="application/ld+json">${faqJsonLd}</script>`;
+  }
+
   pages.push({
     path: `/blog/${post.slug}`,
     title: post.title,
@@ -266,7 +357,7 @@ for (const post of blogPosts) {
     keywords: post.keywords,
     ogType: 'article',
     ogImage: post.heroImage ? `${BASE_URL}${post.heroImage}` : null,
-    extraHead: `<script type="application/ld+json">${jsonLd}</script>`,
+    extraHead,
     body: `<article>
 <h1>${post.title}</h1>
 <p><time datetime="${post.date}">${post.date}</time> &middot; ${post.readTime} &middot; ${post.author}</p>
