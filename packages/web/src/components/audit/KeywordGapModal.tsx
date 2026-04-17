@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { SeoAuditKeywordGap } from '@jackpotkeywords/shared';
+import UpgradePrompt from '../UpgradePrompt';
 
 interface KeywordGapModalProps {
   open: boolean;
@@ -52,18 +53,7 @@ export default function KeywordGapModal({
         </button>
 
         {isLocked ? (
-          <>
-            <h3 className="text-lg font-bold text-white mb-3">Unlock All Keyword Gaps</h3>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              Sign in free to see all keyword suggestions and get full audit recommendations.
-            </p>
-            <button
-              onClick={onSignIn}
-              className="w-full bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold py-3 rounded-lg transition"
-            >
-              Sign In Free with Google
-            </button>
-          </>
+          <UpgradePrompt mode="inline" featureName="Keyword Gaps" onDismiss={onClose} />
         ) : isSignedIn ? (
           <>
             <h3 className="text-lg font-bold text-white mb-3">{gap.keyword}</h3>
@@ -94,16 +84,10 @@ export default function KeywordGapModal({
         ) : (
           <>
             <h3 className="text-lg font-bold text-white mb-3">{gap.keyword}</h3>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              Could these keywords work for your site? Sign in free, then run a keyword search
-              for real volume, CPC, and competition data.
+            <p className="text-gray-400 text-sm leading-relaxed mb-4">
+              Get real volume, CPC, and competition data for these keywords.
             </p>
-            <button
-              onClick={onSignIn}
-              className="w-full bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold py-3 rounded-lg transition"
-            >
-              Sign In Free with Google
-            </button>
+            <UpgradePrompt mode="inline" featureName="Keyword Research" onDismiss={onClose} />
           </>
         )}
 

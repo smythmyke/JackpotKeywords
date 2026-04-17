@@ -26,10 +26,10 @@ export function useCredits({ getToken, refreshCredits }: UseCreditsOptions) {
   );
 
   const buyCreditPack = useCallback(
-    async (packId: CreditPack['id']) => {
+    async (packId: CreditPack['id'], returnPath?: string) => {
       const res = await authedFetch('/api/stripe/create-credit-checkout', {
         method: 'POST',
-        body: JSON.stringify({ packId }),
+        body: JSON.stringify({ packId, returnPath }),
       });
       if (!res.ok) throw new Error('Failed to create checkout');
       const { url } = await res.json();
@@ -39,10 +39,10 @@ export function useCredits({ getToken, refreshCredits }: UseCreditsOptions) {
   );
 
   const subscribe = useCallback(
-    async (planId: SubscriptionPlan['id']) => {
+    async (planId: SubscriptionPlan['id'], returnPath?: string) => {
       const res = await authedFetch('/api/stripe/create-subscription-checkout', {
         method: 'POST',
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId, returnPath }),
       });
       if (!res.ok) throw new Error('Failed to create checkout');
       const { url } = await res.json();

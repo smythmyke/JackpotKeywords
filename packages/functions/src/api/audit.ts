@@ -80,11 +80,23 @@ function maskAnonymousAuditResponse(result: SeoAuditResult): SeoAuditResult {
     };
   });
 
+  // Mask AEO results — show score but hide query details and action items
+  const maskedAeo = result.aeoResult ? {
+    ...result.aeoResult,
+    queries: result.aeoResult.queries.slice(0, 2).map((q) => ({
+      ...q,
+      answerSnippet: '',
+      citations: q.citations.slice(0, 2),
+    })),
+    actionItems: [],
+  } : result.aeoResult;
+
   return {
     ...result,
     checks: maskedChecks,
     keywordGaps: maskedGaps,
     recommendations: maskedRecs,
+    aeoResult: maskedAeo,
   };
 }
 

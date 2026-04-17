@@ -21,11 +21,13 @@ import auditRouter from './api/audit';
 import stripeRouter from './api/stripe';
 import adminRouter from './api/admin';
 import eventsRouter from './api/events';
+import aeoScanRouter from './api/aeoScan';
 
 // Mount routes
 app.use('/api/auth', authRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/aeo-scan', aeoScanRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/events', eventsRouter);

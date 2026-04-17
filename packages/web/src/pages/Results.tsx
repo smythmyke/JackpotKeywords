@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults } from '../services/api';
+import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults, runAeoScan } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -13,6 +13,7 @@ import MarketIntelligence from '../components/MarketIntelligence';
 import BudgetCalculator from '../components/BudgetCalculator';
 import IntentBadge from '../components/IntentBadge';
 import ConversionModal, { type ConversionModalVariant } from '../components/ConversionModal';
+import UpgradePrompt from '../components/UpgradePrompt';
 import { computeModalMetrics, computeTopThree } from '../lib/modalMetrics';
 import { exportAnalysisCsv, exportGoogleAdsCsv } from '../services/export';
 import {
@@ -118,6 +119,7 @@ export default function Results() {
   const [refineError, setRefineError] = useState<string | null>(null);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [expanding, setExpanding] = useState(false);
+  const [aeoLoading, setAeoLoading] = useState(false);
   const [expandedCount, setExpandedCount] = useState<number | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -545,6 +547,24 @@ export default function Results() {
     }
   };
 
+  const handleAeoScan = async () => {
+    if (!result || aeoLoading || !user) return;
+    setAeoLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const aeoResult = await runAeoScan(token, {
+        searchId: result.id,
+        domain: result.url || '',
+      });
+      navigate(`/aeo-scan/${aeoResult.id}`, { state: { aeoResult } });
+    } catch (err: any) {
+      alert(err.message || 'AEO scan failed. Please try again.');
+    } finally {
+      setAeoLoading(false);
+    }
+  };
+
   const handleExpand = async () => {
     if (!result || expanding || expandedCount !== null) return;
     setExpanding(true);
@@ -687,23 +707,9 @@ export default function Results() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 py-8">
-      {/* Sticky upgrade CTA — unpaid users see all N keywords teased, paywall messaging above */}
+      {/* Sticky upgrade CTA — pricing-first bar for unpaid users */}
       {!paid && !isAdmin && (
-        <div className="sticky top-0 z-40 -mx-4 px-4 py-3 mb-4 bg-gradient-to-r from-jackpot-500/20 via-jackpot-500/15 to-jackpot-500/20 border-b border-jackpot-500/40 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-sm text-white">
-            <span className="font-semibold text-jackpot-400">Unlock all {totalKeywords.toLocaleString()} keywords</span>
-            <span className="text-gray-300 ml-1">— including the top jackpot-tier picks. Pro is $9.99/mo, single searches from $1.99.</span>
-          </div>
-          <button
-            onClick={() => {
-              trackEvent('upgrade_clicked', { source: 'results_sticky_bar' });
-              navigate('/pricing');
-            }}
-            className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2 rounded-lg text-sm transition whitespace-nowrap"
-          >
-            Unlock all keywords
-          </button>
-        </div>
+        <UpgradePrompt mode="bar" keywordCount={totalKeywords} className="-mx-4 mb-4" />
       )}
 
       {/* Anonymous user banner */}
@@ -1031,6 +1037,26 @@ export default function Results() {
           </button>
         )}
 
+        {/* AEO Scan button */}
+        {result.url && user && (
+          <button
+            onClick={handleAeoScan}
+            disabled={aeoLoading}
+            title="Check your AI visibility — see if AI assistants cite your product"
+            className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
+              aeoLoading
+                ? 'border-purple-500/40 bg-purple-500/8 text-purple-400 cursor-wait opacity-80'
+                : 'border-purple-500 bg-purple-500/8 text-purple-400 hover:bg-purple-500/15 hover:shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+            }`}
+          >
+            {aeoLoading ? (
+              <><span className="inline-block w-3.5 h-3.5 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" /> Scanning...</>
+            ) : (
+              <><span className="text-base">&#x1F50D;</span> AEO Scan</>
+            )}
+          </button>
+        )}
+
         {/* Expand Results button */}
         <button
           onClick={handleExpand}
@@ -1076,28 +1102,19 @@ export default function Results() {
         />
       )}
 
-      {/* Sign-in prompt toast */}
+      {/* Upgrade prompt toast */}
       {showSignInPrompt && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-jackpot-500/40 rounded-xl px-6 py-4 shadow-2xl flex items-center gap-4 animate-fade-in">
           <div className="text-sm">
-            <span className="text-white font-medium">Sign in to unlock keyword details.</span>
-            <span className="text-gray-400 ml-1">See charts, insights, and related keywords.</span>
+            <span className="text-white font-medium">Unlock all keywords</span>
+            <span className="text-gray-400 ml-1">— from $1.99 per search or $9.99/mo unlimited</span>
           </div>
-          {!user ? (
-            <button
-              onClick={signInWithGoogle}
-              className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-4 py-2 rounded-lg text-sm transition whitespace-nowrap"
-            >
-              Sign In Free
-            </button>
-          ) : (
-            <Link
-              to="/pricing"
-              className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-4 py-2 rounded-lg text-sm transition whitespace-nowrap"
-            >
-              Upgrade
-            </Link>
-          )}
+          <Link
+            to="/pricing"
+            className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-4 py-2 rounded-lg text-sm transition whitespace-nowrap"
+          >
+            See Plans
+          </Link>
         </div>
       )}
 
@@ -1530,34 +1547,8 @@ export default function Results() {
 
       {/* Paywall CTA for free/anonymous users */}
       {!paid && !isAdmin && (
-        <div className="mt-8 text-center bg-gradient-to-r from-jackpot-500/10 to-purple-500/10 border border-jackpot-500/20 rounded-xl p-8">
-          <h2 className="text-xl font-bold text-white mb-2">
-            Unlock all {totalKeywords.toLocaleString()} keywords
-          </h2>
-          <p className="text-gray-400 mb-4">
-            See every keyword, CPC, trend, and score. Export to CSV or Google Ads.
-          </p>
-          {!user ? (
-            <div className="flex flex-col items-center gap-3">
-              <button
-                onClick={signInWithGoogle}
-                className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition"
-              >
-                Sign In for 3 Free Searches
-              </button>
-              <span className="text-gray-500 text-sm">No credit card required</span>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link to="/pricing" className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-3 rounded-xl transition">
-                Unlock from $1.99
-              </Link>
-              <span className="text-gray-500">or</span>
-              <Link to="/pricing" className="bg-gray-800 hover:bg-gray-700 text-white font-medium px-6 py-3 rounded-xl transition">
-                Go unlimited — $9.99/mo
-              </Link>
-            </div>
-          )}
+        <div className="mt-8 bg-gradient-to-r from-jackpot-500/10 to-purple-500/10 border border-jackpot-500/20 rounded-xl p-8">
+          <UpgradePrompt mode="inline" keywordCount={totalKeywords} />
         </div>
       )}
 

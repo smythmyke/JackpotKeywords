@@ -67,6 +67,30 @@ export interface SeoAuditRecommendation {
   category: SeoAuditCategory;
 }
 
+export interface AeoCitation {
+  url: string;
+  title: string;
+}
+
+export interface AeoQuery {
+  query: string;
+  citations: AeoCitation[];
+  productCited: boolean;
+  productMentionedInAnswer: boolean;
+  competitorsCited: string[];
+  answerSnippet: string;
+}
+
+export interface AeoResult {
+  visibilityScore: number;
+  queriesChecked: number;
+  queriesCited: number;
+  queriesMentioned: number;
+  competitorFrequency: Record<string, number>;
+  queries: AeoQuery[];
+  actionItems: string[];
+}
+
 export interface MiniKeywordResult {
   keyword: string;
   monthlyVolume: number;
@@ -88,6 +112,7 @@ export interface SeoAuditResult {
   keywordGaps: SeoAuditKeywordGap[];
   recommendations: SeoAuditRecommendation[];
   keywordPreview?: MiniKeywordResult[] | null;
+  aeoResult?: AeoResult | null;
   metadata: {
     pagesAnalyzed: number;
     executionTimeMs: number;

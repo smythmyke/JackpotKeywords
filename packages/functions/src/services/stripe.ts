@@ -13,6 +13,7 @@ export async function createCreditCheckout(
   userId: string,
   packId: string,
   email?: string,
+  returnPath?: string,
 ): Promise<string> {
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
   if (!pack) throw new Error(`Invalid pack: ${packId}`);
@@ -39,8 +40,8 @@ export async function createCreditCheckout(
     custom_text: {
       submit: { message: 'Payment processed securely by JackpotKeywords' },
     },
-    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/account?purchase=success`,
-    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/pricing`,
+    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}${returnPath || '/account'}?purchase=success`,
+    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}${returnPath || '/pricing'}`,
   });
 
   return session.url || '';
@@ -50,6 +51,7 @@ export async function createSubscriptionCheckout(
   userId: string,
   planId: string,
   email?: string,
+  returnPath?: string,
 ): Promise<string> {
   const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
   if (!plan) throw new Error(`Invalid plan: ${planId}`);
@@ -68,8 +70,8 @@ export async function createSubscriptionCheckout(
     custom_text: {
       submit: { message: 'Payment processed securely by JackpotKeywords' },
     },
-    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/account?subscribe=success`,
-    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}/pricing`,
+    success_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}${returnPath || '/account'}?subscribe=success`,
+    cancel_url: `${process.env.APP_URL || 'https://jackpotkeywords.web.app'}${returnPath || '/pricing'}`,
   });
 
   return session.url || '';

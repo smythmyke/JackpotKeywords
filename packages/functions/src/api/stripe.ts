@@ -33,8 +33,8 @@ router.get('/subscription-plans', (_req, res) => {
 
 router.post('/create-credit-checkout', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { packId } = req.body;
-    const url = await createCreditCheckout(req.userId!, packId, req.userEmail);
+    const { packId, returnPath } = req.body;
+    const url = await createCreditCheckout(req.userId!, packId, req.userEmail, returnPath);
     await logCheckoutStarted(req.userId!, req.anonId || null, 'credit', packId);
     res.json({ url });
   } catch (error: any) {
@@ -44,8 +44,8 @@ router.post('/create-credit-checkout', authMiddleware, async (req: AuthRequest, 
 
 router.post('/create-subscription-checkout', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { planId } = req.body;
-    const url = await createSubscriptionCheckout(req.userId!, planId, req.userEmail);
+    const { planId, returnPath } = req.body;
+    const url = await createSubscriptionCheckout(req.userId!, planId, req.userEmail, returnPath);
     await logCheckoutStarted(req.userId!, req.anonId || null, 'subscription', planId);
     res.json({ url });
   } catch (error: any) {

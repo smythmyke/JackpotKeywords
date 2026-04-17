@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { KeywordResult } from '@jackpotkeywords/shared';
 import { forecastKeywords } from '../services/api';
+import UpgradePrompt from './UpgradePrompt';
 
 const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
@@ -119,11 +120,8 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
               </button>
             </div>
           ) : !hasAccess ? (
-            <div className="text-center py-4">
-              <p className="text-gray-400 text-sm mb-2">Budget Calculator is available for Pro subscribers</p>
-              <a href="/pricing" className="text-jackpot-400 hover:text-jackpot-300 text-sm font-medium transition">
-                Upgrade to Pro &rarr;
-              </a>
+            <div className="py-4">
+              <UpgradePrompt mode="inline" featureName="Budget Calculator" />
             </div>
           ) : (
             <>

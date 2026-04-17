@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult, type SeoAuditKeywordGap, type MiniKeywordResult } from '@jackpotkeywords/shared';
+import { SEO_AUDIT_CATEGORY_LABELS, type SeoAuditCategory, type SeoAuditResult, type SeoAuditKeywordGap, type MiniKeywordResult, type AeoResult } from '@jackpotkeywords/shared';
+import UpgradePrompt from '../components/UpgradePrompt';
 import { useAuthContext } from '../contexts/AuthContext';
 import { getAuditResult, fetchAuditKeywords } from '../services/api';
 import { trackEvent } from '../lib/analytics';
@@ -625,18 +626,7 @@ export default function SeoAuditResults() {
               {/* Unlock overlay */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center bg-gray-950/80 backdrop-blur-sm rounded-2xl px-8 py-6 border border-gray-800">
-                  <p className="text-white font-bold text-lg mb-2">
-                    +{blurredChecks.length} more checks found
-                  </p>
-                  <p className="text-gray-400 text-sm mb-4">
-                    Sign in free to see all results and recommendations
-                  </p>
-                  <button
-                    onClick={signInWithGoogle}
-                    className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-6 py-2.5 rounded-lg transition"
-                  >
-                    Sign In Free to Unlock
-                  </button>
+                  <UpgradePrompt mode="inline" checkCount={blurredChecks.length} />
                 </div>
               </div>
             </div>
@@ -830,21 +820,116 @@ export default function SeoAuditResults() {
           </section>
         )}
 
-        {/* Sign-in CTA for anonymous users — copy reflects the pooled
-            3-free-runs model (search OR audit), not the old "audits are
-            free for all signed-in users" line. */}
-        {!paid && (
-          <section className="text-center py-10 border-t border-gray-800">
-            <h2 className="text-2xl font-bold text-white mb-3">Sign In to Save This Report</h2>
-            <p className="text-gray-400 mb-6 max-w-lg mx-auto">
-              Sign in free to save your audit, see the full report, and unlock 3 lifetime runs of keyword research or SEO audits. No credit card required.
+        {/* AI Visibility (AEO) */}
+        {result.aeoResult && (
+          <section className="mt-12">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              AI Visibility
+              <span className="text-sm font-normal text-gray-500 bg-gray-800 px-2 py-0.5 rounded">Beta</span>
+            </h2>
+            <p className="text-gray-400 mb-6 text-sm">
+              How visible is your site when buyers ask AI assistants (Gemini, ChatGPT, Perplexity) about products like yours?
             </p>
-            <button
-              onClick={signInWithGoogle}
-              className="inline-block bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-8 py-3.5 rounded-lg text-lg transition"
-            >
-              Sign In Free with Google
-            </button>
+
+            {/* Score + summary */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+              <div className="flex items-center gap-6">
+                <div className={`text-4xl font-bold ${
+                  result.aeoResult.visibilityScore >= 60 ? 'text-score-green' :
+                  result.aeoResult.visibilityScore >= 30 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {result.aeoResult.visibilityScore}
+                  <span className="text-lg text-gray-500">/100</span>
+                </div>
+                <div className="text-gray-400 text-sm">
+                  <div>Product cited in <span className="text-white font-medium">{result.aeoResult.queriesCited}</span> of {result.aeoResult.queriesChecked} queries</div>
+                  <div>Product mentioned in <span className="text-white font-medium">{result.aeoResult.queriesMentioned}</span> of {result.aeoResult.queriesChecked} answers</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Per-query results */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800">
+                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Buyer Query</th>
+                    <th className="text-center px-3 py-3 text-gray-400 font-medium w-24">Status</th>
+                    <th className="text-left px-3 py-3 text-gray-400 font-medium">Competitors Found</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.aeoResult.queries.map((q, i) => (
+                    <tr key={i} className="border-b border-gray-800/50">
+                      <td className="px-4 py-3 text-gray-300">{q.query}</td>
+                      <td className="px-3 py-3 text-center">
+                        {q.productCited ? (
+                          <span className="text-score-green font-medium">Cited</span>
+                        ) : q.productMentionedInAnswer ? (
+                          <span className="text-yellow-400 font-medium">Mentioned</span>
+                        ) : (
+                          <span className="text-red-400">Not found</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-gray-500 text-xs">
+                        {q.competitorsCited.length > 0 ? q.competitorsCited.join(', ') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Competitor dominance */}
+            {Object.keys(result.aeoResult.competitorFrequency).length > 0 && (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Competitor Dominance</h3>
+                <div className="space-y-2">
+                  {Object.entries(result.aeoResult.competitorFrequency)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([comp, count]) => (
+                      <div key={comp} className="flex items-center gap-3">
+                        <span className="text-gray-300 text-sm w-28 truncate">{comp}</span>
+                        <div className="flex-1 bg-gray-800 rounded-full h-2">
+                          <div
+                            className="bg-red-400/70 h-2 rounded-full"
+                            style={{ width: `${(count / result.aeoResult!.queriesChecked) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-gray-500 text-xs w-12 text-right">{count}/{result.aeoResult!.queriesChecked}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action items (paid only) */}
+            {paid && result.aeoResult.actionItems.length > 0 && (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Recommendations</h3>
+                <ul className="space-y-2">
+                  {result.aeoResult.actionItems.map((item, i) => (
+                    <li key={i} className="text-gray-300 text-sm flex gap-2">
+                      <span className="text-jackpot-400 font-bold">{i + 1}.</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!paid && result.aeoResult.actionItems.length === 0 && (
+              <p className="text-gray-500 text-sm text-center">
+                Sign in to see AI visibility recommendations.
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* Upgrade CTA for unpaid users */}
+        {!paid && (
+          <section className="py-10 border-t border-gray-800">
+            <UpgradePrompt mode="inline" />
           </section>
         )}
 

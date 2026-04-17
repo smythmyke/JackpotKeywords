@@ -1,6 +1,8 @@
 import * as functions from 'firebase-functions';
 import { geminiGenerate, safeParseGeminiJSON } from './gemini';
 import { fetchAndParse, type ParsedPage } from './htmlParser';
+import { runAeoScanLight } from './aeoScan';
+import type { AeoResult } from '@jackpotkeywords/shared';
 import type {
   SeoAuditResult,
   SeoAuditCheckItem,
@@ -113,6 +115,21 @@ export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id
   const { keywordGaps, recommendations } = await generateInsights(primaryAnalysis, checks, domain, structure);
   functions.logger.info(`Step 5 done: ${keywordGaps.length} gaps, ${recommendations.length} recommendations`);
 
+  // Step 6: AEO — AI Visibility check (lightweight, non-fatal)
+  let aeoResult: AeoResult | null = null;
+  try {
+    functions.logger.info('Step 6: Running AEO light scan...');
+    const productName = primaryAnalysis.title?.replace(/[—–|:].*/,  '').trim() || undefined;
+    aeoResult = await runAeoScanLight(
+      primaryAnalysis.contentSummary,
+      domain,
+      productName,
+    );
+    functions.logger.info(`Step 6 done: visibility ${aeoResult.visibilityScore}/100, ${aeoResult.queriesCited}/${aeoResult.queriesChecked} cited`);
+  } catch (err: any) {
+    functions.logger.warn(`Step 6 AEO scan failed (non-fatal): ${err.message}`);
+  }
+
   // Calculate scores (now includes per-page issues)
   const categoryScores = calculateCategoryScores(checks);
   const overallScore = calculateOverallScore(categoryScores);
@@ -139,6 +156,7 @@ export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id
     ],
     keywordGaps,
     recommendations,
+    aeoResult,
     metadata: {
       pagesAnalyzed: 1 + pageResults.length,
       executionTimeMs,

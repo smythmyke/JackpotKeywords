@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
+import UpgradePrompt from './UpgradePrompt';
 import './ConversionModal.css';
 
 export type ConversionModalVariant = 'anonymous' | 'free' | 'lastFreeSearch';
@@ -490,24 +491,12 @@ export default function ConversionModal({
         )}
 
         <div className="cm-cta-block cm-late" ref={ctaBlockRef}>
-          <button className="cm-cta-btn" onClick={handleCtaClick}>
-            {ctaLabel}
-          </button>
-          <p className="cm-cta-sub">
-            {variant === 'anonymous' ? (
-              <>No credit card required</>
-            ) : (
-              <>
-                Or{' '}
-                <a href="/pricing" onClick={(e) => e.stopPropagation()}>
-                  go Pro for unlimited — $9.99/mo
-                </a>
-              </>
-            )}
-          </p>
-          <button className="cm-dismiss" onClick={onClose}>
-            Maybe later
-          </button>
+          <UpgradePrompt
+            mode="modal"
+            keywordCount={metrics.totalKeywords}
+            onPurchaseStart={onClose}
+            onDismiss={onClose}
+          />
         </div>
 
         <div className="cm-skip-hint" ref={skipHintRef}>
