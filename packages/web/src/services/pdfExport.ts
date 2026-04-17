@@ -1,4 +1,4 @@
-import type { SeoAuditResult, SeoAuditCategory, MiniKeywordResult, AeoResult } from '@jackpotkeywords/shared';
+import type { SeoAuditResult, SeoAuditCategory, MiniKeywordResult, AeoResult, IdeaBoard } from '@jackpotkeywords/shared';
 import { SEO_AUDIT_CATEGORY_LABELS } from '@jackpotkeywords/shared';
 
 const BRAND_COLOR: [number, number, number] = [234, 179, 8]; // jackpot-500 amber
@@ -694,4 +694,111 @@ export async function exportAeoPdf(result: AeoScanData): Promise<void> {
   const domainClean = result.domain.replace(/^https?:\/\//, '').replace(/[^a-z0-9.-]/gi, '-');
   const filename = `jackpotkeywords-aeo-scan-${domainClean}.pdf`;
   doc.save(filename);
+}
+
+// ── Idea Board PDF Export ────────────────────────────────────
+
+export async function exportIdeaBoardPdf(board: IdeaBoard): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableModule = await import('jspdf-autotable');
+  const autoTable = (autoTableModule as any).default || autoTableModule;
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' }) as AutoTableDoc;
+  const pageW = doc.internal.pageSize.getWidth();
+  const m = 14;
+
+  // Cover
+  doc.setFillColor(...DARK_COLOR);
+  doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
+  doc.setTextColor(...BRAND_COLOR);
+  doc.setFontSize(28);
+  doc.text('Idea Board', m, 40);
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text(board.productName, m, 52);
+  doc.setFontSize(10);
+  doc.setTextColor(...LIGHT_GRAY);
+  doc.text(board.domain || '', m, 60);
+  doc.text(new Date(board.createdAt).toLocaleDateString(), m, 67);
+
+  const totalDone = board.items.filter((i) => i.completed).length;
+  doc.setFontSize(12);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`${totalDone} of ${board.items.length} items completed`, m, 80);
+
+  const sections: { type: string; label: string }[] = [
+    { type: 'content', label: 'Content Checklist' },
+    { type: 'video', label: 'Video Ideas' },
+    { type: 'reddit', label: 'Reddit' },
+    { type: 'twitter', label: 'Twitter/X' },
+    { type: 'linkedin', label: 'LinkedIn' },
+    { type: 'seo', label: 'SEO Actions' },
+  ];
+
+  for (const sec of sections) {
+    const items = board.items.filter((i) => i.type === sec.type);
+    if (items.length === 0) continue;
+
+    let y = finalY(doc) + 12;
+    if (y > 240 || y < 30) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); y = 20; }
+
+    doc.setFontSize(14);
+    doc.setTextColor(...BRAND_COLOR);
+    doc.text(sec.label, m, y);
+    y += 6;
+
+    const rows = items.map((item, i) => [
+      item.completed ? '\u2713' : '',
+      String(i + 1),
+      item.title.length > 70 ? item.title.substring(0, 67) + '...' : item.title,
+      item.targetKeywords || item.videoFormat || item.platform || item.source || '',
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['', '#', sec.type === 'seo' ? 'Action' : 'Title', sec.type === 'seo' ? 'Source' : 'Details']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55], textColor: [156, 163, 175], fontSize: 7.5, fontStyle: 'bold' },
+      bodyStyles: { fillColor: [17, 24, 39], textColor: [209, 213, 219], fontSize: 7 },
+      alternateRowStyles: { fillColor: [24, 30, 44] },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center', textColor: [34, 197, 94] },
+        1: { cellWidth: 8 },
+        2: { cellWidth: 90 },
+        3: { cellWidth: 60 },
+      },
+      margin: { left: m, right: m },
+    });
+
+    // Add draft bodies for social posts (abbreviated)
+    if (['reddit', 'twitter', 'linkedin'].includes(sec.type)) {
+      const drafts = items.filter((i) => i.draftBody);
+      for (const item of drafts) {
+        let dy = finalY(doc) + 6;
+        if (dy > 260) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); dy = 20; }
+        doc.setFontSize(8);
+        doc.setTextColor(...LIGHT_GRAY);
+        doc.text(item.title, m, dy);
+        dy += 4;
+        doc.setFontSize(7);
+        doc.setTextColor(180, 180, 180);
+        const draftText = (item.draftBody || '').substring(0, 500) + (item.draftBody && item.draftBody.length > 500 ? '...' : '');
+        const lines = doc.splitTextToSize(draftText, pageW - m * 2);
+        if (dy + lines.length * 3.5 > 280) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); dy = 20; }
+        doc.text(lines, m, dy);
+      }
+    }
+  }
+
+  // Footers
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    if (i === 1) continue;
+    drawFooter(doc, i, totalPages);
+  }
+
+  const domainClean = (board.domain || 'ideas').replace(/^https?:\/\//, '').replace(/[^a-z0-9.-]/gi, '-');
+  doc.save(`jackpotkeywords-ideas-${domainClean}.pdf`);
 }

@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
-import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults, runAeoScan } from '../services/api';
+import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults, runAeoScan, generateIdeaBoardApi } from '../services/api';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -120,6 +120,7 @@ export default function Results() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [expanding, setExpanding] = useState(false);
   const [aeoLoading, setAeoLoading] = useState(false);
+  const [ideaLoading, setIdeaLoading] = useState(false);
   const [expandedCount, setExpandedCount] = useState<number | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -544,6 +545,21 @@ export default function Results() {
       setRefineError(err.message);
     } finally {
       setRefining(false);
+    }
+  };
+
+  const handleIdeaBoard = async () => {
+    if (!result || ideaLoading || !user) return;
+    setIdeaLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const board = await generateIdeaBoardApi(token, { searchId: result.id });
+      navigate(`/results/${result.id}/ideas`, { state: { board } });
+    } catch (err: any) {
+      alert(err.message || 'Idea Board generation failed.');
+    } finally {
+      setIdeaLoading(false);
     }
   };
 
@@ -1041,7 +1057,7 @@ export default function Results() {
         {result.url && user && (
           <button
             onClick={handleAeoScan}
-            disabled={aeoLoading || expanding}
+            disabled={aeoLoading || expanding || ideaLoading}
             title="Check your AI visibility — see if AI assistants cite your product"
             className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
               aeoLoading
@@ -1060,7 +1076,7 @@ export default function Results() {
         {/* Expand Results button */}
         <button
           onClick={handleExpand}
-          disabled={expanding || expandedCount !== null || !paid || aeoLoading}
+          disabled={expanding || expandedCount !== null || !paid || aeoLoading || ideaLoading}
           title={!paid ? 'Expand is available for paid users' : expandedCount !== null ? `Expanded +${expandedCount}` : 'Discover keywords from YouTube, Amazon & eBay'}
           className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
             expandedCount !== null
@@ -1080,6 +1096,26 @@ export default function Results() {
             <><span className="text-base">&#9889;</span> Expand Results</>
           )}
         </button>
+
+        {/* Idea Board button */}
+        {user && (
+          <button
+            onClick={handleIdeaBoard}
+            disabled={ideaLoading || expanding || aeoLoading}
+            title="Generate content ideas, video topics, and social drafts from your keywords"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
+              ideaLoading
+                ? 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400 cursor-wait opacity-80'
+                : 'border-emerald-500 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/15 hover:shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+            }`}
+          >
+            {ideaLoading ? (
+              <><span className="inline-block w-3.5 h-3.5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" /> Generating...</>
+            ) : (
+              <>💡 Idea Board</>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Filter status */}

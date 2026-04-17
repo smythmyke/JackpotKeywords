@@ -1,4 +1,4 @@
-import type { SearchResult, SeoAuditResult, MiniKeywordResult, AeoResult, ProductContext } from '@jackpotkeywords/shared';
+import type { SearchResult, SeoAuditResult, MiniKeywordResult, AeoResult, ProductContext, IdeaBoard } from '@jackpotkeywords/shared';
 import { getAnonId } from '../lib/anonId';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
@@ -180,6 +180,34 @@ export async function fetchAuditKeywords(
   auditId: string,
 ): Promise<{ keywordPreview: MiniKeywordResult[] | null; paid: boolean; cached: boolean }> {
   return apiFetch(`/api/audit/${auditId}/keywords`, token, { method: 'POST' });
+}
+
+export async function generateIdeaBoardApi(
+  token: string,
+  params: { searchId: string },
+): Promise<IdeaBoard> {
+  return apiFetch('/api/ideas/generate', token, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function listIdeaBoards(
+  token: string,
+): Promise<{ boards: IdeaBoard[] }> {
+  return apiFetch('/api/ideas', token);
+}
+
+export async function toggleIdeaItem(
+  token: string,
+  boardId: string,
+  itemId: string,
+  completed?: boolean,
+): Promise<{ id: string; completed: boolean }> {
+  return apiFetch(`/api/ideas/${boardId}/items/${itemId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ completed }),
+  });
 }
 
 export async function runAeoScan(

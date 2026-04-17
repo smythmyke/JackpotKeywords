@@ -23,6 +23,8 @@ const SeoAudit = lazy(() => import('./pages/features/SeoAudit'));
 const SeoAuditInput = lazy(() => import('./pages/SeoAuditInput'));
 const SeoAuditResults = lazy(() => import('./pages/SeoAuditResults'));
 const AeoScanResults = lazy(() => import('./pages/AeoScanResults'));
+const IdeaBoard = lazy(() => import('./pages/IdeaBoard'));
+const MyIdeas = lazy(() => import('./pages/MyIdeas'));
 
 export default function App() {
   const location = useLocation();
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="/seo-audit" element={<SeoAuditInput />} />
           <Route path="/seo-audit/results/:auditId" element={<SeoAuditResults />} />
           <Route path="/aeo-scan/:scanId" element={<AeoScanResults />} />
+          <Route path="/results/:searchId/ideas" element={<IdeaBoard />} />
+          <Route path="/my-ideas" element={<MyIdeas />} />
         </Route>
       </Routes>
     </Suspense>

@@ -147,6 +147,9 @@ export default function Layout() {
             )}
             {user ? (
               <>
+                <Link to="/my-ideas" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
+                  My Ideas
+                </Link>
                 <Link to="/" className="text-jackpot-400 hover:text-jackpot-300 font-medium transition">
                   New Search
                 </Link>
