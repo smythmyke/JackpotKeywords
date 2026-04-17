@@ -17,49 +17,58 @@ const CATEGORY_LABELS: Record<string, string> = {
   tutorial: 'Tutorial',
 };
 
-// Map posts to hero images by topic
+// Map posts to hero images — max 2 uses per image
 const HERO_IMAGES: Record<string, string> = {
-  // Analytics/tools posts
+  // Analytics dashboard
   'seo-keyword-analysis-tools': '/blog/hero-analytics-dashboard.jpg',
   'best-keyword-research-tool-2026': '/blog/hero-analytics-dashboard.jpg',
-  'google-keyword-planner-guide': '/blog/hero-analytics-dashboard.jpg',
-  'google-ads-keyword-planner-guide': '/blog/hero-analytics-dashboard.jpg',
-  'google-keyword-research-tool': '/blog/hero-analytics-dashboard.jpg',
-  'best-free-keyword-research-tools': '/blog/hero-analytics-dashboard.jpg',
-  'free-keyword-research-tool': '/blog/hero-analytics-dashboard.jpg',
-  // Search/discovery posts
+  // Tools/workspace
+  'google-keyword-planner-guide': '/blog/hero-tools-workspace.jpg',
+  'google-ads-keyword-planner-guide': '/blog/hero-tools-workspace.jpg',
+  // Data analysis
+  'google-keyword-research-tool': '/blog/hero-data-analysis.jpg',
+  'best-free-keyword-research-tools': '/blog/hero-data-analysis.jpg',
+  // SEO screen
+  'free-keyword-research-tool': '/blog/hero-seo-screen.jpg',
+  // Search/discovery
   'what-is-keyword-research': '/blog/hero-search-discovery.jpg',
   'find-good-seo-keywords': '/blog/hero-search-discovery.jpg',
-  'find-profitable-keywords': '/blog/hero-search-discovery.jpg',
-  'how-to-find-low-competition-keywords': '/blog/hero-search-discovery.jpg',
-  'find-competitor-keywords': '/blog/hero-search-discovery.jpg',
-  // Comparison posts
+  // Target/goal
+  'find-profitable-keywords': '/blog/hero-target-goal.jpg',
+  'how-to-find-low-competition-keywords': '/blog/hero-target-goal.jpg',
+  // Business meeting (competitor strategy)
+  'find-competitor-keywords': '/blog/hero-business-meeting.jpg',
+  'semrush-competitor-analysis': '/blog/hero-business-meeting.jpg',
+  // Comparison
   'jackpotkeywords-vs-semrush': '/blog/hero-comparison.jpg',
   'jackpotkeywords-vs-ahrefs': '/blog/hero-comparison.jpg',
-  'semrush-competitor-analysis': '/blog/hero-comparison.jpg',
-  'ubersuggest-alternative': '/blog/hero-comparison.jpg',
-  'se-ranking-alternative': '/blog/hero-comparison.jpg',
-  'mangools-alternative': '/blog/hero-comparison.jpg',
-  'spyfu-free-alternative': '/blog/hero-comparison.jpg',
-  'longtailpro-alternative': '/blog/hero-comparison.jpg',
-  'semrush-open-source-alternative': '/blog/hero-comparison.jpg',
-  // Growth/ads posts
+  // Pricing/money
+  'ubersuggest-alternative': '/blog/hero-pricing-money.jpg',
+  'semrush-open-source-alternative': '/blog/hero-pricing-money.jpg',
+  // Marketing plan
+  'se-ranking-alternative': '/blog/hero-marketing-plan.jpg',
+  'mangools-alternative': '/blog/hero-marketing-plan.jpg',
+  // Digital marketing
+  'spyfu-free-alternative': '/blog/hero-digital-marketing.jpg',
+  'longtailpro-alternative': '/blog/hero-digital-marketing.jpg',
+  // Growth chart
   'ppc-keyword-research': '/blog/hero-growth-chart.jpg',
-  // E-commerce posts
+  // E-commerce
   'ecommerce-keyword-research': '/blog/hero-ecommerce.jpg',
   'keyword-research-for-etsy-sellers': '/blog/hero-ecommerce.jpg',
-  // Video posts
+  // Video/YouTube
   'youtube-keyword-research': '/blog/hero-video-youtube.jpg',
-  // Local posts
+  // Local business
   'local-seo-keyword-research': '/blog/hero-local-business.jpg',
-  // AI/tech posts
+  // AI technology
   'ai-keyword-research': '/blog/hero-ai-technology.jpg',
   'keyword-clustering-seo': '/blog/hero-ai-technology.jpg',
-  'free-seo-audit-tool': '/blog/hero-ai-technology.jpg',
-  // Content/writing posts
-  'keyword-research-new-website': '/blog/hero-content-writing.jpg',
-  'keyword-research-for-saas': '/blog/hero-content-writing.jpg',
-  // Audit posts
+  // Startup laptop
+  'keyword-research-new-website': '/blog/hero-startup-laptop.jpg',
+  'keyword-research-for-saas': '/blog/hero-startup-laptop.jpg',
+  // Content/writing
+  'free-seo-audit-tool': '/blog/hero-content-writing.jpg',
+  // Audit checklist
   'on-page-seo-checklist': '/blog/hero-audit-checklist.jpg',
   'how-to-do-seo-audit': '/blog/hero-audit-checklist.jpg',
 };
