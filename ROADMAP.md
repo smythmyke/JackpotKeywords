@@ -192,6 +192,91 @@ Full-stack monorepo built and compiling. All packages type-check clean. Web app 
 
 ---
 
+## AEO Scan Module Track
+
+See `AEO-MODULE-RESEARCH.md` for full module design, citation-landscape research, customer-facing output spec, and risks. Originating research: `C:\Projects\ideas\reddit-seed-pipeline\VIABILITY.md`. This track runs in parallel to the core roadmap — script phase (A-1, A-2) does **not** block MVP; integration phase (A-3) is gated on MVP shipping first.
+
+### Phase A-1: Reconnaissance script (standalone CLI, lives in this repo)
+
+Script is a separate CLI/package inside the JK monorepo — does **not** hit the web app, Firebase auth, or credit system in this phase.
+
+- [ ] Decide location: `packages/aeo-scan/` (monorepo workspace) vs. `scripts/aeo-scan/` (tool-only). Lean toward workspace if logic is likely to migrate to Cloud Function.
+- [ ] Decide language: TypeScript (reuses existing JK Gemini client and prompt helpers) vs. Python (richer AI library ecosystem). Default to TypeScript unless library gaps force otherwise.
+- [ ] Implement buyer-voice query generator (Gemini) — new prompt template, distinct from keyword-seed prompt
+- [ ] Implement citation capture across 4 surfaces:
+  - [ ] Gemini API with grounding/search tool
+  - [ ] OpenAI Responses API with `web_search` tool
+  - [ ] Perplexity Sonar API
+  - [ ] SerpAPI or DataForSEO for Google AI Overview extraction (lowest reliability — expect partial coverage)
+- [ ] Implement citation classification (Reddit thread / Medium article / vendor blog / YouTube / docs / forum / other)
+- [ ] Implement AEO Score aggregation (visibility × platform coverage × citation quality)
+- [ ] Implement non-determinism mitigation (run each query 2–3x, aggregate)
+- [ ] Output: CSV (per-query citation table) + Markdown (score card + action list)
+- [ ] CLI args: product description OR URL, query count, output path
+
+### Phase A-2: Internal validation against Michael's products
+
+- [ ] Run script against GovToolsPro with 5 buyer-voice queries
+- [ ] Run against BulkListingPro with 5 queries
+- [ ] Run against Markitup with 5 queries (requires product description)
+- [ ] Run against JackpotKeywords itself (eat own dogfood; also informs JK's own launch AEO strategy)
+- [ ] Critical read: signal-to-noise ratio, action list usefulness, score correlation with real competitive reality
+- [ ] Decision point: migrate into JK product (→ Phase A-3) or park
+
+### Phase A-3: JK product integration (gated: MVP shipped + A-2 validated)
+
+- [ ] Port script logic into `packages/functions/src/aeo/` as Cloud Function
+- [ ] Wrap in existing Firebase auth + credit system
+- [ ] Add "Run AEO Scan" action on Flow A and Flow B results pages
+- [ ] Credit cost model: 3–5x keyword scan (4 API surfaces per query, 2–3 reruns each)
+- [ ] Pricing decision: Pro-tier gated feature vs. premium credit pack vs. both
+- [ ] Free tier hook: 1 free AEO scan at signup (parallel to 3 free keyword searches)
+- [ ] Build AEO Report UI: per-query citation table + AEO Score card + action list
+- [ ] Update Stripe if new credit pack is introduced
+- [ ] Landing page feature section and marketing copy
+- [ ] Update PRODUCT-DESIGN.md with the new flow
+
+### Open questions (answer during A-1 build)
+
+1. Does JK's existing Gemini client support the grounding/search tool, or only text generation?
+2. Appetite for a second AI provider (OpenAI/Perplexity) in JK infra? Adds key management, billing separation.
+3. Sweet-spot query count per scan (5 = cheap/shallow, 15 = thorough/expensive)?
+4. Separate competitor-AEO scan type vs. bundled into main scan?
+
+---
+
+## Agent SDK Expansion Track
+
+See `docs/AGENT_SDK.md` for full opportunity analysis, starter code, and pricing math. This track layers on top of the core product once Phase 1–3 ship — not a replacement for existing roadmap.
+
+### Near-term agents (after core ships)
+
+- [ ] **Full-Funnel Campaign Agent** (priority #1 — new $29/mo tier)
+  - Description + goal (SEO / PPC / Amazon) → keyword research + content brief OR ad copy variants OR listing copy
+  - Architecture: add `packages/agents` workspace, expose existing keyword-search as custom MCP tool
+  - First step: build as CLI script, validate with 3 unlimited-tier users before wiring Stripe tier
+- [ ] **Saved-Search Watcher** (priority #2 — overlaps with 6.5 Keyword Monitoring Dashboard)
+  - Weekly re-run saved searches, diff against last week, email digest of opportunities and CPC shifts
+  - Consider consolidating with planned 6.5 work to avoid duplicate effort
+- [ ] **Niche Auditor** (priority #3 — $49 one-time or $149/mo agency)
+  - Niche in → 15–25 page competitive audit PDF
+  - Fits naturally with existing 6.6 Competitor Gap Analysis
+
+### Explore Agent SDK for more opportunities
+
+**Task:** Revisit `docs/AGENT_SDK.md` quarterly as the SDK evolves and user data accumulates. Candidate areas beyond the three above:
+
+- Content production agent (brief → full article)
+- Amazon listing optimizer (dedicated vertical)
+- YouTube/TikTok short-form keyword angle
+- Google Ads campaign builder (overlaps with existing 6.1)
+- Multi-language keyword research
+- Competitive gap tracker (agent version of 6.6)
+
+Review cadence: after each agent ships, re-read `C:\Projects\ideas\claude-code-research\agent-sdk.md` and check `https://code.claude.com/docs/en/agent-sdk/overview` for new capabilities.
+
+---
+
 ## Technical Debt & Maintenance
 
 - [ ] Add unit tests for scoring formulas
