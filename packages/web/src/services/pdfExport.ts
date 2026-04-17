@@ -1,4 +1,4 @@
-import type { SeoAuditResult, SeoAuditCategory, MiniKeywordResult } from '@jackpotkeywords/shared';
+import type { SeoAuditResult, SeoAuditCategory, MiniKeywordResult, AeoResult } from '@jackpotkeywords/shared';
 import { SEO_AUDIT_CATEGORY_LABELS } from '@jackpotkeywords/shared';
 
 const BRAND_COLOR: [number, number, number] = [234, 179, 8]; // jackpot-500 amber
@@ -433,5 +433,162 @@ export async function exportAuditPdf(
   }
 
   const filename = `jackpotkeywords-audit-${domain.replace(/[^a-z0-9.-]/gi, '-')}.pdf`;
+  doc.save(filename);
+}
+
+// ── AEO Scan PDF Export ──────────────────────────────────────
+
+interface AeoScanData extends AeoResult {
+  id: string;
+  domain: string;
+  productName: string;
+  createdAt?: string;
+}
+
+export async function exportAeoPdf(result: AeoScanData): Promise<void> {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableModule = await import('jspdf-autotable');
+  const autoTable = (autoTableModule as any).default || autoTableModule;
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' }) as AutoTableDoc;
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 14;
+
+  // Cover page
+  doc.setFillColor(...DARK_COLOR);
+  doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
+
+  doc.setTextColor(...BRAND_COLOR);
+  doc.setFontSize(28);
+  doc.text('AEO Scan Report', margin, 40);
+
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text(result.productName, margin, 52);
+
+  doc.setFontSize(10);
+  doc.setTextColor(...LIGHT_GRAY);
+  doc.text(result.domain, margin, 60);
+  doc.text(result.createdAt ? new Date(result.createdAt).toLocaleDateString() : new Date().toLocaleDateString(), margin, 67);
+
+  // Visibility Score
+  doc.setFontSize(48);
+  const scoreColor: [number, number, number] = result.visibilityScore >= 60
+    ? [34, 197, 94] : result.visibilityScore >= 30
+    ? [234, 179, 8] : [239, 68, 68];
+  doc.setTextColor(...scoreColor);
+  doc.text(`${result.visibilityScore}`, margin, 100);
+  doc.setFontSize(16);
+  doc.setTextColor(...LIGHT_GRAY);
+  doc.text('/100 AI Visibility Score', margin + 40, 100);
+
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`Product cited in ${result.queriesCited} of ${result.queriesChecked} queries`, margin, 115);
+  doc.text(`Product mentioned in ${result.queriesMentioned} of ${result.queriesChecked} answers`, margin, 122);
+
+  // Query Results table
+  doc.addPage();
+  doc.setFillColor(...DARK_COLOR);
+  doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
+
+  doc.setTextColor(...BRAND_COLOR);
+  doc.setFontSize(16);
+  doc.text('Buyer Query Results', margin, 20);
+
+  const queryRows = result.queries.map((q, i) => [
+    String(i + 1),
+    q.query.length > 80 ? q.query.substring(0, 77) + '...' : q.query,
+    q.productCited ? 'CITED' : q.productMentionedInAnswer ? 'MENTIONED' : 'NOT FOUND',
+    q.competitorsCited.join(', ') || '\u2014',
+    String(q.citations.length),
+  ]);
+
+  autoTable(doc, {
+    startY: 26,
+    head: [['#', 'Buyer Query', 'Status', 'Competitors', 'Sources']],
+    body: queryRows,
+    theme: 'grid',
+    headStyles: { fillColor: [31, 41, 55], textColor: [156, 163, 175], fontSize: 8, fontStyle: 'bold' },
+    bodyStyles: { fillColor: [17, 24, 39], textColor: [209, 213, 219], fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [24, 30, 44] },
+    columnStyles: {
+      0: { cellWidth: 8 },
+      1: { cellWidth: 75 },
+      2: { cellWidth: 22, halign: 'center' },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 16, halign: 'center' },
+    },
+    margin: { left: margin, right: margin },
+  });
+
+  // Competitor Dominance
+  const competitors = Object.entries(result.competitorFrequency).sort(([, a], [, b]) => b - a);
+  if (competitors.length > 0) {
+    let y = finalY(doc) + 12;
+    if (y > 250) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); y = 20; }
+
+    doc.setTextColor(...BRAND_COLOR);
+    doc.setFontSize(16);
+    doc.text('Competitor Dominance', margin, y);
+    y += 8;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Competitor', 'Citations', 'Frequency']],
+      body: competitors.map(([comp, count]) => [
+        comp,
+        `${count}/${result.queriesChecked}`,
+        `${Math.round((count / result.queriesChecked) * 100)}%`,
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55], textColor: [156, 163, 175], fontSize: 8, fontStyle: 'bold' },
+      bodyStyles: { fillColor: [17, 24, 39], textColor: [209, 213, 219], fontSize: 8 },
+      alternateRowStyles: { fillColor: [24, 30, 44] },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 30, halign: 'center' },
+        2: { cellWidth: 30, halign: 'center' },
+      },
+      margin: { left: margin, right: margin },
+    });
+  }
+
+  // Action Items
+  if (result.actionItems.length > 0) {
+    let y = finalY(doc) + 12;
+    if (y > 240) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); y = 20; }
+
+    doc.setTextColor(...BRAND_COLOR);
+    doc.setFontSize(16);
+    doc.text('Action Items', margin, y);
+    y += 8;
+
+    doc.setFontSize(9);
+    doc.setTextColor(209, 213, 219);
+    for (let i = 0; i < result.actionItems.length; i++) {
+      const text = `${i + 1}. ${result.actionItems[i]}`;
+      const lines = doc.splitTextToSize(text, pageW - margin * 2);
+      if (y + lines.length * 5 > 280) {
+        doc.addPage();
+        doc.setFillColor(...DARK_COLOR);
+        doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
+        y = 20;
+      }
+      doc.text(lines, margin, y);
+      y += lines.length * 5 + 3;
+    }
+  }
+
+  // Footer on all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    if (i === 1) continue;
+    drawFooter(doc, i, totalPages);
+  }
+
+  const domainClean = result.domain.replace(/^https?:\/\//, '').replace(/[^a-z0-9.-]/gi, '-');
+  const filename = `jackpotkeywords-aeo-scan-${domainClean}.pdf`;
   doc.save(filename);
 }

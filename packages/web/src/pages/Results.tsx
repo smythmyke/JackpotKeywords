@@ -1041,7 +1041,7 @@ export default function Results() {
         {result.url && user && (
           <button
             onClick={handleAeoScan}
-            disabled={aeoLoading}
+            disabled={aeoLoading || expanding}
             title="Check your AI visibility — see if AI assistants cite your product"
             className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
               aeoLoading
@@ -1060,7 +1060,7 @@ export default function Results() {
         {/* Expand Results button */}
         <button
           onClick={handleExpand}
-          disabled={expanding || expandedCount !== null || !paid}
+          disabled={expanding || expandedCount !== null || !paid || aeoLoading}
           title={!paid ? 'Expand is available for paid users' : expandedCount !== null ? `Expanded +${expandedCount}` : 'Discover keywords from YouTube, Amazon & eBay'}
           className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
             expandedCount !== null

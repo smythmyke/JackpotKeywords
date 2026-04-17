@@ -124,10 +124,16 @@ function analyzeCitations(
   results: GroundedResult[],
   domain: string,
   productName?: string,
+  competitors?: string[],
 ): AeoQuery[] {
   const domainClean = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
   const matchPatterns = [domainClean];
   if (productName) matchPatterns.push(productName.toLowerCase());
+
+  // Use product-specific competitors for full scan, fall back to known list for light scan
+  const competitorList = competitors && competitors.length > 0
+    ? competitors.map((c) => c.toLowerCase())
+    : KNOWN_COMPETITORS;
 
   return results.map((r) => {
     const productCited = r.citations.some((c) => {
@@ -141,7 +147,7 @@ function analyzeCitations(
     );
 
     const competitorsCited: string[] = [];
-    for (const comp of KNOWN_COMPETITORS) {
+    for (const comp of competitorList) {
       const inCitations = r.citations.some((c) =>
         c.url.toLowerCase().includes(comp.replace(/\s/g, '')) ||
         c.title.toLowerCase().includes(comp),
@@ -309,7 +315,7 @@ Target audience: ${context.targetAudience.join(', ')}`;
   }
 
   // Step 3: Analyze
-  const analysis = analyzeCitations(results, domain, context.productName);
+  const analysis = analyzeCitations(results, domain, context.productName, context.competitors);
 
   // Step 4: Action items
   const actionItems = await generateActionItems(analysis, domain, context.productName);
