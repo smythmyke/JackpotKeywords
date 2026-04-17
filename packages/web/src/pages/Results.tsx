@@ -1052,33 +1052,16 @@ export default function Results() {
             Clear all ({activeFilterCount} active)
           </button>
         )}
+      </div>
 
-        {/* AEO Scan button */}
-        {result.url && user && (
-          <button
-            onClick={handleAeoScan}
-            disabled={aeoLoading || expanding || ideaLoading}
-            title="Check your AI visibility — see if AI assistants cite your product"
-            className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
-              aeoLoading
-                ? 'border-purple-500/40 bg-purple-500/8 text-purple-400 cursor-wait opacity-80'
-                : 'border-purple-500 bg-purple-500/8 text-purple-400 hover:bg-purple-500/15 hover:shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-            }`}
-          >
-            {aeoLoading ? (
-              <><span className="inline-block w-3.5 h-3.5 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" /> Scanning...</>
-            ) : (
-              <><span className="text-base">&#x1F50D;</span> AEO Scan</>
-            )}
-          </button>
-        )}
-
+      {/* Action buttons row */}
+      <div className="flex items-center gap-2 flex-wrap mt-2">
         {/* Expand Results button */}
         <button
           onClick={handleExpand}
           disabled={expanding || expandedCount !== null || !paid || aeoLoading || ideaLoading}
           title={!paid ? 'Expand is available for paid users' : expandedCount !== null ? `Expanded +${expandedCount}` : 'Discover keywords from YouTube, Amazon & eBay'}
-          className={`ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
+          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
             expandedCount !== null
               ? 'border-green-500/40 bg-green-500/8 text-green-400 opacity-70 cursor-default'
               : expanding
@@ -1096,6 +1079,26 @@ export default function Results() {
             <><span className="text-base">&#9889;</span> Expand Results</>
           )}
         </button>
+
+        {/* AEO Scan button */}
+        {result.url && user && (
+          <button
+            onClick={handleAeoScan}
+            disabled={aeoLoading || expanding || ideaLoading}
+            title="Check your AI visibility — see if AI assistants cite your product"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition whitespace-nowrap ${
+              aeoLoading
+                ? 'border-purple-500/40 bg-purple-500/8 text-purple-400 cursor-wait opacity-80'
+                : 'border-purple-500 bg-purple-500/8 text-purple-400 hover:bg-purple-500/15 hover:shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+            }`}
+          >
+            {aeoLoading ? (
+              <><span className="inline-block w-3.5 h-3.5 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" /> Scanning...</>
+            ) : (
+              <><span className="text-base">&#x1F50D;</span> AEO Scan</>
+            )}
+          </button>
+        )}
 
         {/* Idea Board button */}
         {user && (

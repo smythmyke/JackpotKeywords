@@ -109,14 +109,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const snapshot = await db.collection('ideaBoards')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
 
-    const boards = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const boards = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
     res.json({ boards });
   } catch (error: any) {
