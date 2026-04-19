@@ -382,11 +382,8 @@ export default function ConversionModal({
 
   // Variant-driven copy
   const totalKwLabel = metrics.totalKeywords.toLocaleString();
-  const ctaLabel =
-    variant === 'anonymous'
-      ? `Sign up free to unlock ${totalKwLabel} keywords`
-      : `Unlock all ${totalKwLabel} keywords — $1.99`;
-  const eyebrow = variant === 'lastFreeSearch' ? 'Last Free Search' : 'Search Complete';
+  const ctaLabel = `Unlock all ${totalKwLabel} keywords — $1.99`;
+  const eyebrow = 'Search Complete';
 
   return (
     <div

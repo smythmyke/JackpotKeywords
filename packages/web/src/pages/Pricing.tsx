@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -11,7 +10,6 @@ export default function Pricing() {
   const { user, signInWithGoogle, getToken } = useAuthContext();
   const { buyCreditPack, subscribe } = useCredits({ getToken, refreshCredits: async () => {} });
   const [loading, setLoading] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const handleBuyCredits = async (packId: string) => {
     trackEvent('upgrade_clicked', { kind: 'credit', id: packId });
@@ -47,7 +45,7 @@ export default function Pricing() {
     <>
       <Helmet>
         <title>Pricing — JackpotKeywords</title>
-        <meta name="description" content="Keyword research and SEO audits from $1.99/run or $9.99/mo unlimited. 3 free runs (search or audit), no credit card required. 14x cheaper than SEMrush." />
+        <meta name="description" content="Keyword research and SEO audits from $1.99/run or $9.99/mo unlimited. 14x cheaper than SEMrush." />
         <link rel="canonical" href="https://jackpotkeywords.web.app/pricing" />
         <script type="application/ld+json">
           {JSON.stringify({
@@ -56,13 +54,6 @@ export default function Pricing() {
             name: 'JackpotKeywords Pricing',
             description: 'Keyword research pricing plans',
             offers: [
-              {
-                '@type': 'Offer',
-                name: 'Free Tier',
-                price: '0',
-                priceCurrency: 'USD',
-                description: '3 lifetime runs (search or audit), no credit card required',
-              },
               {
                 '@type': 'Offer',
                 name: 'Single Search',
@@ -89,44 +80,17 @@ export default function Pricing() {
           })}
         </script>
       </Helmet>
-    <div className="max-w-5xl mx-auto px-4 py-16">
+    <div className="max-w-4xl mx-auto px-4 py-16">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-white mb-4">Simple pricing</h1>
         <p className="text-gray-400 text-lg">
-          Try free. Pay per run. Or go unlimited. Every plan covers keyword searches and SEO audits.
+          Pay per run. Or go unlimited. Every plan covers keyword searches and SEO audits.
         </p>
       </div>
 
-      {/* 3-column layout: Free | Pro (hero) | Credits */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto items-start">
-        {/* Free tier */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 text-center">
-          <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Start Here</div>
-          <div className="text-3xl font-bold text-white">Free</div>
-          <div className="text-gray-400 text-sm mt-1">3 runs total</div>
-          <ul className="mt-6 space-y-3 text-left">
-            <li className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-score-green">&#10003;</span> 3 lifetime runs (search or audit)
-            </li>
-            <li className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-score-green">&#10003;</span> Full metrics visible
-            </li>
-            <li className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-score-green">&#10003;</span> 20 keywords revealed, rest locked
-            </li>
-            <li className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-score-green">&#10003;</span> No credit card required
-            </li>
-          </ul>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-6 w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition"
-          >
-            Get Started
-          </button>
-        </div>
-
-        {/* Pro — center hero */}
+      {/* 2-column layout: Pro (hero) | Credits */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto items-start">
+        {/* Pro — hero */}
         {pro && (
           <div className="bg-gray-900 rounded-xl border-2 border-jackpot-500 ring-1 ring-jackpot-500/20 p-6 text-center relative md:-mt-4 md:mb-[-1rem]">
             <div className="text-xs font-bold text-jackpot-400 mb-2 uppercase tracking-wider">Best Value</div>
@@ -197,7 +161,6 @@ export default function Pricing() {
       {/* Bottom note */}
       <div className="mt-12 text-center text-gray-500 text-sm max-w-lg mx-auto">
         <p>
-          Start with 3 free searches to see the quality before you pay.
           All paid searches unlock full keyword data, exports, and permanent access to results.
         </p>
         <p className="mt-3 text-xs text-gray-600">

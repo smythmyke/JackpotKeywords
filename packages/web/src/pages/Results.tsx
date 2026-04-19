@@ -725,7 +725,7 @@ export default function Results() {
     <div className="max-w-[1400px] mx-auto px-4 py-8">
       {/* Sticky upgrade CTA — pricing-first bar for unpaid users */}
       {!paid && !isAdmin && (
-        <UpgradePrompt mode="bar" keywordCount={totalKeywords} className="-mx-4 mb-4" />
+        <UpgradePrompt mode="bar" keywordCount={totalKeywords} returnPath={result.id ? `/results/${result.id}` : undefined} className="-mx-4 mb-4" />
       )}
 
       {/* Anonymous user banner */}
@@ -1587,7 +1587,7 @@ export default function Results() {
       {/* Paywall CTA for free/anonymous users */}
       {!paid && !isAdmin && (
         <div className="mt-8 bg-gradient-to-r from-jackpot-500/10 to-purple-500/10 border border-jackpot-500/20 rounded-xl p-8">
-          <UpgradePrompt mode="inline" keywordCount={totalKeywords} />
+          <UpgradePrompt mode="inline" keywordCount={totalKeywords} returnPath={result.id ? `/results/${result.id}` : undefined} />
         </div>
       )}
 

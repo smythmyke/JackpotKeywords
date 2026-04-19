@@ -286,13 +286,8 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
 router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId!;
   try {
-    // Anonymous /api/search responses are server-side masked. Claim only
-    // makes sense for users whose intended experience is the masked teaser
-    // — i.e. free-trial users consuming one of their free-search slots.
-    //
-    // Users with credits, a subscription, or admin would deduct value but
-    // still see masked placeholders (the unmasked payload is never sent
-    // anonymously). Block them and tell the UI to re-run signed in.
+    // Admins and Pro/Agency subscribers don't need to claim — they can
+    // re-fetch unmasked data directly via GET /api/search/:searchId.
     const userDoc = await db.doc(`users/${userId}`).get();
     const userData = userDoc.data();
     const plan = userData?.plan || 'free';
@@ -301,28 +296,12 @@ router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
     const isAdmin = ADMIN_EMAILS.includes(email);
 
     if (isAdmin || plan === 'pro' || plan === 'agency') {
-      res.status(409).json({
-        error: 'Run a new search while signed in to get full results',
-        rerunRequired: true,
-      });
+      res.json({ paid: true });
       return;
     }
 
-    const creditsDoc = await db.doc(`users/${userId}/credits/balance`).get();
-    const creditsData = creditsDoc.data() || {};
-    const balance = creditsData.balance || 0;
-    const freeUsed = creditsData.freeSearchesUsed || 0;
-    const FREE_LIMIT = 3;
-
-    if (freeUsed >= FREE_LIMIT && balance > 0) {
-      // Would deduct a real credit but the cached payload is masked.
-      res.status(409).json({
-        error: 'Run a new search while signed in to get full results',
-        rerunRequired: true,
-      });
-      return;
-    }
-
+    // Free-trial users and credit-pack buyers both deduct one unit. Free
+    // slots are consumed first; once free is exhausted, credits are used.
     const creditResult = await checkAndDeductCredits(userId, 1, 'keyword_search', 'claimed search', getCreditBypassOptions(req));
     if (!creditResult.allowed) {
       res.status(402).json({ error: 'Insufficient credits', balance: creditResult.newBalance });

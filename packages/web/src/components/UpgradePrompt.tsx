@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useCredits } from '../hooks/useCredits';
 import { trackEvent } from '../lib/analytics';
@@ -17,6 +17,8 @@ interface UpgradePromptProps {
   onPurchaseStart?: () => void;
   /** Extra dismiss handler (for modals) */
   onDismiss?: () => void;
+  /** Override the path Stripe returns to. Defaults to current location. */
+  returnPath?: string;
   className?: string;
 }
 
@@ -29,17 +31,16 @@ export default function UpgradePrompt({
   featureName,
   onPurchaseStart,
   onDismiss,
+  returnPath: returnPathProp,
   className = '',
 }: UpgradePromptProps) {
-  const { user, credits, signInWithGoogle, getToken, refreshCredits } = useAuthContext();
+  const { user, signInWithGoogle, getToken, refreshCredits } = useAuthContext();
   const { buyCreditPack, subscribe } = useCredits({ getToken, refreshCredits });
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [pendingPurchase, setPendingPurchase] = useState<PurchaseType | null>(null);
 
-  const freeRunsLeft = !user ? 3 : Math.max(0, 3 - (credits?.freeSearchesUsed || 0));
-  const showFreeOption = !user && freeRunsLeft > 0;
-  const returnPath = location.pathname;
+  const returnPath = returnPathProp || location.pathname;
 
   // After sign-in completes, auto-trigger the pending purchase
   useEffect(() => {
@@ -74,11 +75,6 @@ export default function UpgradePrompt({
       return;
     }
     executePurchase(type);
-  }
-
-  function handleFreeSignIn() {
-    trackEvent('signin_prompted', { trigger: `upgrade_prompt_free_${mode}` });
-    signInWithGoogle();
   }
 
   // Headline text
@@ -149,14 +145,6 @@ export default function UpgradePrompt({
             $9.99/mo — Unlimited
           </button>
         </div>
-        {showFreeOption && (
-          <button
-            onClick={handleFreeSignIn}
-            className="text-gray-500 text-xs underline hover:text-gray-300 transition"
-          >
-            or sign in for {freeRunsLeft} free preview searches
-          </button>
-        )}
       </div>
     );
   }
@@ -195,22 +183,6 @@ export default function UpgradePrompt({
           </button>
         </div>
 
-        {showFreeOption && (
-          <>
-            <div className="flex items-center gap-3 my-3">
-              <div className="flex-1 h-px bg-gray-800" />
-              <span className="text-gray-600 text-xs">or</span>
-              <div className="flex-1 h-px bg-gray-800" />
-            </div>
-            <button
-              onClick={handleFreeSignIn}
-              className="text-gray-500 text-xs underline hover:text-gray-300 transition w-full text-center"
-            >
-              Sign in with Google for {freeRunsLeft} free preview searches
-            </button>
-          </>
-        )}
-
         {onDismiss && (
           <button
             onClick={onDismiss}
@@ -244,14 +216,6 @@ export default function UpgradePrompt({
           $9.99/mo — Unlimited
         </button>
       </div>
-      {showFreeOption && (
-        <button
-          onClick={handleFreeSignIn}
-          className="text-gray-500 text-xs underline hover:text-gray-300 transition"
-        >
-          or sign in for {freeRunsLeft} free preview searches
-        </button>
-      )}
     </div>
   );
 }

@@ -179,7 +179,7 @@ export default function Home() {
               'AI-powered keyword research tool with real Google Ads data. Discover 1,000+ keyword opportunities across 12 intent categories — scored, ranked, and ready to act on.',
             url: 'https://jackpotkeywords.web.app',
             offers: [
-              { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free tier — 3 searches' },
+              { '@type': 'Offer', price: '1.99', priceCurrency: 'USD', description: 'Single search' },
               { '@type': 'Offer', price: '9.99', priceCurrency: 'USD', description: 'Pro — unlimited searches' },
             ],
           })}
@@ -234,17 +234,12 @@ export default function Home() {
         {/* Pricing strip */}
         <div className="mt-12 flex items-center gap-6 md:gap-10 text-center text-sm">
           <div>
-            <div className="text-2xl font-bold text-jackpot-400">Free</div>
-            <div className="text-gray-500">3 searches<br />No card required</div>
-          </div>
-          <div className="w-px h-10 bg-gray-800" />
-          <div>
             <div className="text-2xl font-bold text-white">$1.99</div>
             <div className="text-gray-500">Per search<br />Pay as you go</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-white">$9.99<span className="text-base font-normal text-gray-400">/mo</span></div>
+            <div className="text-2xl font-bold text-jackpot-400">$9.99<span className="text-base font-normal text-gray-400">/mo</span></div>
             <div className="text-gray-500">Unlimited searches<br />Best value</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
