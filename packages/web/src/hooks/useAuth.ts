@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { auth, googleProvider } from '../services/firebase';
 import { initUser } from '../services/api';
@@ -14,6 +14,23 @@ function maybeEnableAdminBypass(email: string | null | undefined) {
     if (localStorage.getItem('jk_admin_bypass') !== ADMIN_BYPASS_TOKEN) {
       localStorage.setItem('jk_admin_bypass', ADMIN_BYPASS_TOKEN);
     }
+  } catch {
+    // ignore storage failures
+  }
+}
+
+/**
+ * Drops cached server-masked result payloads. Call on any auth/plan
+ * transition so stale "locked N" placeholders don't persist after the
+ * user's paid status changes.
+ */
+function clearMaskedResultCaches() {
+  try {
+    sessionStorage.removeItem('jk_results');
+    sessionStorage.removeItem('jk_results_path');
+    sessionStorage.removeItem('jk_audit_results');
+    sessionStorage.removeItem('jk_audit_results_path');
+    sessionStorage.removeItem('jk_maxCpc');
   } catch {
     // ignore storage failures
   }
@@ -68,8 +85,20 @@ export function useAuth() {
     }
   }, []);
 
+  // Track the last-seen user id + plan so we can detect transitions across
+  // renders and drop stale masked caches. Refs (not state) so we don't cause
+  // extra renders just for bookkeeping.
+  const prevUidRef = useRef<string | null>(null);
+  const prevPlanRef = useRef<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // Detect logout: a known user transitions to null.
+      if (prevUidRef.current && !user) {
+        clearMaskedResultCaches();
+      }
+      prevUidRef.current = user?.uid || null;
+
       if (user) {
         initUserProfile(user);
       } else {
@@ -78,6 +107,18 @@ export function useAuth() {
     });
     return unsubscribe;
   }, [initUserProfile]);
+
+  // Detect plan transitions (e.g. free -> pro after subscription webhook).
+  // When the plan changes, the cached masked payload in sessionStorage no
+  // longer reflects what the user should see — drop it so the next page
+  // mount fetches fresh from the server.
+  useEffect(() => {
+    const currentPlan = state.profile?.plan || null;
+    if (prevPlanRef.current && currentPlan && prevPlanRef.current !== currentPlan) {
+      clearMaskedResultCaches();
+    }
+    prevPlanRef.current = currentPlan;
+  }, [state.profile?.plan]);
 
   const signInWithGoogle = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));

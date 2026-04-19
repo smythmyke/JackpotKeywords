@@ -1,6 +1,22 @@
 import { useAuthContext } from '../contexts/AuthContext';
 import { isAdminDisabled, isRealAdminEmail, setAdminDisabled } from '../lib/adminMode';
 
+/**
+ * Clears client-side caches that hold server-masked result payloads.
+ * Server masks keyword strings in the response for unpaid users, so when
+ * the admin state flips we must drop those caches — otherwise the masked
+ * placeholders linger even after admin status changes.
+ */
+function clearMaskedResultCaches() {
+  try {
+    sessionStorage.removeItem('jk_results');
+    sessionStorage.removeItem('jk_results_path');
+    sessionStorage.removeItem('jk_audit_results');
+    sessionStorage.removeItem('jk_audit_results_path');
+    sessionStorage.removeItem('jk_maxCpc');
+  } catch {}
+}
+
 export default function AdminModeToggle() {
   const { profile, user } = useAuthContext();
   const email = profile?.email || user?.email;
@@ -10,7 +26,11 @@ export default function AdminModeToggle() {
 
   const toggle = () => {
     setAdminDisabled(!disabled);
-    window.location.reload();
+    clearMaskedResultCaches();
+    // Navigate to home. A reload here could leave the admin stuck on
+    // /results/anonymous with no sessionStorage -> "Results expired".
+    // Going home gives a clean starting point for testing the new mode.
+    window.location.href = '/';
   };
 
   return (
