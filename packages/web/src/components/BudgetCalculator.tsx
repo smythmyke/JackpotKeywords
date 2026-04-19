@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import type { KeywordResult } from '@jackpotkeywords/shared';
 import { forecastKeywords } from '../services/api';
+import { isEffectiveAdmin } from '../lib/adminMode';
 import UpgradePrompt from './UpgradePrompt';
-
-const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 interface BudgetCalculatorProps {
   keywords: KeywordResult[];
@@ -22,7 +21,7 @@ interface ForecastData {
 }
 
 export default function BudgetCalculator({ keywords, selectedKeywords, paid, user, profile, signInWithGoogle, getToken }: BudgetCalculatorProps) {
-  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const isAdmin = isEffectiveAdmin(profile?.email);
   const userPlan = profile?.plan || 'free';
   const hasAccess = paid || isAdmin || userPlan === 'pro' || userPlan === 'agency';
   const [expanded, setExpanded] = useState(false);

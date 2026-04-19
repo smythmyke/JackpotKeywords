@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
-import { checkAndDeductCredits, refundCredits, getCreditBypassOptions } from '../middleware/credits';
+import { checkAndDeductCredits, refundCredits, getCreditBypassOptions, isEffectiveAdmin } from '../middleware/credits';
 import { anonymousRateLimit } from '../middleware/rateLimit';
 import { anonSearchLimit, refundAnonSearch } from '../middleware/anonSearchLimit';
 import { extractProductContext, generateSeeds, generateRefineSeeds } from '../services/gemini';
@@ -292,8 +292,7 @@ router.post('/claim', authMiddleware, async (req: AuthRequest, res) => {
     const userData = userDoc.data();
     const plan = userData?.plan || 'free';
     const email = userData?.email || '';
-    const ADMIN_EMAILS = ['smythmyke@gmail.com'];
-    const isAdmin = ADMIN_EMAILS.includes(email);
+    const isAdmin = isEffectiveAdmin(email, req);
 
     if (isAdmin || plan === 'pro' || plan === 'agency') {
       res.json({ paid: true });
@@ -450,8 +449,7 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
   const userData = userDoc.data();
   const plan = userData?.plan || 'free';
   const email = userData?.email || '';
-  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
-  const isAdmin = ADMIN_EMAILS.includes(email);
+  const isAdmin = isEffectiveAdmin(email, req);
   const creditsDoc = await db.doc(`users/${userId}/credits/balance`).get();
   const freeUsed = creditsDoc.data()?.freeSearchesUsed || 0;
   const FREE_LIMIT = 3;
@@ -602,8 +600,7 @@ router.post('/forecast', authMiddleware, async (req: AuthRequest, res) => {
   const userData = userDoc.data();
   const plan = userData?.plan || 'free';
   const email = userData?.email || '';
-  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
-  const isAdmin = ADMIN_EMAILS.includes(email);
+  const isAdmin = isEffectiveAdmin(email, req);
 
   if (!isAdmin && plan !== 'pro' && plan !== 'agency') {
     res.status(403).json({ error: 'Budget Calculator is available for Pro and Agency subscribers' });
@@ -695,8 +692,7 @@ router.post('/:searchId/refine', authMiddleware, async (req: AuthRequest, res) =
   const userData = userDoc.data();
   const plan = userData?.plan || 'free';
   const email = userData?.email || '';
-  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
-  const isAdmin = ADMIN_EMAILS.includes(email);
+  const isAdmin = isEffectiveAdmin(email, req);
 
   if (!isAdmin && plan !== 'pro' && plan !== 'agency') {
     res.status(403).json({ error: 'Refine is available for Pro and Agency subscribers' });

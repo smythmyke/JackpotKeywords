@@ -1,5 +1,6 @@
 import type { SearchResult, SeoAuditResult, MiniKeywordResult, AeoResult, ProductContext, IdeaBoard } from '@jackpotkeywords/shared';
 import { getAnonId } from '../lib/anonId';
+import { isAdminDisabled } from '../lib/adminMode';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
 
@@ -21,6 +22,11 @@ async function apiFetch(path: string, token: string | null, options: RequestInit
     // ignore storage failures
   }
   if (bypass) headers['X-Admin-Bypass'] = bypass;
+
+  // Admin "preview as free user" toggle. When set, server skips all admin
+  // bypass paths for this request so the admin sees exactly what a regular
+  // free-plan user would see (paywalls, credit deductions, masked keywords).
+  if (isAdminDisabled()) headers['X-Disable-Admin'] = '1';
 
   let finalPath = path;
   let finalOptions = options;

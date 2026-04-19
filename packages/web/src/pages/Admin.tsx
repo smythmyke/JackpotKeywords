@@ -3,10 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { collection, getDocs, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuthContext } from '../contexts/AuthContext';
+import { ADMIN_EMAILS, isEffectiveAdmin } from '../lib/adminMode';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
-
-const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 interface Stats {
   totalUsers: number;
@@ -145,7 +144,9 @@ export default function Admin() {
   const [scError, setScError] = useState<string | null>(null);
   const [expandedErrorKey, setExpandedErrorKey] = useState<string | null>(null);
 
-  const isAdmin = (profile?.email && ADMIN_EMAILS.includes(profile.email)) || (user?.email && ADMIN_EMAILS.includes(user.email));
+  // Admin page access respects the "preview as free" toggle — if disabled,
+  // the admin experiences the non-admin redirect too. Toggle off to return.
+  const isAdmin = isEffectiveAdmin(profile?.email) || isEffectiveAdmin(user?.email);
 
   useEffect(() => {
     if (authLoading || !isAdmin) return;

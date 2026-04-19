@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuthContext } from '../contexts/AuthContext';
+import { isEffectiveAdmin } from '../lib/adminMode';
 import { runSearch } from '../services/api';
 import { trackSearch } from '../services/analytics';
 import { trackEvent } from '../lib/analytics';
@@ -106,8 +107,7 @@ export default function Home() {
   const prefillUrl = searchParams.get('url') || '';
   const { user, profile, credits, signInWithGoogle, getToken } = useAuthContext();
 
-  const ADMIN_EMAILS = ['smythmyke@gmail.com'];
-  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const isAdmin = isEffectiveAdmin(profile?.email);
   const plan = profile?.plan || 'free';
 
   function getStatusLine(): string {

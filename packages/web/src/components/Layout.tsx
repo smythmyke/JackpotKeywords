@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
+import { isEffectiveAdmin } from '../lib/adminMode';
+import AdminModeToggle from './AdminModeToggle';
 import Footer from './Footer';
-
-const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 export default function Layout() {
   const { user, profile, credits, loading, signInWithGoogle, logout } = useAuthContext();
@@ -67,7 +67,7 @@ export default function Layout() {
     navigate('/');
   };
 
-  const isAdmin = (profile?.email && ADMIN_EMAILS.includes(profile.email)) || (user?.email && ADMIN_EMAILS.includes(user.email));
+  const isAdmin = isEffectiveAdmin(profile?.email) || isEffectiveAdmin(user?.email);
   const plan = profile?.plan || 'free';
 
   function getUserBadge() {
@@ -256,6 +256,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <Footer />
+      <AdminModeToggle />
     </div>
   );
 }

@@ -15,16 +15,54 @@ const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 const ADMIN_BYPASS_TOKEN = 'smythmyke-dev-2026-bypass';
 
 /**
+ * Returns true when the admin wants to preview the app as a regular free user.
+ * Gated by X-Disable-Admin header (only meaningful if the caller is a real
+ * admin — it just tells the server to skip all admin bypass paths on this
+ * request). Non-admins setting this header see no effect, since they never
+ * hit the admin branches anyway.
+ */
+export function isAdminDisabledRequest(req: {
+  headers?: Record<string, any>;
+  query?: Record<string, any>;
+  body?: Record<string, any>;
+}): boolean {
+  const raw = req.headers?.['x-disable-admin'];
+  const h = Array.isArray(raw) ? raw[0] : raw;
+  const q = req.query?.disableAdmin || req.query?.disable_admin;
+  const b = req.body?.disableAdmin || req.body?.disable_admin;
+  const match = (v: any) => v === '1' || v === 1 || v === true || v === 'true';
+  return match(h) || match(q) || match(b);
+}
+
+/**
+ * Checks whether the given email is a real admin AND the admin-disable toggle
+ * is NOT set on this request. Use this instead of `ADMIN_EMAILS.includes(email)`
+ * in any route that wants to respect the "preview as free user" toggle.
+ */
+export function isEffectiveAdmin(email: string | null | undefined, req: {
+  headers?: Record<string, any>;
+  query?: Record<string, any>;
+  body?: Record<string, any>;
+}): boolean {
+  if (!email || !ADMIN_EMAILS.includes(email)) return false;
+  return !isAdminDisabledRequest(req);
+}
+
+/**
  * Helper for route handlers: returns { tokenEmail, adminBypass } options ready
  * to pass into checkAndDeductCredits. Centralises the bypass-header parsing
  * and Firebase-token email lookup so every caller gets the same admin handling.
+ *
+ * Respects the X-Disable-Admin toggle: when set, tokenEmail is cleared so the
+ * admin-bypass path in checkAndDeductCredits is skipped and the admin is
+ * treated as a regular free-plan user.
  */
 export function getCreditBypassOptions(req: {
   headers: Record<string, any>;
   query?: Record<string, any>;
   body?: Record<string, any>;
   userEmail?: string;
-}): { tokenEmail?: string; adminBypass?: boolean } {
+}): { tokenEmail?: string; adminBypass?: boolean; disableAdmin?: boolean } {
   const raw = req.headers['x-admin-bypass'];
   const headerValue = Array.isArray(raw) ? raw[0] : raw;
   const qp = (req.query?.adminBypass || req.query?.admin_bypass) as string | undefined;
@@ -32,9 +70,11 @@ export function getCreditBypassOptions(req: {
   const headerMatch = !!headerValue && headerValue.toString().trim() === ADMIN_BYPASS_TOKEN;
   const qpMatch = !!qp && qp.trim() === ADMIN_BYPASS_TOKEN;
   const bodyMatch = !!bodyBypass && bodyBypass.trim() === ADMIN_BYPASS_TOKEN;
+  const disableAdmin = isAdminDisabledRequest(req);
   return {
-    tokenEmail: req.userEmail,
-    adminBypass: headerMatch || qpMatch || bodyMatch,
+    tokenEmail: disableAdmin ? undefined : req.userEmail,
+    adminBypass: !disableAdmin && (headerMatch || qpMatch || bodyMatch),
+    disableAdmin,
   };
 }
 
@@ -43,17 +83,19 @@ export async function checkAndDeductCredits(
   creditsNeeded: number,
   operation: OperationType,
   description: string,
-  options: { tokenEmail?: string; adminBypass?: boolean } = {},
+  options: { tokenEmail?: string; adminBypass?: boolean; disableAdmin?: boolean } = {},
 ): Promise<CreditResult> {
   // Short-circuit admin bypass before opening a transaction. Checks three
   // sources so we don't get stuck if the Firestore user doc is stale/missing:
   // 1. Explicit header-based bypass (admin testing while signed in)
   // 2. Firebase-token email (authoritative — set by authMiddleware)
   // 3. (Below inside the transaction) Firestore userData.email fallback
-  if (options.adminBypass) {
+  // All three are skipped when options.disableAdmin is set so admins can
+  // preview the app as a regular free user.
+  if (options.adminBypass && !options.disableAdmin) {
     return { allowed: true, newBalance: 0, isFreeSearch: false };
   }
-  if (options.tokenEmail && ADMIN_EMAILS.includes(options.tokenEmail)) {
+  if (!options.disableAdmin && options.tokenEmail && ADMIN_EMAILS.includes(options.tokenEmail)) {
     return { allowed: true, newBalance: 0, isFreeSearch: false };
   }
 
@@ -80,8 +122,9 @@ export async function checkAndDeductCredits(
       const plan = userData?.plan || 'free';
       const email = userData?.email || '';
 
-      // Admin bypass via Firestore email (fallback if tokenEmail wasn't passed)
-      if (ADMIN_EMAILS.includes(email)) {
+      // Admin bypass via Firestore email (fallback if tokenEmail wasn't passed).
+      // Skipped when options.disableAdmin is set (preview-as-free toggle).
+      if (!options.disableAdmin && ADMIN_EMAILS.includes(email)) {
         return { allowed: true, newBalance: currentBalance, isFreeSearch: false };
       }
 

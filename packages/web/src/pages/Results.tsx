@@ -4,6 +4,7 @@ import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
 import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults, runAeoScan, generateIdeaBoardApi } from '../services/api';
+import { isEffectiveAdmin } from '../lib/adminMode';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -39,8 +40,6 @@ const REFINE_PLACEHOLDERS: Record<string, string> = {
   benefit: 'Describe a benefit, e.g., saves time, increases sales...',
   adjacent: 'Enter a related topic, e.g., email marketing...',
 };
-
-const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 export default function Results() {
   const { searchId } = useParams<{ searchId: string }>();
@@ -254,7 +253,7 @@ export default function Results() {
     // Wait for profile to load so we know if admin/pro
     if (!profile) return;
 
-    const isAdminOrSub = (profile.email && ADMIN_EMAILS.includes(profile.email)) ||
+    const isAdminOrSub = isEffectiveAdmin(profile.email) ||
       profile.plan === 'pro' || profile.plan === 'agency';
 
     async function refetchUnmasked() {
@@ -421,7 +420,7 @@ export default function Results() {
   // `paid` constant lives after the early returns below.
   useEffect(() => {
     if (!result || modalDismissed || conversionModalOpen) return;
-    const _isAdmin = !!(profile?.email && ADMIN_EMAILS.includes(profile.email));
+    const _isAdmin = isEffectiveAdmin(profile?.email);
     const _plan = profile?.plan || 'free';
     const _paid = !!(result.paid || _isAdmin || _plan === 'pro' || _plan === 'agency');
     if (_paid) return;
@@ -461,7 +460,7 @@ export default function Results() {
   const allKeywords = result.keywords || [];
   const totalKeywords = allKeywords.length;
 
-  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email);
+  const isAdmin = isEffectiveAdmin(profile?.email);
   const userPlan = profile?.plan || 'free';
   const paid = result.paid || isAdmin || userPlan === 'pro' || userPlan === 'agency';
   const canRefine = isAdmin || userPlan === 'pro' || userPlan === 'agency';
