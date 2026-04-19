@@ -240,7 +240,7 @@ export default function Home() {
           <div className="w-px h-10 bg-gray-800" />
           <div>
             <div className="text-3xl font-extrabold text-score-green">$1.99</div>
-            <div className="text-gray-500">See Results Now<br />One-time unlock</div>
+            <div className="text-gray-500">Single Search<br />One credit</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>

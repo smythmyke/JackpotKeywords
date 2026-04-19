@@ -382,7 +382,6 @@ export default function ConversionModal({
 
   // Variant-driven copy
   const totalKwLabel = metrics.totalKeywords.toLocaleString();
-  const ctaLabel = `Unlock all ${totalKwLabel} keywords — $1.99`;
   const eyebrow = 'Search Complete';
 
   return (
@@ -494,6 +493,7 @@ export default function ConversionModal({
             onPurchaseStart={onClose}
             onDismiss={onClose}
           />
+          <div className="cm-bonus-hint">+ 1 credit for your next search with $1.99</div>
         </div>
 
         <div className="cm-skip-hint" ref={skipHintRef}>

@@ -129,7 +129,7 @@ export default function UpgradePrompt({
       >
         <h3 className="text-xl font-bold text-white mb-2">{headline}</h3>
         <p className="text-gray-400 text-sm mb-5 text-center max-w-md">{subtitle}</p>
-        <div className="flex gap-3 mb-3">
+        <div className="flex gap-3 mb-2">
           <button
             onClick={() => handlePurchase('single')}
             disabled={loading}
@@ -145,6 +145,7 @@ export default function UpgradePrompt({
             $9.99/mo — Unlimited
           </button>
         </div>
+        <div className="text-xs text-score-green">+ 1 credit for a future search with $1.99</div>
       </div>
     );
   }
@@ -161,6 +162,7 @@ export default function UpgradePrompt({
           >
             <div className="text-xl font-extrabold text-white">$1.99</div>
             <div className="text-xs text-gray-500">per search</div>
+            <div className="text-[10px] text-score-green mt-0.5">+1 credit</div>
           </button>
           <button
             onClick={() => handlePurchase('three_pack')}
@@ -200,7 +202,7 @@ export default function UpgradePrompt({
     <div className={`text-center ${className}`}>
       <h3 className="text-xl font-bold text-white mb-2">{headline}</h3>
       <p className="text-gray-400 text-sm mb-5 max-w-lg mx-auto">{subtitle}</p>
-      <div className="flex gap-3 justify-center mb-3">
+      <div className="flex gap-3 justify-center mb-2">
         <button
           onClick={() => handlePurchase('single')}
           disabled={loading}
@@ -216,6 +218,7 @@ export default function UpgradePrompt({
           $9.99/mo — Unlimited
         </button>
       </div>
+      <div className="text-xs text-score-green">+ 1 credit for a future search with $1.99</div>
     </div>
   );
 }

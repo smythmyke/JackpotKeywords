@@ -346,6 +346,14 @@
 }
 .cm-skip-hint.cm-visible { opacity: 1; }
 
+.cm-bonus-hint {
+  margin-top: 8px;
+  text-align: center;
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cm-backdrop,
   .cm-modal,

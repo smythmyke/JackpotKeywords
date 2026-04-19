@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -12,8 +13,28 @@ export default function Pricing() {
   const { user, signInWithGoogle, getToken } = useAuthContext();
   const { buyCreditPack, subscribe } = useCredits({ getToken, refreshCredits: async () => {} });
   const [loading, setLoading] = useState<string | null>(null);
+  const [pendingSearchId, setPendingSearchId] = useState<string | null>(null);
+  const location = useLocation();
+  const purchaseSuccess = new URLSearchParams(location.search).get('purchase') === 'success';
 
-  const handleBuyCredits = async (packId: string) => {
+  // Detect pending blurred search from the current browser session. If present,
+  // the center card shifts into unlock framing and routes Stripe back to the
+  // specific results page; otherwise it presents a generic "single search"
+  // purchase that sends the user home to run their first search afterwards.
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem('jk_results');
+      if (!cached) return;
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.id && parsed.paid === false) {
+        setPendingSearchId(parsed.id);
+      }
+    } catch {}
+  }, []);
+
+  const singleReturnPath = pendingSearchId ? `/results/${pendingSearchId}` : '/';
+
+  const handleBuyCredits = async (packId: string, returnPath?: string) => {
     trackEvent('upgrade_clicked', { kind: 'credit', id: packId });
     if (!user) {
       trackEvent('signin_prompted', { trigger: 'buy_credit', packId });
@@ -22,7 +43,7 @@ export default function Pricing() {
     }
     setLoading(packId);
     try {
-      await buyCreditPack(packId as any);
+      await buyCreditPack(packId as any, returnPath);
     } catch {
       setLoading(null);
     }
@@ -83,6 +104,22 @@ export default function Pricing() {
         </script>
       </Helmet>
     <div className="max-w-6xl mx-auto px-4 py-16">
+      {/* Post-purchase banner for pre-search buyers (no pending blurred search) */}
+      {purchaseSuccess && !pendingSearchId && (
+        <div className="mb-8 max-w-2xl mx-auto bg-score-green/10 border border-score-green/40 rounded-xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-200">
+            <span className="text-score-green font-bold">&#10003; Payment complete</span>
+            <span className="text-gray-400"> &mdash; you have 1 search credit ready to use.</span>
+          </div>
+          <Link
+            to="/"
+            className="shrink-0 bg-score-green hover:bg-green-500 text-black font-bold px-5 py-2 rounded-lg transition text-sm"
+          >
+            Start your first search &rarr;
+          </Link>
+        </div>
+      )}
+
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-white mb-4">Simple pricing</h1>
         <p className="text-gray-400 text-lg">
@@ -116,18 +153,24 @@ export default function Pricing() {
           </div>
         )}
 
-        {/* See Results Now — green hero, wider */}
+        {/* Center hero — green. Copy shifts based on whether user has a pending blurred search. */}
         {singlePack && (
           <div className="bg-gradient-to-br from-score-green/15 via-gray-900 to-gray-900 rounded-xl border-2 border-score-green ring-2 ring-score-green/20 p-8 text-center relative flex flex-col shadow-2xl shadow-score-green/10">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-score-green text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Recommended</div>
-            <div className="text-xs font-bold text-score-green mb-2 uppercase tracking-wider mt-2">One-Time Unlock</div>
+            <div className="text-xs font-bold text-score-green mb-2 uppercase tracking-wider mt-2">
+              {pendingSearchId ? 'One-Time Unlock' : 'Pay Per Search'}
+            </div>
             <div className="flex items-baseline justify-center gap-3">
               <div className="text-6xl font-extrabold text-white">{singlePack.priceDisplay}</div>
-              <div className="text-gray-400 text-lg">one-time</div>
+              <div className="text-gray-400 text-lg">{pendingSearchId ? 'one-time' : 'per search'}</div>
             </div>
-            <div className="text-gray-200 text-xl mt-2 font-bold">See Results Now</div>
+            <div className="text-gray-200 text-xl mt-2 font-bold">
+              {pendingSearchId ? 'See Results Now' : 'Single Search'}
+            </div>
             <p className="text-gray-400 text-sm mt-2 max-w-md mx-auto">
-              Unblur every keyword in your current search — all data, all exports, saved forever. No subscription.
+              {pendingSearchId
+                ? 'Unblur every keyword in your current search \u2014 plus 1 bonus credit for your next search.'
+                : 'One full keyword search with all data, exports, and permanent access. No subscription.'}
             </p>
             <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mt-6 text-left flex-1 max-w-md mx-auto">
               <div className="flex items-start gap-2 text-sm text-gray-200"><span className="text-score-green mt-0.5">&#10003;</span> All keyword strings</div>
@@ -137,14 +180,29 @@ export default function Pricing() {
               <div className="flex items-start gap-2 text-sm text-gray-200"><span className="text-score-green mt-0.5">&#10003;</span> Google Ads export</div>
               <div className="flex items-start gap-2 text-sm text-gray-200"><span className="text-score-green mt-0.5">&#10003;</span> Permanent access</div>
             </div>
+            {pendingSearchId && (
+              <div className="mt-4 bg-score-green/10 border border-score-green/30 rounded-lg px-4 py-2 max-w-md mx-auto">
+                <div className="flex items-center justify-center gap-2 text-sm text-score-green font-semibold">
+                  <span>&#x2b;</span> Bonus: 1 credit for your next search
+                </div>
+              </div>
+            )}
             <button
-              onClick={() => handleBuyCredits(singlePack.id)}
+              onClick={() => handleBuyCredits(singlePack.id, singleReturnPath)}
               disabled={loading === singlePack.id}
-              className="mt-7 w-full bg-score-green hover:bg-green-500 disabled:bg-gray-700 text-black font-extrabold py-5 rounded-lg transition text-xl shadow-lg shadow-score-green/20"
+              className="mt-6 w-full bg-score-green hover:bg-green-500 disabled:bg-gray-700 text-black font-extrabold py-5 rounded-lg transition text-xl shadow-lg shadow-score-green/20"
             >
-              {loading === singlePack.id ? 'Redirecting...' : 'See Results Now \u2192'}
+              {loading === singlePack.id
+                ? 'Redirecting...'
+                : pendingSearchId
+                  ? 'See Results Now \u2192'
+                  : 'Start a Search \u2014 $1.99'}
             </button>
-            <div className="text-xs text-gray-400 mt-2">Takes 5 seconds &middot; No account setup beyond Google sign-in</div>
+            <div className="text-xs text-gray-400 mt-2">
+              {pendingSearchId
+                ? 'Takes 5 seconds \u00b7 No account setup beyond Google sign-in'
+                : 'Credit added instantly \u00b7 Use any time'}
+            </div>
           </div>
         )}
 
