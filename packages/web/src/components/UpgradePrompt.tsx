@@ -151,37 +151,47 @@ export default function UpgradePrompt({
   }
 
   // ── Modal mode ────────────────────────────────────────────
+  // Order: 3-Pack (left, neutral) | Unlock Search (center, green hero, 1.6x
+  // wide) | Pro (right, amber). Mirrors the /pricing hierarchy but with Pro
+  // on the right so the ongoing-commitment option sits outside the user's
+  // primary decision band.
   if (mode === 'modal') {
     return (
       <div className={className}>
-        <div className="flex gap-3 justify-center mb-3">
-          <button
-            onClick={() => handlePurchase('single')}
-            disabled={loading}
-            className="flex-1 max-w-[140px] bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-center hover:border-jackpot-500 hover:bg-jackpot-500/5 transition cursor-pointer"
-          >
-            <div className="text-xl font-extrabold text-white">$1.99</div>
-            <div className="text-xs text-gray-500">per search</div>
-            <div className="text-[10px] text-score-green mt-0.5">+1 credit</div>
-          </button>
+        <div className="grid grid-cols-[1fr_1.6fr_1fr] gap-2 items-stretch pt-4 max-w-md mx-auto mb-3">
+          {/* 3-Pack */}
           <button
             onClick={() => handlePurchase('three_pack')}
             disabled={loading}
-            className="flex-1 max-w-[140px] bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-center hover:border-jackpot-500 hover:bg-jackpot-500/5 transition cursor-pointer"
+            className="bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-center hover:border-gray-600 hover:bg-gray-800/80 transition cursor-pointer flex flex-col justify-center"
           >
-            <div className="text-xl font-extrabold text-white">$4.99</div>
-            <div className="text-xs text-gray-500">3-pack</div>
+            <div className="text-base font-extrabold text-white">$4.99</div>
+            <div className="text-[10px] text-gray-500">3-pack</div>
             <div className="text-[10px] text-gray-600 mt-0.5">$1.66 each</div>
           </button>
+
+          {/* Unlock Search — center hero */}
+          <button
+            onClick={() => handlePurchase('single')}
+            disabled={loading}
+            className="bg-gradient-to-b from-score-green/15 to-gray-800 border-2 border-score-green ring-2 ring-score-green/20 rounded-xl p-4 text-center hover:from-score-green/20 transition cursor-pointer relative flex flex-col justify-center shadow-lg shadow-score-green/20"
+          >
+            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-score-green text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Recommended</span>
+            <div className="text-3xl font-extrabold text-white">$1.99</div>
+            <div className="text-sm text-gray-200 font-semibold mt-0.5">Unlock Search</div>
+            <div className="text-[11px] text-score-green mt-1">+ 1 bonus credit for next search</div>
+          </button>
+
+          {/* Pro */}
           <button
             onClick={() => handlePurchase('pro')}
             disabled={loading}
-            className="flex-1 max-w-[140px] bg-gray-800 border-2 border-jackpot-500 rounded-xl p-3 text-center hover:bg-jackpot-500/5 transition cursor-pointer relative"
+            className="bg-gray-800 border-2 border-jackpot-500 rounded-xl p-3 text-center hover:bg-jackpot-500/5 transition cursor-pointer relative flex flex-col justify-center"
           >
-            <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-jackpot-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Best Value</span>
-            <div className="text-xl font-extrabold text-white">$9.99</div>
-            <div className="text-xs text-gray-500">/month</div>
-            <div className="text-[10px] text-green-400 mt-0.5">Unlimited</div>
+            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-jackpot-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Best Value</span>
+            <div className="text-base font-extrabold text-white">$9.99</div>
+            <div className="text-[10px] text-gray-500">/month</div>
+            <div className="text-[10px] text-jackpot-400 mt-0.5">Unlimited</div>
           </button>
         </div>
 

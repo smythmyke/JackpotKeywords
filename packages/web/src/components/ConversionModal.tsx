@@ -493,7 +493,6 @@ export default function ConversionModal({
             onPurchaseStart={onClose}
             onDismiss={onClose}
           />
-          <div className="cm-bonus-hint">+ 1 credit for your next search with $1.99</div>
         </div>
 
         <div className="cm-skip-hint" ref={skipHintRef}>
