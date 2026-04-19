@@ -231,16 +231,21 @@ export default function Home() {
 
         <SearchForm onSearch={handleSearch} loading={loading} initialDescription={prefillQuery} initialUrl={prefillUrl} />
 
-        {/* Pricing strip */}
+        {/* Pricing strip — mirrors /pricing hierarchy: Pro (amber) | See Results Now (green, center) | 3-Pack */}
         <div className="mt-12 flex items-center gap-6 md:gap-10 text-center text-sm">
           <div>
-            <div className="text-2xl font-bold text-white">$1.99</div>
-            <div className="text-gray-500">Per search<br />Pay as you go</div>
+            <div className="text-2xl font-bold text-jackpot-400">$9.99<span className="text-base font-normal text-gray-400">/mo</span></div>
+            <div className="text-gray-500">Pro<br />Unlimited</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <div>
-            <div className="text-2xl font-bold text-jackpot-400">$9.99<span className="text-base font-normal text-gray-400">/mo</span></div>
-            <div className="text-gray-500">Unlimited searches<br />Best value</div>
+            <div className="text-3xl font-extrabold text-score-green">$1.99</div>
+            <div className="text-gray-500">See Results Now<br />One-time unlock</div>
+          </div>
+          <div className="w-px h-10 bg-gray-800" />
+          <div>
+            <div className="text-2xl font-bold text-white">$4.99</div>
+            <div className="text-gray-500">3-Pack<br />$1.66 each</div>
           </div>
           <div className="w-px h-10 bg-gray-800" />
           <Link to="/pricing" className="text-jackpot-400 hover:text-jackpot-300 transition font-medium text-sm">
