@@ -120,8 +120,9 @@ export async function forecastKeywords(
 export async function scoreKeywordRelevance(
   keywords: string[],
   context: any,
+  token: string | null,
 ): Promise<{ scores: Record<string, number> }> {
-  return apiFetch('/api/search/score-relevance', null, {
+  return apiFetch('/api/search/score-relevance', token, {
     method: 'POST',
     body: JSON.stringify({ keywords, context }),
   });

@@ -2,6 +2,21 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
+
+/**
+ * Multiplier penalty applied to jackpotScore once Gemini has scored a keyword's
+ * relevance. adScore is kept as the pre-penalty baseline so re-applying on
+ * cached results (or after a re-score) is idempotent. Keywords without an
+ * aiRelevance score are left alone — their original jackpotScore stands.
+ */
+function applyRelevancePenalty(kw: KeywordResult, aiRelevance: number): KeywordResult {
+  const penalty = aiRelevance / 10;
+  return {
+    ...kw,
+    aiRelevance,
+    jackpotScore: Math.round(kw.adScore * penalty),
+  };
+}
 import { useAuthContext } from '../contexts/AuthContext';
 import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults, runAeoScan, generateIdeaBoardApi } from '../services/api';
 import { isEffectiveAdmin } from '../lib/adminMode';
@@ -309,31 +324,56 @@ export default function Results() {
     });
   }, [result?.clusters?.length]);
 
-  // Background relevance scoring — runs after keywords display
+  // Background relevance scoring + re-rank — runs after keywords display.
+  // Gated to paid users because non-payers see masked results and never benefit
+  // from the re-rank; skipping them keeps Gemini spend tied to converted traffic.
   useEffect(() => {
     if (!result?.keywords || result.keywords.length === 0) return;
     const ctx = (result as any).productContext;
     if (!ctx) return;
-    // Skip if keywords already have relevance scores
-    if (result.keywords[0]?.aiRelevance !== undefined) return;
 
-    setRelevanceLoading(true);
-    const top200 = result.keywords.slice(0, 200).map((k) => k.keyword);
-    scoreKeywordRelevance(top200, ctx).then(({ scores }) => {
+    const isAdmin = isEffectiveAdmin(profile?.email);
+    const plan = profile?.plan || 'free';
+    const isPaidUser = !!(result.paid || isAdmin || plan === 'pro' || plan === 'agency');
+    if (!isPaidUser) return;
+
+    // Cached results already have aiRelevance → just recompute the penalty
+    // (idempotent because it derives from adScore, not jackpotScore) and re-sort.
+    if (result.keywords[0]?.aiRelevance !== undefined) {
       setResult((prev) => {
         if (!prev) return prev;
-        const updated = prev.keywords.map((kw) => {
-          const score = scores[kw.keyword];
-          return score !== undefined ? { ...kw, aiRelevance: score } : kw;
-        });
-        return { ...prev, keywords: updated };
+        const rescored = prev.keywords.map((kw) =>
+          kw.aiRelevance !== undefined ? applyRelevancePenalty(kw, kw.aiRelevance) : kw
+        );
+        rescored.sort((a, b) => (b.jackpotScore ?? 0) - (a.jackpotScore ?? 0));
+        return { ...prev, keywords: rescored };
       });
-    }).catch((err) => {
-      console.error('Relevance scoring failed:', err.message);
-    }).finally(() => {
-      setRelevanceLoading(false);
-    });
-  }, [result?.keywords?.length]);
+      return;
+    }
+
+    setRelevanceLoading(true);
+    const toScore = result.keywords.slice(0, 600).map((k) => k.keyword);
+    getToken()
+      .then((token) => scoreKeywordRelevance(toScore, ctx, token))
+      .then(({ scores }) => {
+        if (!scores || Object.keys(scores).length === 0) return;
+        setResult((prev) => {
+          if (!prev) return prev;
+          const updated = prev.keywords.map((kw) => {
+            const aiRel = scores[kw.keyword];
+            return aiRel !== undefined ? applyRelevancePenalty(kw, aiRel) : kw;
+          });
+          updated.sort((a, b) => (b.jackpotScore ?? 0) - (a.jackpotScore ?? 0));
+          return { ...prev, keywords: updated };
+        });
+      })
+      .catch((err) => {
+        console.error('Relevance scoring failed:', err.message);
+      })
+      .finally(() => {
+        setRelevanceLoading(false);
+      });
+  }, [result?.keywords?.length, result?.paid, profile?.plan, profile?.email, user, getToken]);
 
   // Save handler — saves selected keywords to Firestore
   const handleSaveSearch = async () => {

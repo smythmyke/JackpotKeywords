@@ -390,32 +390,60 @@ router.post('/name-clusters', async (req, res) => {
 
 /**
  * POST /api/search/score-relevance
- * Score keyword relevance via Gemini (called async from frontend after keywords load)
+ * Score keyword relevance via Gemini (called async from frontend after keywords load).
+ *
+ * Paid-only: relevance re-ranks the visible results, which non-paying users never
+ * see unmasked. Returning empty scores for non-paid callers keeps Gemini spend
+ * tied to converted traffic and lets the client gracefully skip the re-rank.
  */
-router.post('/score-relevance', async (req, res) => {
+const SCORE_RELEVANCE_MAX = 600;
+const SCORE_RELEVANCE_BATCH = 100;
+
+router.post('/score-relevance', optionalAuthMiddleware, async (req: AuthRequest, res) => {
   const { keywords, context } = req.body;
   if (!keywords || !Array.isArray(keywords) || !context) {
     res.status(400).json({ error: 'Keywords and context required' });
     return;
   }
+
+  let isPaidUser = false;
+  if (req.userId) {
+    const userDoc = await db.doc(`users/${req.userId}`).get();
+    const plan = userDoc.data()?.plan || 'free';
+    const email = userDoc.data()?.email || req.userEmail || '';
+    const isAdmin = isEffectiveAdmin(email, req);
+    const creditsDoc = await db.doc(`users/${req.userId}/credits/balance`).get();
+    const freeUsed = creditsDoc.data()?.freeSearchesUsed || 0;
+    const FREE_LIMIT = 3;
+    isPaidUser = isAdmin || plan === 'pro' || plan === 'agency' || freeUsed >= FREE_LIMIT;
+  }
+
+  if (!isPaidUser) {
+    res.json({ scores: {} });
+    return;
+  }
+
   try {
-    // Split into 2 parallel batches of 100
-    const batch1 = keywords.slice(0, 100);
-    const batch2 = keywords.slice(100, 200);
+    const capped = keywords.slice(0, SCORE_RELEVANCE_MAX);
+    const batches: string[][] = [];
+    for (let i = 0; i < capped.length; i += SCORE_RELEVANCE_BATCH) {
+      batches.push(capped.slice(i, i + SCORE_RELEVANCE_BATCH));
+    }
 
-    const [scores1, scores2] = await Promise.all([
-      scoreRelevance(batch1, context).catch(() => new Map<string, number>()),
-      batch2.length > 0
-        ? scoreRelevance(batch2, context).catch(() => new Map<string, number>())
-        : Promise.resolve(new Map<string, number>()),
-    ]);
+    const results = await Promise.all(
+      batches.map((batch) =>
+        scoreRelevance(batch, context).catch(() => new Map<string, number>()),
+      ),
+    );
 
-    // Merge into a single object
     const scores: Record<string, number> = {};
-    for (const [k, v] of scores1) scores[k] = v;
-    for (const [k, v] of scores2) scores[k] = v;
+    for (const map of results) {
+      for (const [k, v] of map) scores[k] = v;
+    }
 
-    functions.logger.info(`Relevance scored ${Object.keys(scores).length} keywords via async endpoint`);
+    functions.logger.info(
+      `Relevance scored ${Object.keys(scores).length} keywords across ${batches.length} batches`,
+    );
     res.json({ scores });
   } catch (err: any) {
     functions.logger.error('Relevance scoring error:', err.message);
