@@ -630,14 +630,14 @@ export default function Results() {
       // Get top seeds from direct category sorted by score
       const topSeeds = result.keywords
         .filter((kw) => kw.category === 'direct')
-        .sort((a, b) => b.adScore - a.adScore)
+        .sort((a, b) => b.jackpotScore - a.jackpotScore)
         .slice(0, 8)
         .map((kw) => kw.keyword);
 
       if (topSeeds.length === 0) {
         // Fallback: use any top keywords
         topSeeds.push(...result.keywords
-          .sort((a, b) => b.adScore - a.adScore)
+          .sort((a, b) => b.jackpotScore - a.jackpotScore)
           .slice(0, 8)
           .map((kw) => kw.keyword));
       }
@@ -682,7 +682,7 @@ export default function Results() {
       if (filterTrend === 'declining' && kw.trendDirection !== 'declining' && kw.trendDirection !== 'declining_slight') return false;
     }
     if (filterScore !== null) {
-      const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
+      const score = scoreView === 'ad' ? kw.jackpotScore : kw.seoScore;
       if (score < filterScore) return false;
     }
     if (filterIntent !== null && kw.intent !== filterIntent) return false;
@@ -704,8 +704,8 @@ export default function Results() {
       case 'comp': av = a.competition; bv = b.competition; break;
       case 'intent': av = a.intent || ''; bv = b.intent || ''; break;
       case 'relevance': av = a.aiRelevance ?? -1; bv = b.aiRelevance ?? -1; break;
-      case 'score': av = scoreView === 'ad' ? a.adScore : a.seoScore; bv = scoreView === 'ad' ? b.adScore : b.seoScore; break;
-      default: av = scoreView === 'ad' ? a.adScore : a.seoScore; bv = scoreView === 'ad' ? b.adScore : b.seoScore;
+      case 'score': av = scoreView === 'ad' ? a.jackpotScore : a.seoScore; bv = scoreView === 'ad' ? b.jackpotScore : b.seoScore; break;
+      default: av = scoreView === 'ad' ? a.jackpotScore : a.seoScore; bv = scoreView === 'ad' ? b.jackpotScore : b.seoScore;
     }
     if (av < bv) return sortDir === 'asc' ? -1 : 1;
     if (av > bv) return sortDir === 'asc' ? 1 : -1;
@@ -730,7 +730,7 @@ export default function Results() {
           if (filterTrend === 'declining' && kw.trendDirection !== 'declining' && kw.trendDirection !== 'declining_slight') return false;
         }
         if (filterScore !== null) {
-          const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
+          const score = scoreView === 'ad' ? kw.jackpotScore : kw.seoScore;
           if (score < filterScore) return false;
         }
         if (filterIntent !== null && kw.intent !== filterIntent) return false;
@@ -1217,15 +1217,15 @@ export default function Results() {
                     if (filterTrend === 'declining' && kw.trendDirection !== 'declining' && kw.trendDirection !== 'declining_slight') return false;
                   }
                   if (filterScore !== null) {
-                    const score = scoreView === 'ad' ? kw.adScore : kw.seoScore;
+                    const score = scoreView === 'ad' ? kw.jackpotScore : kw.seoScore;
                     if (score < filterScore) return false;
                   }
                   if (filterIntent !== null && kw.intent !== filterIntent) return false;
                   return true;
                 });
                 const sorted = [...filtered].sort((a, b) => {
-                  const av = scoreView === 'ad' ? a.adScore : a.seoScore;
-                  const bv = scoreView === 'ad' ? b.adScore : b.seoScore;
+                  const av = scoreView === 'ad' ? a.jackpotScore : a.seoScore;
+                  const bv = scoreView === 'ad' ? b.jackpotScore : b.seoScore;
                   return bv - av;
                 });
                 const totalVol = filtered.reduce((s, k) => s + k.avgMonthlySearches, 0);
@@ -1233,7 +1233,7 @@ export default function Results() {
                   ? filtered.reduce((s, k) => s + (k.lowCpc + k.highCpc) / 2, 0) / filtered.length
                   : 0;
                 const bestScore = filtered.length > 0
-                  ? Math.max(...filtered.map((k) => scoreView === 'ad' ? k.adScore : k.seoScore))
+                  ? Math.max(...filtered.map((k) => scoreView === 'ad' ? k.jackpotScore : k.seoScore))
                   : 0;
                 return { cluster, keywords: sorted, totalVol, avgCpc, bestScore, visibleCount: filtered.length };
               })
@@ -1337,7 +1337,7 @@ export default function Results() {
                             <tr
                               key={i}
                               className={`border-b border-gray-800/30 hover:bg-gray-800/30 ${
-                                (scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75
+                                (scoreView === 'ad' ? kw.jackpotScore : kw.seoScore) >= 75
                                   ? 'border-l-[3px] border-l-jackpot-500 jackpot-row'
                                   : ''
                               } ${selectedKeywords.has(kw.keyword) ? '!bg-jackpot-500/[0.07]' : ''}`}
@@ -1362,7 +1362,7 @@ export default function Results() {
                                 {kw.trendDirection ? <TrendArrow direction={kw.trendDirection} info={kw.trendInfo} /> : <span className="text-gray-600">-</span>}
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <JackpotScore score={scoreView === 'ad' ? kw.adScore : kw.seoScore} size="sm" />
+                                <JackpotScore score={scoreView === 'ad' ? kw.jackpotScore : kw.seoScore} size="sm" />
                               </td>
                             </tr>
                           ))}
@@ -1372,10 +1372,10 @@ export default function Results() {
                     {/* Mobile cards */}
                     <div className="md:hidden space-y-1 p-2">
                       {clusterKws.map((kw, i) => (
-                        <div key={i} className={`bg-gray-800/30 rounded-lg p-3 ${(scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75 ? 'border-l-[3px] border-l-jackpot-500' : ''}`}>
+                        <div key={i} className={`bg-gray-800/30 rounded-lg p-3 ${(scoreView === 'ad' ? kw.jackpotScore : kw.seoScore) >= 75 ? 'border-l-[3px] border-l-jackpot-500' : ''}`}>
                           <div className="flex items-center justify-between mb-2">
                             <MaskedKeyword keyword={kw.keyword} paid={paid} />
-                            <JackpotScore score={scoreView === 'ad' ? kw.adScore : kw.seoScore} size="sm" />
+                            <JackpotScore score={scoreView === 'ad' ? kw.jackpotScore : kw.seoScore} size="sm" />
                           </div>
                           <div className="flex items-center gap-3 text-xs text-gray-400">
                             <span className="font-mono">{kw.avgMonthlySearches.toLocaleString()}/mo</span>
@@ -1441,8 +1441,17 @@ export default function Results() {
                     Comp{sortIndicator('comp')}
                   </th>
                   <th className="text-center px-4 py-3 font-medium w-24">Trend</th>
-                  <th className="text-center px-4 py-3 font-medium w-24 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('score')}>
-                    {scoreView === 'ad' ? 'Ad Score' : 'SEO Score'}{sortIndicator('score')}
+                  <th className="text-center px-4 py-3 font-medium w-28 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('score')}>
+                    {scoreView === 'ad' ? (
+                      <img
+                        src="/jackpot-logo.png"
+                        alt="Jackpot Score"
+                        className="inline-block h-5 w-auto align-middle"
+                      />
+                    ) : (
+                      'SEO Score'
+                    )}
+                    {sortIndicator('score')}
                   </th>
                 </tr>
               </thead>
@@ -1451,7 +1460,7 @@ export default function Results() {
                   <React.Fragment key={i}>
                     <tr
                       className={`border-b border-gray-800/50 cursor-pointer ${
-                        (scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75
+                        (scoreView === 'ad' ? kw.jackpotScore : kw.seoScore) >= 75
                           ? 'border-l-[3px] border-l-jackpot-500 jackpot-row hover:brightness-125'
                           : 'hover:bg-gray-800/30'
                       } ${expandedKeyword === kw.keyword ? 'bg-gray-800/40' : ''
@@ -1509,7 +1518,7 @@ export default function Results() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <JackpotScore
-                          score={scoreView === 'ad' ? kw.adScore : kw.seoScore}
+                          score={scoreView === 'ad' ? kw.jackpotScore : kw.seoScore}
                           size="sm"
                         />
                       </td>
@@ -1535,7 +1544,7 @@ export default function Results() {
               <div key={i}>
                 <div
                   className={`bg-gray-900 border rounded-xl p-4 cursor-pointer ${
-                    (scoreView === 'ad' ? kw.adScore : kw.seoScore) >= 75
+                    (scoreView === 'ad' ? kw.jackpotScore : kw.seoScore) >= 75
                       ? 'border-l-[3px] border-l-jackpot-500 border-gray-800 jackpot-row'
                       : 'border-gray-800'
                   } ${expandedKeyword === kw.keyword ? 'border-jackpot-500/40' : ''}`}
@@ -1553,7 +1562,7 @@ export default function Results() {
                       <MaskedKeyword keyword={kw.keyword} paid={paid} />
                     </div>
                     <JackpotScore
-                      score={scoreView === 'ad' ? kw.adScore : kw.seoScore}
+                      score={scoreView === 'ad' ? kw.jackpotScore : kw.seoScore}
                       size="sm"
                     />
                   </div>

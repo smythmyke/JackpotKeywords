@@ -18,8 +18,8 @@ function PotIcon() {
 
 export default function JackpotScore({ score, size = 'md' }: JackpotScoreProps) {
   const isJackpot = score >= 75;
-  const color = isJackpot ? 'text-score-green' : score >= 45 ? 'text-score-yellow' : 'text-score-red';
-  const bg = isJackpot ? 'bg-score-green/10' : score >= 45 ? 'bg-score-yellow/10' : 'bg-score-red/10';
+  const color = isJackpot ? 'text-jackpot-400' : score >= 45 ? 'text-score-yellow' : 'text-score-red';
+  const bg = isJackpot ? 'bg-jackpot-500/10' : score >= 45 ? 'bg-score-yellow/10' : 'bg-score-red/10';
   const label = isJackpot ? 'Jackpot' : score >= 45 ? 'Solid' : 'Expensive';
 
   const sizeClasses = size === 'sm'
