@@ -46,9 +46,16 @@ export interface ApiCustomer {
 export interface ApiKeyRecord {
   customerId: string;
   name: string;
+  /**
+   * First 16 chars of the raw key (e.g. "jk_live_433e94ce"). Safe to display —
+   * not enough entropy to brute-force. Lets listKeysForCustomer disambiguate
+   * keys without exposing the secret.
+   */
+  prefix?: string;
   createdAt: string;
   lastUsedAt?: string;
   revoked: boolean;
+  revokedAt?: string;
 }
 
 export function generateApiKey(): { raw: string; hash: string } {
@@ -143,11 +150,82 @@ export async function createApiCustomer(email: string): Promise<{
   await db.doc(`apiKeys/${hash}`).set({
     customerId,
     name: 'default',
+    prefix: raw.slice(0, 16),
     createdAt: new Date().toISOString(),
     revoked: false,
   });
 
   return { customer, apiKey: raw, newSignup };
+}
+
+/**
+ * Create a new API key for an existing customer. Returns the raw key once —
+ * caller must show it to the user immediately; we never store the raw value.
+ */
+export async function createApiKeyForCustomer(
+  customerId: string,
+  name: string,
+): Promise<{ apiKey: string; keyId: string; prefix: string; name: string; createdAt: string }> {
+  const { raw, hash } = generateApiKey();
+  const prefix = raw.slice(0, 16);
+  const createdAt = new Date().toISOString();
+  const safeName = (name || 'unnamed').slice(0, 64);
+  await db.doc(`apiKeys/${hash}`).set({
+    customerId,
+    name: safeName,
+    prefix,
+    createdAt,
+    revoked: false,
+  });
+  return { apiKey: raw, keyId: hash, prefix, name: safeName, createdAt };
+}
+
+/**
+ * List active (non-revoked) keys for a customer. Returns only safe-to-display
+ * fields — never the raw key or full hash secret. keyId is the sha256 hash
+ * used as the doc ID, exposed so customers can target a specific key for
+ * deletion.
+ */
+export async function listKeysForCustomer(customerId: string): Promise<Array<{
+  keyId: string;
+  name: string;
+  prefix?: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}>> {
+  const snap = await db.collection('apiKeys')
+    .where('customerId', '==', customerId)
+    .where('revoked', '==', false)
+    .get();
+  return snap.docs.map((doc) => {
+    const d = doc.data() as ApiKeyRecord;
+    return {
+      keyId: doc.id,
+      name: d.name,
+      prefix: d.prefix,
+      createdAt: d.createdAt,
+      lastUsedAt: d.lastUsedAt,
+    };
+  });
+}
+
+/**
+ * Revoke a key. Soft-delete (sets revoked=true) so the audit trail in apiCalls
+ * stays joinable. Verifies ownership before revoking — a customer can't kill
+ * another customer's key even if they guess the hash.
+ */
+export async function revokeApiKey(
+  customerId: string,
+  keyId: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  const ref = db.doc(`apiKeys/${keyId}`);
+  const doc = await ref.get();
+  if (!doc.exists) return { ok: false, reason: 'key_not_found' };
+  const data = doc.data() as ApiKeyRecord;
+  if (data.customerId !== customerId) return { ok: false, reason: 'not_your_key' };
+  if (data.revoked) return { ok: false, reason: 'already_revoked' };
+  await ref.update({ revoked: true, revokedAt: new Date().toISOString() });
+  return { ok: true };
 }
 
 /**
