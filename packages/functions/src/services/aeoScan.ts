@@ -14,17 +14,54 @@ import { GoogleGenAI } from '@google/genai';
 import * as functions from 'firebase-functions';
 import type { AeoResult, AeoQuery, AeoCitation } from '@jackpotkeywords/shared';
 import type { ProductContext } from '@jackpotkeywords/shared';
+import { fetchAndParse } from './htmlParser';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const MODEL = 'gemini-2.5-flash';
 
-// Known competitors for citation analysis
+// Fallback competitors for the LIGHT scan when no product-specific list is
+// available. Keep this list focused on keyword / SEO tools — earlier versions
+// included image-editing tools (canva, picmonkey, etc.) which produced false
+// positives for non-image products (e.g. moz appearing as a "competitor" of a
+// patent-IP firm because moz was in this list and the AI mentioned it
+// somewhere unrelated). Full scan ignores this list and uses
+// context.competitors instead.
 const KNOWN_COMPETITORS = [
   'semrush', 'ahrefs', 'ubersuggest', 'moz', 'se ranking', 'mangools',
-  'kwfinder', 'spyfu', 'longtailpro', 'keyword tool', 'surfer seo',
-  'wordtracker', 'keywords everywhere', 'canva', 'glorify', 'picmonkey',
-  'adobe express', 'photoshop express',
+  'kwfinder', 'spyfu', 'longtailpro', 'keyword tool', 'keywordtool.io',
+  'surfer seo', 'wordtracker', 'keywords everywhere',
 ];
+
+/**
+ * Build the set of strings that count as a "product mention" in URLs and
+ * answer text. Multi-word brand names need variations or we miss obvious hits
+ * — "JackpotKeywords" lowercased only matches "jackpotkeywords" but the AI
+ * naturally writes it as "Jackpot Keywords" (with space).
+ */
+function buildMatchPatterns(domain: string, productName?: string): string[] {
+  const patterns = new Set<string>();
+
+  const domainClean = domain
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/$/, '');
+  if (domainClean) patterns.add(domainClean);
+
+  if (productName) {
+    const lower = productName.toLowerCase();
+    patterns.add(lower);
+
+    // CamelCase → space-split: "JackpotKeywords" → "jackpot keywords"
+    const spaced = productName.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+    if (spaced !== lower) patterns.add(spaced);
+
+    // Collapse spaces: "Jackpot Keywords" → "jackpotkeywords"
+    const collapsed = productName.replace(/\s+/g, '').toLowerCase();
+    if (collapsed !== lower) patterns.add(collapsed);
+  }
+
+  return [...patterns];
+}
 
 // ── Retry wrapper ────────────────────────────────────────────
 
@@ -126,9 +163,7 @@ function analyzeCitations(
   productName?: string,
   competitors?: string[],
 ): AeoQuery[] {
-  const domainClean = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
-  const matchPatterns = [domainClean];
-  if (productName) matchPatterns.push(productName.toLowerCase());
+  const matchPatterns = buildMatchPatterns(domain, productName);
 
   // Use product-specific competitors for full scan, fall back to known list for light scan
   const competitorList = competitors && competitors.length > 0
@@ -167,12 +202,66 @@ function analyzeCitations(
   });
 }
 
+// ── Step 3.5: Detect what's already on the site ──────────────
+
+/**
+ * Quick fetch of the domain root to detect what's already shipped (schema
+ * types, common pages, blog post count). Feeds into generateActionItems so
+ * the prompt stops recommending things that exist — earlier audits suggested
+ * "implement Schema.org" when SoftwareApplication + FAQPage were already
+ * present, and "create comparison content" when 8 vs-X posts were shipped.
+ *
+ * Failure is non-fatal — returns empty string and the prompt falls back to
+ * its original generic behaviour.
+ */
+async function detectSiteState(domain: string): Promise<string> {
+  try {
+    const url = domain.startsWith('http') ? domain : `https://${domain}`;
+    const parsed = await fetchAndParse(url);
+    if (!parsed.fetchedHtml) return '';
+
+    const parts: string[] = [];
+
+    if (parsed.jsonLdTypes.length > 0) {
+      parts.push(`Schema.org types present: ${parsed.jsonLdTypes.join(', ')}`);
+    }
+
+    const knownPaths = ['/about', '/blog', '/pricing', '/features', '/help', '/privacy', '/terms', '/contact', '/faq'];
+    const presentPaths = knownPaths.filter((p) =>
+      parsed.internalLinks.some((l) => l === p || l.startsWith(`${p}/`)),
+    );
+    if (presentPaths.length > 0) {
+      parts.push(`Pages present: ${presentPaths.join(', ')}`);
+    }
+
+    const blogPosts = parsed.internalLinks
+      .filter((l) => l.startsWith('/blog/') && l !== '/blog/')
+      .map((l) => l.replace(/^\/blog\//, '').replace(/\/$/, ''))
+      .filter((slug) => slug && !slug.includes('/'));
+    if (blogPosts.length > 0) {
+      const sample = blogPosts.slice(0, 12).join(', ');
+      parts.push(`Blog posts found (${blogPosts.length}): ${sample}${blogPosts.length > 12 ? '...' : ''}`);
+    }
+
+    const featurePages = parsed.internalLinks.filter((l) => l.startsWith('/features/'));
+    if (featurePages.length > 0) {
+      parts.push(`Feature pages: ${featurePages.join(', ')}`);
+    }
+
+    return parts.join('\n');
+  } catch (err: any) {
+    functions.logger.warn(`AEO: detectSiteState failed for ${domain}: ${err.message}`);
+    return '';
+  }
+}
+
 // ── Step 4: Generate action items ────────────────────────────
 
 async function generateActionItems(
   analysis: AeoQuery[],
   domain: string,
   productName?: string,
+  siteContext?: string,
 ): Promise<string[]> {
   const cited = analysis.filter((a) => a.productCited).length;
   const mentioned = analysis.filter((a) => a.productMentionedInAnswer).length;
@@ -192,12 +281,13 @@ Domain: ${domain}
 Visibility: ${cited}/${total} queries cite the product, ${mentioned}/${total} mention it in answers
 ${gaps.length > 0 ? `Queries with ZERO presence:\n${gaps.map((g) => `- "${g.query}" (competitors present: ${g.competitorsCited.join(', ') || 'none'})`).join('\n')}` : 'Product appears in all queries.'}
 ${topCompetitors.length > 0 ? `Top competitors in AI results:\n${topCompetitors.map(([c, n]) => `- ${c}: ${n}/${total} queries`).join('\n')}` : ''}
+${siteContext ? `\nWhat's ALREADY shipped on this site (do NOT recommend re-doing these):\n${siteContext}` : ''}
 
 Generate 3-5 specific, actionable recommendations. Each should be one sentence describing exactly what to do. Focus on:
-- Content to create that would get cited by AI (blog posts, comparison pages, FAQs)
-- Platforms to publish on (Reddit threads, Medium, YouTube)
+- Content to create that would get cited by AI (blog posts, comparison pages, FAQs) — but ONLY if not already shipped
+- Off-site distribution (Reddit threads, Medium, ProductHunt, listing on G2/Capterra/AlternativeTo) — typically the highest-leverage gap
 - Competitor gaps to exploit
-- Structured data to add for AI crawlers
+- Structured data to add for AI crawlers — but ONLY if not already in the schema types listed above
 
 Return ONLY a JSON array of strings, no markdown:
 ["recommendation 1", "recommendation 2", ...]`;
@@ -259,8 +349,12 @@ export async function runAeoScanLight(
   // Step 3: Analyze
   const analysis = analyzeCitations(results, domain, productName);
 
-  // Step 4: Action items
-  const actionItems = await generateActionItems(analysis, domain, productName);
+  // Step 3.5: Site state (parallel with action item generation isn't worth the
+  // complexity — site state has to feed into the action items prompt).
+  const siteContext = await detectSiteState(domain);
+
+  // Step 4: Action items (now site-state aware)
+  const actionItems = await generateActionItems(analysis, domain, productName, siteContext);
 
   // Build competitor frequency
   const competitorFrequency: Record<string, number> = {};
@@ -317,8 +411,11 @@ Target audience: ${context.targetAudience.join(', ')}`;
   // Step 3: Analyze
   const analysis = analyzeCitations(results, domain, context.productName, context.competitors);
 
-  // Step 4: Action items
-  const actionItems = await generateActionItems(analysis, domain, context.productName);
+  // Step 3.5: Site state — what's already shipped on the domain
+  const siteContext = await detectSiteState(domain);
+
+  // Step 4: Action items (site-state aware)
+  const actionItems = await generateActionItems(analysis, domain, context.productName, siteContext);
 
   // Build competitor frequency
   const competitorFrequency: Record<string, number> = {};

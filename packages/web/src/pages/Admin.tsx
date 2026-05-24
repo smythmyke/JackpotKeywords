@@ -3,7 +3,13 @@ import { Navigate } from 'react-router-dom';
 import { collection, getDocs, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuthContext } from '../contexts/AuthContext';
-import { ADMIN_EMAILS, isEffectiveAdmin } from '../lib/adminMode';
+import {
+  ADMIN_EMAILS,
+  isEffectiveAdmin,
+  getAdminScoringVersion,
+  setAdminScoringVersion,
+  type AdminScoringVersion,
+} from '../lib/adminMode';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/demo-jackpotkeywords/us-central1/api';
 
@@ -133,6 +139,7 @@ export default function Admin() {
   const [timeSeries, setTimeSeries] = useState<DailyPoint[] | null>(null);
   const [chartRange, setChartRange] = useState<7 | 30>(30);
   const [excludeAdmin, setExcludeAdmin] = useState(true);
+  const [scoringVersion, setScoringVersion] = useState<AdminScoringVersion>(() => getAdminScoringVersion());
   const [sources, setSources] = useState<SourceRow[] | null>(null);
   const [rawData, setRawData] = useState<{ logs: any[]; users: any[]; adminIds: Set<string> } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,6 +211,16 @@ export default function Admin() {
     const filteredLogs = rawLogs.filter((l) => !isAdminLog(l));
     const filteredUsers = rawUsers.filter((u) => !isAdminUser(u));
 
+    // Per-user search counts derived from activity logs (credits live in a
+    // subcollection doc that isn't loaded here, so we count `search` actions
+    // from the rawLogs window instead).
+    const searchCountByUser: Record<string, number> = {};
+    filteredLogs.forEach((l) => {
+      if (l.action === 'search' && l.userId && l.userId !== 'anonymous') {
+        searchCountByUser[l.userId] = (searchCountByUser[l.userId] || 0) + 1;
+      }
+    });
+
     // Stats
     let totalUsers = 0;
     const planBreakdown: Record<string, number> = { free: 0, pro: 0, agency: 0 };
@@ -227,7 +244,7 @@ export default function Admin() {
           email: data.email || 'unknown',
           plan,
           createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || 'unknown',
-          searchCount: (credits.lifetimeUsed || 0) + (credits.freeSearchesUsed || 0),
+          searchCount: searchCountByUser[data.uid] || 0,
         });
       }
     });
@@ -619,17 +636,35 @@ export default function Admin() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={excludeAdmin}
-            onChange={(e) => setExcludeAdmin(e.target.checked)}
-            className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-jackpot-500 focus:ring-jackpot-500 focus:ring-offset-gray-950"
-          />
-          Exclude admin activity
-        </label>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+            <span>Scoring:</span>
+            <select
+              value={scoringVersion}
+              onChange={(e) => {
+                const next = e.target.value as AdminScoringVersion;
+                setScoringVersion(next);
+                setAdminScoringVersion(next);
+              }}
+              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 focus:ring-jackpot-500"
+              title="Selects which jackpot score field admin tools read. v2 = Shape A-prime composite (Phase 0 validation)."
+            >
+              <option value="v1">v1 (GKP-weighted)</option>
+              <option value="v2">v2 (composite)</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={excludeAdmin}
+              onChange={(e) => setExcludeAdmin(e.target.checked)}
+              className="w-4 h-4 rounded bg-gray-800 border-gray-700 text-jackpot-500 focus:ring-jackpot-500 focus:ring-offset-gray-950"
+            />
+            Exclude admin activity
+          </label>
+        </div>
       </div>
 
       {error && (

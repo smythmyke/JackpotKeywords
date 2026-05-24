@@ -9,6 +9,7 @@
   "hosting": {
     "target": "jackpotkeywords",
     "public": "packages/web/dist",
+    "trailingSlash": false,
     "predeploy": [
       "npm run build:web"
     ],

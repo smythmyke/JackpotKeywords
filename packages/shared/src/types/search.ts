@@ -73,6 +73,7 @@ export interface KeywordResult {
   highCpc: number;
   competition: CompetitionLevel;
   jackpotScore: number;
+  jackpotScore_v2?: number;
   adScore: number;
   seoScore: number;
   relevance: number;
@@ -85,6 +86,7 @@ export interface KeywordResult {
   monthlyVolumes?: { month: string; volume: number }[];
   intent?: SearchIntent;
   aiRelevance?: number;
+  suggestHits?: number;
   isExpanded?: boolean;
 }
 

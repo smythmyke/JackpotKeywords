@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import * as functions from 'firebase-functions';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
+import { creditTopup } from './apiCredits';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia' as Stripe.LatestApiVersion,
@@ -81,7 +82,24 @@ export async function handleWebhook(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      const { userId, packId, credits, planId } = session.metadata || {};
+      const meta = session.metadata || {};
+
+      // API top-up flow (Phase 1 REST API)
+      if (meta.purpose === 'api_topup' && meta.apiCustomerId && meta.amountCents) {
+        const apiCustomerId = meta.apiCustomerId;
+        const amountCents = parseInt(meta.amountCents, 10);
+        if (Number.isFinite(amountCents) && amountCents > 0) {
+          try {
+            await creditTopup(apiCustomerId, amountCents, session.id);
+            functions.logger.info(`API top-up credited: ${amountCents} cents to customer ${apiCustomerId}`);
+          } catch (err: any) {
+            functions.logger.error(`API top-up credit failed for ${apiCustomerId}: ${err.message}`);
+          }
+        }
+        break;
+      }
+
+      const { userId, packId, credits, planId } = meta;
 
       if (credits && userId) {
         // Credit purchase

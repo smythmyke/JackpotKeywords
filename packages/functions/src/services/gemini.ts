@@ -14,6 +14,8 @@ import {
   calculateAdScore,
   calculateSeoScore,
   calculateBudgetFit,
+  calculateJackpotScoreV2,
+  percentile,
   CATEGORY_LABELS,
 } from '@jackpotkeywords/shared';
 
@@ -443,11 +445,18 @@ export async function scoreAndClassify(
   keywords: KeywordResult[],
   context: ProductContext,
   budget?: number,
+  scoringInputs?: {
+    sourceCounts?: Map<string, Set<string>>;
+    maxPlatforms?: number;
+  },
 ): Promise<{
   keywords: KeywordResult[];
   categories: CategorySummary[];
   clusters: KeywordCluster[];
 }> {
+  const sourceCounts = scoringInputs?.sourceCounts;
+  const maxPlatforms = scoringInputs?.maxPlatforms || 1;
+
   // Score each keyword and classify intent
   const scored = keywords.map((kw) => {
     const adScore = calculateAdScore(
@@ -458,6 +467,21 @@ export async function scoreAndClassify(
       kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
       kw.competition, kw.relevance, kw.trendDirection,
     );
+
+    const normKey = kw.keyword.toLowerCase().trim();
+    const suggestHits = sourceCounts?.get(normKey)?.size ?? 1;
+
+    // v2 pass 1: cluster + aiRelevance not yet known, will fall back to 50
+    const jackpotScore_v2 = calculateJackpotScoreV2({
+      volume: kw.avgMonthlySearches,
+      lowCpc: kw.lowCpc,
+      highCpc: kw.highCpc,
+      competition: kw.competition,
+      trend: kw.trendDirection,
+      suggestHits,
+      maxPlatforms,
+      aiRelevance: kw.aiRelevance,
+    });
 
     let budgetFit = undefined;
     let clicksPerDay = undefined;
@@ -470,8 +494,10 @@ export async function scoreAndClassify(
     return {
       ...kw,
       jackpotScore: adScore,
+      jackpotScore_v2,
       adScore,
       seoScore,
+      suggestHits,
       budgetFit,
       clicksPerDay,
       intent: classifyIntent(kw.keyword, kw.category as KeywordCategory),
@@ -517,6 +543,31 @@ export async function scoreAndClassify(
   // Add cluster counts to category summaries
   for (const cat of categories) {
     cat.clusterCount = clusters.filter((c) => c.category === cat.category).length;
+  }
+
+  // v2 pass 2: recompute jackpotScore_v2 now that cluster assignments exist.
+  // aiRelevance is still unknown at this stage — added later via async relevance
+  // endpoint and will require a client-side third pass.
+  const clusterByKeyword = new Map<string, { totalVolume: number; keywordCount: number }>();
+  for (const cluster of clusters) {
+    const meta = { totalVolume: cluster.totalVolume, keywordCount: cluster.keywordKeys.length };
+    for (const key of cluster.keywordKeys) clusterByKeyword.set(key, meta);
+  }
+  const clusterVolumeP90 = percentile(clusters.map((c) => c.totalVolume), 0.90);
+  for (const kw of scored) {
+    const cluster = clusterByKeyword.get(kw.keyword.toLowerCase().trim());
+    kw.jackpotScore_v2 = calculateJackpotScoreV2({
+      volume: kw.avgMonthlySearches,
+      lowCpc: kw.lowCpc,
+      highCpc: kw.highCpc,
+      competition: kw.competition,
+      trend: kw.trendDirection,
+      suggestHits: kw.suggestHits,
+      maxPlatforms,
+      cluster,
+      clusterVolumeP90,
+      aiRelevance: kw.aiRelevance,
+    });
   }
 
   // Return unnamed clusters — naming happens async via /api/search/name-clusters

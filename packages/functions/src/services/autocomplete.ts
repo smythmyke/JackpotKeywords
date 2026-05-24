@@ -264,12 +264,14 @@ export function selectExpandPlatforms(context: { whatItDoes: string; industryNic
 /**
  * Expand keywords via YouTube, Amazon, and/or eBay autocomplete.
  * Takes top seeds, queries each platform, deduplicates.
+ * Returns deduped results plus a per-keyword platform-source set used by v2 scoring.
  */
 export async function expandAutocompleteMultiPlatform(
   topSeeds: string[],
   platforms: ExpandPlatform[],
-): Promise<ExpandResult[]> {
+): Promise<{ results: ExpandResult[]; sourceCounts: Map<string, Set<string>> }> {
   const results = new Map<string, ExpandResult>();
+  const sourceCounts = new Map<string, Set<string>>();
   const seeds = topSeeds.slice(0, 8);
 
   for (const platform of platforms) {
@@ -285,6 +287,9 @@ export async function expandAutocompleteMultiPlatform(
         for (const hit of result.value) {
           const key = hit.keyword.toLowerCase().trim();
           if (!results.has(key)) results.set(key, hit);
+          const set = sourceCounts.get(key) ?? new Set<string>();
+          set.add(platform);
+          sourceCounts.set(key, set);
         }
       }
     }
@@ -292,5 +297,5 @@ export async function expandAutocompleteMultiPlatform(
   }
 
   functions.logger.info(`Multi-platform expand: ${results.size} unique keywords from ${platforms.join(', ')}`);
-  return Array.from(results.values());
+  return { results: Array.from(results.values()), sourceCounts };
 }

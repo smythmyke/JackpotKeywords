@@ -15,7 +15,7 @@ import { overlayTrends } from '../services/googleTrends';
 import { scoreAndClassify, nameClustersBatch, scoreRelevance } from '../services/gemini';
 import { clusterKeywords } from '../services/clustering';
 import type { SearchRequest, SearchResult, KeywordResult } from '@jackpotkeywords/shared';
-import { calculateAdScore, calculateSeoScore } from '@jackpotkeywords/shared';
+import { calculateAdScore, calculateSeoScore, calculateJackpotScoreV2 } from '@jackpotkeywords/shared';
 
 const router = Router();
 const db = admin.firestore();
@@ -170,7 +170,7 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
 
     // Step 3: Merge and deduplicate
     currentStep = 'step3_merge';
-    const masterList = mergeAndDeduplicate(seeds.allSeeds, autocompleteKeywords);
+    const { merged: masterList, sourceCounts } = mergeAndDeduplicate(seeds.allSeeds, autocompleteKeywords);
     functions.logger.info(`Step 3 done: ${masterList.length} unique keywords after merge`);
 
     // Step 4: Google Ads Keyword Planner enrichment
@@ -178,6 +178,22 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
     functions.logger.info('Step 4: Enriching via Keyword Planner...');
     const enriched = await enrichKeywords(masterList);
     functions.logger.info(`Step 4 done: ${enriched.length} enriched keywords`);
+
+    // Add KP planner_related as a distinct source signal for keywords KP discovered.
+    for (const kw of enriched) {
+      const key = kw.keyword.toLowerCase().trim();
+      const src = (kw as any).source;
+      if (src) {
+        const set = sourceCounts.get(key) ?? new Set<string>();
+        set.add(src);
+        sourceCounts.set(key, set);
+      }
+    }
+    // maxPlatforms = max distinct sources observed across all keywords this search
+    let maxPlatforms = 1;
+    for (const set of sourceCounts.values()) {
+      if (set.size > maxPlatforms) maxPlatforms = set.size;
+    }
 
     // Step 5: Google Trends overlay (top 100 by volume)
     currentStep = 'step5_trends';
@@ -188,7 +204,7 @@ router.post('/', optionalAuthMiddleware, anonSearchLimit(), searchIpSafetyNet, a
     // Step 6: AI scoring and classification
     currentStep = 'step6_scoreAndClassify';
     functions.logger.info('Step 6: Scoring and classifying...');
-    const scored = await scoreAndClassify(withTrends, context, budget);
+    const scored = await scoreAndClassify(withTrends, context, budget, { sourceCounts, maxPlatforms });
     functions.logger.info(`Step 6 done: ${scored.keywords.length} scored keywords`);
     currentStep = 'finalize';
 
@@ -503,7 +519,7 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
     functions.logger.info(`Expand: platforms=${platforms.join(',')} for "${productContext.productLabel}"`);
 
     // Step 2: Multi-platform autocomplete
-    const expandResults = await expandAutocompleteMultiPlatform(topSeeds, platforms);
+    const { results: expandResults, sourceCounts: expandSourceCounts } = await expandAutocompleteMultiPlatform(topSeeds, platforms);
 
     // Step 3: Deduplicate against existing keywords
     const existingSet = new Set((existingKeywords || []).map((k: string) => k.toLowerCase().trim()));
@@ -533,8 +549,10 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Step 6: Score + classify intent + infer category
+    const expandMaxPlatforms = Math.max(platforms.length, 1);
     const scored: KeywordResult[] = filtered.map((kw) => {
-      const expandSource = newKeywords.find((n) => n.keyword.toLowerCase().trim() === kw.keyword.toLowerCase().trim())?.source || 'youtube';
+      const normKey = kw.keyword.toLowerCase().trim();
+      const expandSource = newKeywords.find((n) => n.keyword.toLowerCase().trim() === normKey)?.source || 'youtube';
       const category = inferCategory(kw.keyword) as any;
       const adScore = calculateAdScore(
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
@@ -544,13 +562,26 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
         kw.competition, kw.relevance, kw.trendDirection,
       );
+      const suggestHits = expandSourceCounts.get(normKey)?.size ?? 1;
+      const jackpotScore_v2 = calculateJackpotScoreV2({
+        volume: kw.avgMonthlySearches,
+        lowCpc: kw.lowCpc,
+        highCpc: kw.highCpc,
+        competition: kw.competition,
+        trend: kw.trendDirection,
+        suggestHits,
+        maxPlatforms: expandMaxPlatforms,
+        aiRelevance: undefined, // populated below after scoreRelevance
+      });
       return {
         ...kw,
         source: expandSource as any,
         category,
         jackpotScore: adScore,
+        jackpotScore_v2,
         adScore,
         seoScore,
+        suggestHits,
         intent: classifyIntent(kw.keyword, category as any),
         isExpanded: true,
       };
@@ -562,7 +593,20 @@ router.post('/expand', authMiddleware, async (req: AuthRequest, res) => {
       const relevanceScores = await scoreRelevance(kwStrings, productContext);
       for (const kw of scored) {
         const score = relevanceScores.get(kw.keyword);
-        if (score !== undefined) kw.aiRelevance = score;
+        if (score !== undefined) {
+          kw.aiRelevance = score;
+          // Recompute v2 now that aiRelevance is known
+          kw.jackpotScore_v2 = calculateJackpotScoreV2({
+            volume: kw.avgMonthlySearches,
+            lowCpc: kw.lowCpc,
+            highCpc: kw.highCpc,
+            competition: kw.competition,
+            trend: kw.trendDirection,
+            suggestHits: kw.suggestHits,
+            maxPlatforms: expandMaxPlatforms,
+            aiRelevance: score,
+          });
+        }
       }
       functions.logger.info(`Expand: relevance scored ${relevanceScores.size} keywords`);
     } catch (err: any) {
@@ -752,9 +796,8 @@ router.post('/:searchId/refine', authMiddleware, async (req: AuthRequest, res) =
     functions.logger.info(`Refine: enriching ${seeds.length} seeds`);
     const enriched = await enrichKeywords(seeds);
 
-    // Step 3: Score
+    // Step 3: Score (refine has no autocomplete/multi-platform stage, so suggestHits=1)
     const scored = enriched.map((kw) => {
-      const { calculateAdScore, calculateSeoScore } = require('@jackpotkeywords/shared');
       const adScore = calculateAdScore(
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
         kw.competition, kw.relevance, kw.trendDirection,
@@ -763,7 +806,16 @@ router.post('/:searchId/refine', authMiddleware, async (req: AuthRequest, res) =
         kw.avgMonthlySearches, kw.lowCpc, kw.highCpc,
         kw.competition, kw.relevance, kw.trendDirection,
       );
-      return { ...kw, jackpotScore: adScore, adScore, seoScore };
+      const jackpotScore_v2 = calculateJackpotScoreV2({
+        volume: kw.avgMonthlySearches,
+        lowCpc: kw.lowCpc,
+        highCpc: kw.highCpc,
+        competition: kw.competition,
+        trend: kw.trendDirection,
+        suggestHits: 1,
+        maxPlatforms: 1,
+      });
+      return { ...kw, jackpotScore: adScore, jackpotScore_v2, adScore, seoScore, suggestHits: 1 };
     });
 
     // Step 4: Deduplicate against existing keywords
@@ -795,9 +847,20 @@ router.post('/:searchId/refine', authMiddleware, async (req: AuthRequest, res) =
 function mergeAndDeduplicate(
   aiSeeds: { keyword: string; category: string; source: string }[],
   autocompleteKeywords: { keyword: string; source: string; parentSeed?: string }[],
-): { keyword: string; category: string; source: string }[] {
+): { merged: { keyword: string; category: string; source: string }[]; sourceCounts: Map<string, Set<string>> } {
   const seen = new Set<string>();
   const merged: { keyword: string; category: string; source: string }[] = [];
+  const sourceCounts = new Map<string, Set<string>>();
+
+  const recordSource = (keyword: string, source: string) => {
+    const key = keyword.toLowerCase().trim();
+    let set = sourceCounts.get(key);
+    if (!set) {
+      set = new Set<string>();
+      sourceCounts.set(key, set);
+    }
+    set.add(source);
+  };
 
   // Build seed→category lookup for category inheritance
   const seedCategoryMap = new Map<string, string>();
@@ -807,6 +870,7 @@ function mergeAndDeduplicate(
 
   for (const seed of aiSeeds) {
     const key = seed.keyword.toLowerCase().trim();
+    recordSource(seed.keyword, seed.source);
     if (!seen.has(key)) {
       seen.add(key);
       merged.push(seed);
@@ -815,6 +879,7 @@ function mergeAndDeduplicate(
 
   for (const kw of autocompleteKeywords) {
     const key = kw.keyword.toLowerCase().trim();
+    recordSource(kw.keyword, kw.source);
     if (!seen.has(key)) {
       seen.add(key);
       // Inherit category: 1) from parent seed, 2) word overlap with seeds, 3) pattern matching
@@ -828,7 +893,7 @@ function mergeAndDeduplicate(
     }
   }
 
-  return merged;
+  return { merged, sourceCounts };
 }
 
 

@@ -23,6 +23,7 @@ import adminRouter from './api/admin';
 import eventsRouter from './api/events';
 import aeoScanRouter from './api/aeoScan';
 import ideasRouter from './api/ideas';
+import v1Router from './api/v1';
 
 // Mount routes
 app.use('/api/auth', authRouter);
@@ -33,6 +34,7 @@ app.use('/api/ideas', ideasRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/events', eventsRouter);
+app.use('/api/v1', v1Router);
 
 // Health check
 app.get('/api/health', (_req, res) => {
