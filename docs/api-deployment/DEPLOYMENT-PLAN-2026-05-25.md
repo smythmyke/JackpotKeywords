@@ -124,12 +124,30 @@ Each item ships independently when (a) dogfoodable from Michael's own products A
 - **Sheets add-on** — only if Michael personally uses it.
 - **`/v1/score` ship decision** — gated on reversibility test against first 50 real `/v1/recommend` samples (then 500 as traffic permits). Path D: defer until recommend traffic is high enough that the test is empirically meaningful AND revenue from existing endpoints justifies the ToS surface area.
 
-**Permanently deferred (not in this plan):**
-- Zapier app (4–6 week review, low solo capacity)
-- Shopify app (12–18 month review, requires existing revenue ramp)
-- WordPress plugin (review pipeline + low solo capacity)
-- Vertical content tracks with external case studies
-- Legal opinion ($3–5k attorney) — only relevant if/when `/v1/score` ships publicly to enterprise customers
+### Conditional surfaces (defer unless trigger fires)
+
+These platforms make sense IF specific signals appear, but aren't worth building speculatively:
+
+- **OpenAI Apps SDK / GPT Store** — natural follow-up to the MCP server (same tool shape, different host). Build IF MCP traction shows meaningful usage, since the OpenAI port is mostly a thin rewrap. ~3-5 days of work. Trigger: 5+ active MCP installs OR a specific GPT Store user request.
+- **Chrome extension** — Michael already publishes 6 Chrome extensions with existing distribution presence — different audience-discovery dynamic than the other deferred platforms. Worth considering if a focused use case emerges (e.g., on-page keyword research overlay). Trigger: a specific UX pattern that benefits from in-browser context rather than an MCP/API call.
+
+### Permanently deferred (not in this plan)
+
+| Surface | Reason |
+|---|---|
+| Zapier app | 4-6 week review, low solo capacity, audience overlap with n8n |
+| Shopify app | 12-18 month review, requires existing revenue ramp |
+| WordPress plugin | Review pipeline + low solo capacity |
+| Notion integration | Audience-discovery work + custom Notion API surface for low ROI |
+| HubSpot integration | Enterprise audience, sales cycle, mismatched with self-serve PAYG |
+| Slack bot | Audience-discovery work; MCP via Claude already covers the Slack-via-Claude use case |
+| Raycast extension | Niche audience, maintenance overhead |
+| Discord bot | Audience-discovery work, mismatched with B2B keyword research use case |
+| VS Code extension | MCP via Cursor/Claude Code already covers IDE-context use |
+| Vertical content tracks (external case studies) | Requires outreach capacity solo dev doesn't have |
+| $3-5k legal opinion | Only relevant if/when `/v1/score` ships publicly to enterprise customers |
+
+**Disposition policy:** items in the deferred table are killed for the foreseeable future, not "later." If you find yourself drawn to one, ask first whether the conditions that originally killed it have actually changed.
 
 ---
 
