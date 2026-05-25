@@ -4,7 +4,10 @@ import { Helmet } from 'react-helmet-async';
 import { trackSignUp } from '../services/analytics';
 
 const SUPPORT_EMAIL = 'smythmyke@gmail.com';
-const API_BASE = 'https://jackpotkeywords.web.app/api/v1';
+// Direct Cloud Function URL — bypasses Firebase Hosting's 60s edge timeout
+// which silently 502s long-running endpoints like /recommend and /aeo-scan.
+// See incident 2026-05-25.
+const API_BASE = 'https://us-central1-even-plate-378520.cloudfunctions.net/api/api/v1';
 
 interface CodeBlockProps {
   language?: string;

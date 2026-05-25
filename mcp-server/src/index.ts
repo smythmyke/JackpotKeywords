@@ -12,7 +12,7 @@ import { recommendTool, runRecommend } from "./tools/recommend.js";
 import { aeoScanTool, runAeoScan } from "./tools/aeoScan.js";
 
 const SERVER_NAME = "jackpotkeywords";
-const SERVER_VERSION = "0.1.1";
+const SERVER_VERSION = "0.1.2";
 
 function readEnv(name: string, required = true): string {
   const value = process.env[name];

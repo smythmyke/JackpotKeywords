@@ -1,5 +1,9 @@
-const DEFAULT_API_BASE = "https://jackpotkeywords.web.app/api/v1";
-const USER_AGENT = "jackpotkeywords-mcp-server/0.1.1";
+// Uses the direct Cloud Function URL rather than the jackpotkeywords.web.app
+// Hosting rewrite — Firebase Hosting kills proxied requests at 60s, but
+// /v1/recommend and /v1/aeo-scan routinely take 30-180s. The direct URL has
+// no edge timeout. See incident 2026-05-25.
+const DEFAULT_API_BASE = "https://us-central1-even-plate-378520.cloudfunctions.net/api/api/v1";
+const USER_AGENT = "jackpotkeywords-mcp-server/0.1.2";
 
 export interface ApiClientOptions {
   apiKey: string;
