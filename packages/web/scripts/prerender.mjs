@@ -246,9 +246,9 @@ const pages = [
   {
     path: '/developers',
     title: 'API for Developers — JackpotKeywords',
-    description: 'REST API for AI-powered keyword research and AI-visibility scans. Composite Jackpot Score, real Google Ads data, $0.10/recommend, $1.00/aeo-scan. Private beta — request access.',
+    description: 'REST API for AI-powered keyword research and AI-visibility scans. Composite Jackpot Score, real Google Ads data, $0.10/recommend, $1.00/aeo-scan. $5 free credit, no card required.',
     body: `<h1>JackpotKeywords API</h1>
-<p>Pipe the same keyword research and AI-visibility scans that power jackpotkeywords.com into your own product, agency workflow, or automation stack. One REST surface, three endpoints, pay-as-you-go. Currently in private beta — request access via email.</p>
+<p>Pipe the same keyword research and AI-visibility scans that power jackpotkeywords.com into your own product, agency workflow, or automation stack. One REST surface, two endpoints today, pay-as-you-go. Self-serve signup, $5 starter credit, no card required.</p>
 
 <h2>Endpoints</h2>
 <h3>POST /v1/recommend — $0.10 / call</h3>
@@ -257,8 +257,8 @@ const pages = [
 <h3>POST /v1/aeo-scan — $1.00 / scan</h3>
 <p>AI-visibility check. Runs 10 buyer-intent queries against Gemini grounded search plus Serper, reports cited / mentioned / missing per query plus the top sources the AI cited. Latency ~30-120s. Refunded on failure.</p>
 
-<h3>POST /v1/score — coming after August 2026</h3>
-<p>Score individual keyword candidates by composite metric. Held until our month-3 reversibility validation completes.</p>
+<h3>POST /v1/score — held back</h3>
+<p>Per-keyword composite scoring. Held until we have collected enough real recommend traffic to validate the score is not reverse-engineerable. Email if you need batch scoring earlier — we can issue a rate-limited preview.</p>
 
 <h2>Authentication</h2>
 <p>Sign up returns an API key prefixed jk_live_ plus a $5 starter credit (no card, no expiration). Authenticate with an Authorization Bearer header on every request. Multiple named keys per environment supported via POST /v1/keys, GET /v1/keys, and DELETE /v1/keys/:keyId.</p>
@@ -267,13 +267,13 @@ const pages = [
 <p>Pay-as-you-go: $5 signup credit (no expiration), $0.10 per recommend call, $1.00 per AEO scan. Topup packs at $25, $100, $500, or custom amount of $25+. No monthly minimum, no seat fees, no annual contract.</p>
 
 <h2>Rate limits</h2>
-<p>Per key: 60 requests per minute and 1,000 requests per hour, sliding window. Higher ceilings available on request during beta.</p>
+<p>Per key: 60 requests per minute and 1,000 requests per hour, sliding window. Higher ceilings available on request.</p>
 
 <h2>What's coming</h2>
-<p>MCP server wrapping the same endpoints for Claude, Cursor, Windsurf, and any MCP-compatible agent. Google Sheets add-on for non-developer users. /v1/score endpoint after reversibility validation. n8n / Zapier / Make.com nodes.</p>
+<p>MCP server wrapping the same endpoints for Claude, Cursor, Windsurf, and any MCP-compatible agent, distributed via npm + MCP Registry. /v1/score endpoint after reversibility validation against real traffic. n8n community node for ops workflows.</p>
 
-<h2>Get beta access</h2>
-<p>Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a> with a sentence or two about what you'd use the API for. We're onboarding a small set of design partners before opening signups publicly (~July-August 2026).</p>`,
+<h2>Get your API key</h2>
+<p>Self-serve. Visit <a href="https://jackpotkeywords.web.app/developers#signup">jackpotkeywords.web.app/developers</a>, enter your email, get a key and a $5 starter credit. No card required.</p>`,
   },
 
   // About
