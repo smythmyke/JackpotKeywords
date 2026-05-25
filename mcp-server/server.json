@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.smythmyke/jackpotkeywords-mcp-server",
-  "description": "JackpotKeywords keyword research and AI-visibility scanning via REST API. Composite Jackpot Score with real Google Ads data; AEO scan via Gemini grounded search.",
+  "description": "AI-powered keyword research and AI-visibility scans via the JackpotKeywords REST API.",
   "version": "0.1.0",
   "repository": {
     "url": "https://github.com/smythmyke/JackpotKeywords",
