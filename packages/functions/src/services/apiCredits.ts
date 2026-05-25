@@ -33,6 +33,19 @@ export const AEO_SCAN_COST_CENTS = 100;     // $1.00 per /v1/aeo-scan
 export const RECOMMEND_COST_CENTS = 10;     // $0.10 per /v1/recommend (1B)
 export const SCORE_COST_PER_KW_HUNDREDTHS = 50;  // $0.005 per keyword = 50 hundredths of a cent (1B)
 
+/**
+ * Emails that get unlimited free API use. Same pattern as the consumer-app
+ * admin bypass for smythmyke@gmail.com. Calls still get logged to apiCalls
+ * with `admin: true` so usage stats stay accurate and the analyze script
+ * can filter admin traffic out of revenue totals.
+ */
+const ADMIN_EMAILS = new Set(['smythmyke@gmail.com']);
+
+export function isAdminApiCustomer(customer: { email: string } | null | undefined): boolean {
+  if (!customer?.email) return false;
+  return ADMIN_EMAILS.has(customer.email.toLowerCase().trim());
+}
+
 export const TOPUP_PACKS = [
   { id: 'starter', label: '$25', amountCents: 2500 },
   { id: 'growth',  label: '$100', amountCents: 10000 },
@@ -237,6 +250,11 @@ export async function revokeApiKey(
  * Deduct cost from balance and log the call. Transactional — refuses if balance
  * insufficient. Returns the new balance and the call's doc ID so the handler can
  * later call recordApiCallResult to attach latency / errCode / etc.
+ *
+ * Admin bypass: customers in ADMIN_EMAILS skip the balance check and deduction
+ * entirely. Their calls still get logged to apiCalls with `admin: true` so the
+ * usage analyze script can filter admin traffic out of revenue / reversibility
+ * samples.
  */
 export async function deductBalance(
   customerId: string,
@@ -249,19 +267,26 @@ export async function deductBalance(
     const snap = await tx.get(customerRef);
     if (!snap.exists) throw new Error('Customer not found');
     const data = snap.data() as ApiCustomer;
-    if (data.balanceCents < costCents) {
-      throw new Error(`Insufficient balance: have ${data.balanceCents} cents, need ${costCents}`);
+    const isAdmin = ADMIN_EMAILS.has(data.email);
+
+    let nextBalance = data.balanceCents;
+    if (!isAdmin) {
+      if (data.balanceCents < costCents) {
+        throw new Error(`Insufficient balance: have ${data.balanceCents} cents, need ${costCents}`);
+      }
+      nextBalance = data.balanceCents - costCents;
+      tx.update(customerRef, { balanceCents: nextBalance });
     }
-    const next = data.balanceCents - costCents;
-    tx.update(customerRef, { balanceCents: next });
+
     tx.create(callRef, {
       customerId,
       endpoint,
-      costCents,
+      costCents,           // record the would-be cost for breakdown
       ok: true,
+      ...(isAdmin ? { admin: true } : {}),
       timestamp: FieldValue.serverTimestamp(),
     });
-    return next;
+    return nextBalance;
   });
   return { newBalance, callId: callRef.id };
 }
@@ -300,6 +325,9 @@ export async function recordApiCallResult(
 /**
  * Refund a previously-deducted cost (used when the endpoint errors after deduction).
  * Logs the refund as a separate transaction.
+ *
+ * Admin bypass: admin customers were never billed, so refundBalance is a no-op
+ * for them. Returning early avoids a misleading transaction log entry.
  */
 export async function refundBalance(
   customerId: string,
@@ -311,6 +339,7 @@ export async function refundBalance(
     const snap = await tx.get(customerRef);
     if (!snap.exists) return;
     const data = snap.data() as ApiCustomer;
+    if (ADMIN_EMAILS.has(data.email)) return; // admin wasn't billed; nothing to refund
     tx.update(customerRef, { balanceCents: data.balanceCents + costCents });
     tx.create(db.collection('apiTransactions').doc(), {
       customerId,

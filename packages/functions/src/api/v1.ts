@@ -30,6 +30,7 @@ import {
   deductBalance,
   refundBalance,
   recordApiCallResult,
+  isAdminApiCustomer,
   AEO_SCAN_COST_CENTS,
   RECOMMEND_COST_CENTS,
   MIN_TOPUP_CENTS,
@@ -98,12 +99,14 @@ router.post('/signup', async (req, res) => {
  */
 router.get('/me', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) => {
   const c = req.apiCustomer!;
+  const admin = isAdminApiCustomer(c);
   res.json({
     customerId: c.id,
     email: c.email,
     balanceCents: c.balanceCents,
     balanceUsd: (c.balanceCents / 100).toFixed(2),
     lifetimeDepositedCents: c.lifetimeDepositedCents,
+    ...(admin ? { admin: true, message: 'Admin account — calls bypass billing.' } : {}),
   });
 });
 
@@ -202,7 +205,7 @@ router.post('/aeo-scan', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, re
     return;
   }
 
-  if (c.balanceCents < AEO_SCAN_COST_CENTS) {
+  if (!isAdminApiCustomer(c) && c.balanceCents < AEO_SCAN_COST_CENTS) {
     res.status(402).json({
       error: 'insufficient_balance',
       message: `Need ${AEO_SCAN_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
@@ -346,7 +349,7 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
 
   const limit = Math.max(1, Math.min(200, parseInt(rawLimit, 10) || 50));
 
-  if (c.balanceCents < RECOMMEND_COST_CENTS) {
+  if (!isAdminApiCustomer(c) && c.balanceCents < RECOMMEND_COST_CENTS) {
     res.status(402).json({
       error: 'insufficient_balance',
       message: `Need ${RECOMMEND_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
