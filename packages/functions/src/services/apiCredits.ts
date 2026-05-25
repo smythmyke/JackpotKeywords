@@ -11,7 +11,12 @@
  *   apiKeys/{sha256Hash}      — { customerId, name, createdAt, lastUsedAt,
  *                                 revoked }   doc ID = sha256(key) for O(1) lookup
  *   apiCalls/{callId}         — { customerId, endpoint, costCents, ok, errCode,
- *                                 timestamp }
+ *                                 latencyMs, resultCount, timestamp,
+ *                                 completedAt }
+ *                                 — Created at deduct time with ok:true and no
+ *                                 latency. Updated at handler completion (success
+ *                                 OR failure) with latencyMs + completedAt and,
+ *                                 on failure, ok:false + errCode + refunded:true.
  *   apiTransactions/{txId}    — { customerId, type, amountCents, description,
  *                                 stripeSessionId, timestamp }
  */
@@ -230,14 +235,16 @@ export async function revokeApiKey(
 
 /**
  * Deduct cost from balance and log the call. Transactional — refuses if balance
- * insufficient. Returns new balance.
+ * insufficient. Returns the new balance and the call's doc ID so the handler can
+ * later call recordApiCallResult to attach latency / errCode / etc.
  */
 export async function deductBalance(
   customerId: string,
   costCents: number,
   endpoint: string,
-): Promise<number> {
+): Promise<{ newBalance: number; callId: string }> {
   const customerRef = db.doc(`apiCustomers/${customerId}`);
+  const callRef = db.collection('apiCalls').doc();
   const newBalance = await db.runTransaction(async (tx) => {
     const snap = await tx.get(customerRef);
     if (!snap.exists) throw new Error('Customer not found');
@@ -247,7 +254,7 @@ export async function deductBalance(
     }
     const next = data.balanceCents - costCents;
     tx.update(customerRef, { balanceCents: next });
-    tx.create(db.collection('apiCalls').doc(), {
+    tx.create(callRef, {
       customerId,
       endpoint,
       costCents,
@@ -256,7 +263,38 @@ export async function deductBalance(
     });
     return next;
   });
-  return newBalance;
+  return { newBalance, callId: callRef.id };
+}
+
+/**
+ * Attach result metadata to an apiCalls doc after the handler completes.
+ * Called from both success and failure paths so per-endpoint latency and
+ * error rate are queryable from the same collection. Non-fatal — a tracking
+ * write failure must not break the user's request.
+ */
+export async function recordApiCallResult(
+  callId: string,
+  result: {
+    ok: boolean;
+    latencyMs: number;
+    errCode?: string;
+    resultCount?: number;
+    refunded?: boolean;
+  },
+): Promise<void> {
+  try {
+    const patch: Record<string, unknown> = {
+      ok: result.ok,
+      latencyMs: result.latencyMs,
+      completedAt: FieldValue.serverTimestamp(),
+    };
+    if (result.errCode) patch.errCode = result.errCode;
+    if (typeof result.resultCount === 'number') patch.resultCount = result.resultCount;
+    if (result.refunded) patch.refunded = true;
+    await db.doc(`apiCalls/${callId}`).update(patch);
+  } catch {
+    /* non-fatal — observability must not break the user request */
+  }
 }
 
 /**

@@ -29,6 +29,7 @@ import {
   revokeApiKey,
   deductBalance,
   refundBalance,
+  recordApiCallResult,
   AEO_SCAN_COST_CENTS,
   RECOMMEND_COST_CENTS,
   MIN_TOPUP_CENTS,
@@ -211,8 +212,9 @@ router.post('/aeo-scan', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, re
   }
 
   let newBalance: number;
+  let callId: string;
   try {
-    newBalance = await deductBalance(c.id, AEO_SCAN_COST_CENTS, '/v1/aeo-scan');
+    ({ newBalance, callId } = await deductBalance(c.id, AEO_SCAN_COST_CENTS, '/v1/aeo-scan'));
   } catch (err: any) {
     res.status(402).json({ error: 'insufficient_balance', message: err.message });
     return;
@@ -225,18 +227,29 @@ router.post('/aeo-scan', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, re
       context = await extractProductContext('', url);
     }
     const aeoResult = await runAeoScanFull(context, url);
+    const latencyMs = Date.now() - startTime;
     res.json({
       url,
       productName: context.productName || context.productLabel,
       ...aeoResult,
       balanceCents: newBalance,
-      executionTimeMs: Date.now() - startTime,
+      executionTimeMs: latencyMs,
     });
+    void recordApiCallResult(callId, { ok: true, latencyMs });
   } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
     functions.logger.error('v1/aeo-scan error:', err.message);
+    let refunded = false;
     try {
       await refundBalance(c.id, AEO_SCAN_COST_CENTS, `aeo-scan failed: ${err.message}`);
+      refunded = true;
     } catch { /* non-fatal */ }
+    void recordApiCallResult(callId, {
+      ok: false,
+      latencyMs,
+      errCode: errCodeFromMessage(err.message),
+      refunded,
+    });
     res.status(500).json({
       error: 'scan_failed',
       message: 'AEO scan failed. Your balance has been refunded.',
@@ -343,8 +356,9 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
   }
 
   let newBalance: number;
+  let callId: string;
   try {
-    newBalance = await deductBalance(c.id, RECOMMEND_COST_CENTS, '/v1/recommend');
+    ({ newBalance, callId } = await deductBalance(c.id, RECOMMEND_COST_CENTS, '/v1/recommend'));
   } catch (err: any) {
     res.status(402).json({ error: 'insufficient_balance', message: err.message });
     return;
@@ -433,6 +447,7 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
       suggestHits: kw.suggestHits,
     }));
 
+    const latencyMs = Date.now() - startTime;
     res.json({
       productName: context.productName || context.productLabel,
       query: description || '',
@@ -441,18 +456,53 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
       totalCandidates: scored.keywords.length,
       returned: recommendations.length,
       balanceCents: newBalance,
-      executionTimeMs: Date.now() - startTime,
+      executionTimeMs: latencyMs,
+    });
+    void recordApiCallResult(callId, {
+      ok: true,
+      latencyMs,
+      resultCount: recommendations.length,
     });
   } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
     functions.logger.error('v1/recommend error:', err.stack || err.message);
+    let refunded = false;
     try {
       await refundBalance(c.id, RECOMMEND_COST_CENTS, `recommend failed: ${err.message}`);
+      refunded = true;
     } catch { /* non-fatal */ }
+    void recordApiCallResult(callId, {
+      ok: false,
+      latencyMs,
+      errCode: errCodeFromMessage(err.message),
+      refunded,
+    });
     res.status(500).json({
       error: 'recommend_failed',
       message: 'Keyword recommendation failed. Your balance has been refunded.',
     });
   }
 });
+
+/**
+ * Bucket a free-form error message into a stable code we can group by in usage
+ * reports. Keeps the cardinality low so per-error-code aggregations stay
+ * useful even with a small sample.
+ */
+function errCodeFromMessage(message: string): string {
+  if (!message) return 'unknown';
+  const m = message.toLowerCase();
+  if (m.includes('timeout') || m.includes('etimedout')) return 'timeout';
+  if (m.includes('rate limit') || m.includes('429')) return 'upstream_rate_limit';
+  if (m.includes('quota')) return 'upstream_quota';
+  if (m.includes('503') || m.includes('unavailable')) return 'upstream_unavailable';
+  if (m.includes('502') || m.includes('bad gateway')) return 'upstream_bad_gateway';
+  if (m.includes('gemini') || m.includes('vertex')) return 'gemini_error';
+  if (m.includes('keyword planner') || m.includes('google ads')) return 'kp_error';
+  if (m.includes('serper')) return 'serper_error';
+  if (m.includes('fetch failed') || m.includes('econnrefused') || m.includes('enotfound')) return 'network_error';
+  if (m.includes('invalid') || m.includes('parse')) return 'parse_error';
+  return 'other';
+}
 
 export default router;
