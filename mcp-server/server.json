@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.smythmyke/jackpotkeywords-mcp-server",
+  "description": "JackpotKeywords keyword research and AI-visibility scanning via REST API. Composite Jackpot Score with real Google Ads data; AEO scan via Gemini grounded search.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/smythmyke/jackpotkeywords-mcp-server",
+    "source": "github"
+  },
+  "websiteUrl": "https://jackpotkeywords.web.app",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "jackpotkeywords-mcp-server",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "JACKPOTKEYWORDS_API_KEY",
+          "description": "API key from https://jackpotkeywords.web.app/developers. Required.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "JACKPOTKEYWORDS_API_BASE",
+          "description": "Override the API base URL. Default: https://jackpotkeywords.web.app/api/v1",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
