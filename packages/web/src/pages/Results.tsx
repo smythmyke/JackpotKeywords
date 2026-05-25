@@ -1,15 +1,56 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
-import { CATEGORY_LABELS, INTENT_LABELS } from '@jackpotkeywords/shared';
+import { CATEGORY_LABELS, INTENT_LABELS, calculateJackpotScoreV2, percentile } from '@jackpotkeywords/shared';
 import type { KeywordCategory, KeywordResult, SearchResult, SearchIntent, KeywordCluster } from '@jackpotkeywords/shared';
 
+interface RelevanceClusterCtx {
+  byKeyword: Map<string, { totalVolume: number; keywordCount: number }>;
+  clusterVolumeP90: number;
+  maxPlatforms: number;
+}
+
+function buildClusterCtx(result: SearchResult | null | undefined): RelevanceClusterCtx {
+  const byKeyword = new Map<string, { totalVolume: number; keywordCount: number }>();
+  const clusters = result?.clusters ?? [];
+  for (const c of clusters) {
+    const meta = { totalVolume: c.totalVolume, keywordCount: c.keywordKeys.length };
+    for (const key of c.keywordKeys) byKeyword.set(key, meta);
+  }
+  const clusterVolumeP90 = percentile(clusters.map((c) => c.totalVolume), 0.9);
+  let maxPlatforms = 1;
+  for (const kw of result?.keywords ?? []) {
+    if ((kw.suggestHits ?? 0) > maxPlatforms) maxPlatforms = kw.suggestHits!;
+  }
+  return { byKeyword, clusterVolumeP90, maxPlatforms };
+}
+
 /**
- * Multiplier penalty applied to jackpotScore once Gemini has scored a keyword's
- * relevance. adScore is kept as the pre-penalty baseline so re-applying on
- * cached results (or after a re-score) is idempotent. Keywords without an
- * aiRelevance score are left alone — their original jackpotScore stands.
+ * Update a keyword with a freshly-arrived aiRelevance score.
+ * v1: multiplier penalty on adScore.
+ * v2: full recompute via calculateJackpotScoreV2 (aiRelevance is already a 30% weight signal in v2).
  */
-function applyRelevancePenalty(kw: KeywordResult, aiRelevance: number): KeywordResult {
+function applyRelevanceUpdate(
+  kw: KeywordResult,
+  aiRelevance: number,
+  version: 'v1' | 'v2',
+  ctx?: RelevanceClusterCtx,
+): KeywordResult {
+  if (version === 'v2') {
+    const cluster = ctx?.byKeyword.get(kw.keyword.toLowerCase().trim());
+    const v2 = calculateJackpotScoreV2({
+      volume: kw.avgMonthlySearches,
+      lowCpc: kw.lowCpc,
+      highCpc: kw.highCpc,
+      competition: kw.competition,
+      trend: kw.trendDirection,
+      suggestHits: kw.suggestHits,
+      maxPlatforms: ctx?.maxPlatforms,
+      cluster,
+      clusterVolumeP90: ctx?.clusterVolumeP90,
+      aiRelevance,
+    });
+    return { ...kw, aiRelevance, jackpotScore_v2: v2, jackpotScore: v2 };
+  }
   const penalty = aiRelevance / 10;
   return {
     ...kw,
@@ -19,7 +60,7 @@ function applyRelevancePenalty(kw: KeywordResult, aiRelevance: number): KeywordR
 }
 import { useAuthContext } from '../contexts/AuthContext';
 import { getSearchResult, refineSearch, claimSearch, saveSearch, nameClusters, scoreKeywordRelevance, expandResults, runAeoScan, generateIdeaBoardApi } from '../services/api';
-import { isEffectiveAdmin } from '../lib/adminMode';
+import { isEffectiveAdmin, getAdminScoringVersion } from '../lib/adminMode';
 import MaskedKeyword from '../components/MaskedKeyword';
 import JackpotScore from '../components/JackpotScore';
 import SourceBadge from '../components/SourceBadge';
@@ -324,6 +365,29 @@ export default function Results() {
     });
   }, [result?.clusters?.length]);
 
+  // Admin v1/v2 display normalizer. When admin has selected v2 in the dashboard,
+  // swap jackpotScore -> jackpotScore_v2 once at result load. All existing display
+  // refs to kw.jackpotScore then render v2 without per-call-site retrofitting.
+  // Non-admins and v1 mode are no-ops.
+  useEffect(() => {
+    if (!result?.keywords) return;
+    const isAdmin = isEffectiveAdmin(profile?.email);
+    if (!isAdmin) return;
+    if (getAdminScoringVersion() !== 'v2') return;
+    const needsSwap = result.keywords.some(
+      (kw) => kw.jackpotScore_v2 !== undefined && kw.jackpotScore !== kw.jackpotScore_v2,
+    );
+    if (!needsSwap) return;
+    setResult((prev) => {
+      if (!prev) return prev;
+      const keywords = prev.keywords.map((kw) =>
+        kw.jackpotScore_v2 !== undefined ? { ...kw, jackpotScore: kw.jackpotScore_v2 } : kw,
+      );
+      keywords.sort((a, b) => (b.jackpotScore ?? 0) - (a.jackpotScore ?? 0));
+      return { ...prev, keywords };
+    });
+  }, [result?.keywords?.length, result?.id, profile?.email]);
+
   // Background relevance scoring + re-rank — runs after keywords display.
   // Gated to paid users because non-payers see masked results and never benefit
   // from the re-rank; skipping them keeps Gemini spend tied to converted traffic.
@@ -337,13 +401,15 @@ export default function Results() {
     const isPaidUser = !!(result.paid || isAdmin || plan === 'pro' || plan === 'agency');
     if (!isPaidUser) return;
 
-    // Cached results already have aiRelevance → just recompute the penalty
-    // (idempotent because it derives from adScore, not jackpotScore) and re-sort.
+    const version: 'v1' | 'v2' = isAdmin && getAdminScoringVersion() === 'v2' ? 'v2' : 'v1';
+    const clusterCtx = version === 'v2' ? buildClusterCtx(result) : undefined;
+
+    // Cached results already have aiRelevance → just recompute and re-sort.
     if (result.keywords[0]?.aiRelevance !== undefined) {
       setResult((prev) => {
         if (!prev) return prev;
         const rescored = prev.keywords.map((kw) =>
-          kw.aiRelevance !== undefined ? applyRelevancePenalty(kw, kw.aiRelevance) : kw
+          kw.aiRelevance !== undefined ? applyRelevanceUpdate(kw, kw.aiRelevance, version, clusterCtx) : kw,
         );
         rescored.sort((a, b) => (b.jackpotScore ?? 0) - (a.jackpotScore ?? 0));
         return { ...prev, keywords: rescored };
@@ -361,7 +427,7 @@ export default function Results() {
           if (!prev) return prev;
           const updated = prev.keywords.map((kw) => {
             const aiRel = scores[kw.keyword];
-            return aiRel !== undefined ? applyRelevancePenalty(kw, aiRel) : kw;
+            return aiRel !== undefined ? applyRelevanceUpdate(kw, aiRel, version, clusterCtx) : kw;
           });
           updated.sort((a, b) => (b.jackpotScore ?? 0) - (a.jackpotScore ?? 0));
           return { ...prev, keywords: updated };
