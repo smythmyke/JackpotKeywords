@@ -128,16 +128,18 @@ Returns: visibility score + per-query results in `content`, full structured data
 
 ## Local development
 
+This package lives inside the [JackpotKeywords monorepo](https://github.com/smythmyke/JackpotKeywords) at `mcp-server/`.
+
 ```bash
-git clone https://github.com/smythmyke/jackpotkeywords-mcp-server.git
-cd jackpotkeywords-mcp-server
+git clone https://github.com/smythmyke/JackpotKeywords.git
+cd JackpotKeywords/mcp-server
 npm install
 npm run build
 
 # Point your MCP client config at the local build:
 {
   "command": "node",
-  "args": ["/absolute/path/to/jackpotkeywords-mcp-server/dist/index.js"],
+  "args": ["/absolute/path/to/JackpotKeywords/mcp-server/dist/index.js"],
   "env": { "JACKPOTKEYWORDS_API_KEY": "jk_live_..." }
 }
 ```

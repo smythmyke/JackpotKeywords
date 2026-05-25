@@ -4,8 +4,9 @@
   "description": "JackpotKeywords keyword research and AI-visibility scanning via REST API. Composite Jackpot Score with real Google Ads data; AEO scan via Gemini grounded search.",
   "version": "0.1.0",
   "repository": {
-    "url": "https://github.com/smythmyke/jackpotkeywords-mcp-server",
-    "source": "github"
+    "url": "https://github.com/smythmyke/JackpotKeywords",
+    "source": "github",
+    "subfolder": "mcp-server"
   },
   "websiteUrl": "https://jackpotkeywords.web.app",
   "packages": [

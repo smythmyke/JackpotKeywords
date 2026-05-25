@@ -43,7 +43,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/smythmyke/jackpotkeywords-mcp-server"
+    "url": "https://github.com/smythmyke/JackpotKeywords",
+    "directory": "mcp-server"
   },
-  "homepage": "https://jackpotkeywords.web.app"
+  "homepage": "https://jackpotkeywords.web.app/developers",
+  "bugs": {
+    "url": "https://github.com/smythmyke/JackpotKeywords/issues",
+    "email": "smythmyke@gmail.com"
+  }
 }
