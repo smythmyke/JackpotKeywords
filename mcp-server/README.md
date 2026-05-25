@@ -16,7 +16,17 @@ Three tools available: `jackpotkeywords_credit_balance`, `jackpotkeywords_recomm
 
 ## Configure in Claude Code
 
-Add to your MCP config (`~/.claude/mcp.json` or project-scoped `.mcp.json`):
+**Recommended — use the CLI:**
+
+```bash
+claude mcp add -s user jackpotkeywords \
+  -e JACKPOTKEYWORDS_API_KEY=jk_live_... \
+  -- npx -y jackpotkeywords-mcp-server
+```
+
+That writes the server to your user-scope config (`~/.claude.json`) so it's available in every Claude Code session, in every project. Verify with `claude mcp list`.
+
+**Or hand-edit** `~/.claude.json` (user scope) or `.mcp.json` in the project root (project scope), adding to the `mcpServers` object:
 
 ```jsonc
 {
@@ -31,6 +41,10 @@ Add to your MCP config (`~/.claude/mcp.json` or project-scoped `.mcp.json`):
   }
 }
 ```
+
+**Important:** Claude Code does **not** read `~/.claude/mcp.json` (with the slash). The real user-scope path is `~/.claude.json` (with the dot). Use the CLI to avoid this trap.
+
+**Restart any open Claude Code session** to pick up the new tools — MCP servers load at session start, not dynamically.
 
 ## Configure in Claude Desktop
 

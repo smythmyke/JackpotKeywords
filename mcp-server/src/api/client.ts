@@ -1,5 +1,5 @@
 const DEFAULT_API_BASE = "https://jackpotkeywords.web.app/api/v1";
-const USER_AGENT = "jackpotkeywords-mcp-server/0.1.0";
+const USER_AGENT = "jackpotkeywords-mcp-server/0.1.1";
 
 export interface ApiClientOptions {
   apiKey: string;
