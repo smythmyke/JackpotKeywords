@@ -242,6 +242,40 @@ const pages = [
 <p>Enter your website URL and we'll analyze 20+ SEO factors across your site. Free audit with preview, full report from $1.99.</p>`,
   },
 
+  // Developers (API docs)
+  {
+    path: '/developers',
+    title: 'API for Developers — JackpotKeywords',
+    description: 'REST API for AI-powered keyword research and AI-visibility scans. Composite Jackpot Score, real Google Ads data, $0.10/recommend, $1.00/aeo-scan. Private beta — request access.',
+    body: `<h1>JackpotKeywords API</h1>
+<p>Pipe the same keyword research and AI-visibility scans that power jackpotkeywords.com into your own product, agency workflow, or automation stack. One REST surface, three endpoints, pay-as-you-go. Currently in private beta — request access via email.</p>
+
+<h2>Endpoints</h2>
+<h3>POST /v1/recommend — $0.10 / call</h3>
+<p>Full keyword research pipeline: context extraction, seed generation, autocomplete expansion, Google Ads enrichment, trend analysis, AI relevance scoring. Returns recommendations ranked by composite Jackpot Score. Latency ~60-180s. Up to 200 results per call. Refunded on pipeline failure.</p>
+
+<h3>POST /v1/aeo-scan — $1.00 / scan</h3>
+<p>AI-visibility check. Runs 10 buyer-intent queries against Gemini grounded search plus Serper, reports cited / mentioned / missing per query plus the top sources the AI cited. Latency ~30-120s. Refunded on failure.</p>
+
+<h3>POST /v1/score — coming after August 2026</h3>
+<p>Score individual keyword candidates by composite metric. Held until our month-3 reversibility validation completes.</p>
+
+<h2>Authentication</h2>
+<p>Sign up returns an API key prefixed jk_live_ plus a $5 starter credit (no card, no expiration). Authenticate with an Authorization Bearer header on every request. Multiple named keys per environment supported via POST /v1/keys, GET /v1/keys, and DELETE /v1/keys/:keyId.</p>
+
+<h2>Pricing</h2>
+<p>Pay-as-you-go: $5 signup credit (no expiration), $0.10 per recommend call, $1.00 per AEO scan. Topup packs at $25, $100, $500, or custom amount of $25+. No monthly minimum, no seat fees, no annual contract.</p>
+
+<h2>Rate limits</h2>
+<p>Per key: 60 requests per minute and 1,000 requests per hour, sliding window. Higher ceilings available on request during beta.</p>
+
+<h2>What's coming</h2>
+<p>MCP server wrapping the same endpoints for Claude, Cursor, Windsurf, and any MCP-compatible agent. Google Sheets add-on for non-developer users. /v1/score endpoint after reversibility validation. n8n / Zapier / Make.com nodes.</p>
+
+<h2>Get beta access</h2>
+<p>Email <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a> with a sentence or two about what you'd use the API for. We're onboarding a small set of design partners before opening signups publicly (~July-August 2026).</p>`,
+  },
+
   // About
   {
     path: '/about',

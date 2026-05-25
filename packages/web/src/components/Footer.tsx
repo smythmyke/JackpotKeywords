@@ -16,6 +16,7 @@ const TOOL_LINKS = [
 const RESOURCE_LINKS = [
   { to: '/blog', label: 'Blog' },
   { to: '/help', label: 'Help' },
+  { to: '/developers', label: 'API' },
 ];
 
 const COMPANY_LINKS = [
