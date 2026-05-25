@@ -71,33 +71,36 @@ Reference: `C:\Projects\MarkItUp\mcp-server\` and `markitup.app/api`.
 **Developer surface:**
 - ✅ Public `/developers` docs page — live at `jackpotkeywords.web.app/developers`
 - ✅ Prerendered for Googlebot, sitemap entry at priority 0.7, footer link
-- ⚠️ Currently behind mailto gate — needs swap to self-serve signup button (Stage 1 todo)
+- ✅ Self-serve signup live (mailto gate removed 2026-05-25, commit `a847f97`)
 
 **Composite scoring v2:**
 - ✅ `jackpotScore_v2` writes alongside v1 on every search
 - ✅ Admin v1/v2 toggle in Results
 
+**MCP server:**
+- ✅ `jackpotkeywords-mcp-server@0.1.0` published 2026-05-25 to npm, MCP Registry, GitHub (commits `d3d1dc3`, `3a92068`, `b868b5e`)
+- ✅ Three tools live: `jackpotkeywords_credit_balance`, `jackpotkeywords_recommend`, `jackpotkeywords_aeo_scan`
+- ✅ Glama + Smithery auto-detect from `glama.json` / `smithery.yaml` in repo (passive)
+
 ---
 
-## Stage 1 — Build (in progress)
+## Stage 1 — Build ✅ COMPLETE 2026-05-25
 
-Goal: a coherent self-serve developer surface. Everything below is dogfoodable from Michael's own portfolio.
+All four items shipped in a single day:
 
-**Remaining work:**
+1. ✅ **Self-serve signup on `/developers`** — mailto gate removed, inline form calls `POST /v1/signup`, raw key shown once with save warning. Commit `a847f97`.
 
-1. **Drop mailto gate on `/developers`.** Replace with self-serve "Get API Key" button hitting `POST /v1/signup`. ~2 hours. *Already-built backend; pure UX.*
+2. ✅ **MCP server built** — `jackpotkeywords-mcp-server` npm package modeled on `C:\Projects\MarkItUp\mcp-server\`. Three tools wrapping `/v1/recommend`, `/v1/aeo-scan`, and `/v1/me`. Local stdio, auth via `JACKPOTKEYWORDS_API_KEY` env var. Commit `d3d1dc3`.
 
-2. **MCP server** — `jackpotkeywords-mcp-server` npm package. Model directly on `C:\Projects\MarkItUp\mcp-server\` so we're not re-deciding architecture. Wraps `/v1/recommend` and `/v1/aeo-scan` as MCP tools. Local stdio, auth via `JACKPOTKEYWORDS_API_KEY` env var. ~3–5 days. *Dogfood requirement:* Michael uses it from Claude Code to do keyword research for BulkListingPro / GovToolsPro / MarkItUp landing pages.
+3. ✅ **MCP server published** — npm (v0.1.0, granular token w/ bypass-2FA in `~/.npmrc`), MCP Registry (`io.github.smythmyke/jackpotkeywords-mcp-server`, via `mcp-publisher` CLI), GitHub (public at `github.com/smythmyke/JackpotKeywords/tree/master/mcp-server`). Glama + Smithery auto-detect passively.
 
-3. **Publish MCP** to npm + MCP Registry + Glama (via `smithery.yaml` auto-sync) + GitHub. Same day as build. ~1 day for packaging + README + submission.
+4. ⏭️ **Static `/api` page** — deferred. React `/developers` page is sufficient; prerendered for Googlebot. Revisit only if there's a measurable need.
 
-4. **Static API docs page** at `/api` (companion to React `/developers` page). Same pattern as MarkItUp's `public/api/index.html`. Lets developers find the API without rendering JS. *Optional* — `/developers` React page may be sufficient.
-
-**Out of scope for Stage 1:**
-- Sheets add-on (deferred unless Michael personally uses it for his own portfolio)
-- Any vertical content tracks
-- Any non-MCP automation surface
+**Out of scope (stayed out):**
+- Sheets add-on (deferred unless Michael personally uses it)
+- Vertical content tracks
 - `/v1/score` (Path D — deferred)
+- All non-MCP automation surfaces
 
 ---
 
@@ -159,11 +162,19 @@ Each item ships independently when (a) dogfoodable from Michael's own products A
 
 ## Resume-here checkpoint
 
-**Last action 2026-05-25:** Plan revision. No code changes pending from this revision; prior session deployed hosting + functions with the docs page, usage tracking, scoring v2 admin toggle, input quality gate, and AEO PDF improvements all live in prod.
+**Last action 2026-05-25 (end of day):** Stage 1 complete. Everything shipped — self-serve signup, MCP server built + npm published + MCP Registry submitted + GitHub source live. Usage tracking instrumented (latencyMs + errCode + analyze script). Path D locked for `/v1/score`. Hosting + functions both deployed to prod.
 
-**Next session's first action:** Stage 1 item #1 (drop mailto gate, swap to self-serve "Get API Key" button on `/developers`). Smallest unit of work, biggest unblock — once shipped, the `/developers` page is a real working signup surface that distribution channels can point at.
+**Next session's first action — pick one:**
 
-**Next session after that:** Stage 1 item #2 (MCP server scaffolding, modeled on MarkItUp's `mcp-server/`).
+- **(A) Stage 2 post (lowest effort, highest leverage if traction matters):** Write one short post on whichever community Michael has presence on (Indie Hackers, r/SEO, Show HN, or skip). 1 paragraph, links to `/developers`, mentions MCP + REST. One-time action. No follow-up obligation.
+
+- **(B) Dogfood from own portfolio (highest validation):** Install the MCP server in Michael's own Claude Code config (`~/.claude/mcp.json`), use it for real keyword research on BulkListingPro / GovToolsPro / MarkItUp landing pages. Generates real `/v1/recommend` traffic, accumulates data toward the `/v1/score` reversibility test, surfaces UX gaps from first-person use.
+
+- **(C) Stage 3 opportunistic — n8n community node (~2 days):** Build only if (B) shows ops-style usage that justifies it.
+
+- **(D) Address non-API roadmap items:** Relevance scoring tuning, blog image creation, Budget Calculator forecast API, custom domain — see `[[project_roadmap]]` for the full list.
+
+**Recommended order:** B → A → (D or C depending on what surfaces).
 
 ---
 
