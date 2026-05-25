@@ -590,6 +590,12 @@ export async function exportAeoPdf(result: AeoScanData): Promise<void> {
   doc.text(`Product cited in ${result.queriesCited} of ${result.queriesChecked} queries`, margin, 115);
   doc.text(`Product mentioned in ${result.queriesMentioned} of ${result.queriesChecked} answers`, margin, 122);
 
+  doc.setFontSize(8);
+  doc.setTextColor(...LIGHT_GRAY);
+  doc.text('Powered by Gemini 2.5 Flash with Google Search grounding. Reflects live search rankings as well as AI training-data recall.', margin, 135, {
+    maxWidth: pageW - margin * 2,
+  });
+
   // Query Results table
   doc.addPage();
   doc.setFillColor(...DARK_COLOR);
@@ -657,9 +663,92 @@ export async function exportAeoPdf(result: AeoScanData): Promise<void> {
     });
   }
 
+  // Per-query Details — what the AI actually said + which sources it cited.
+  // The most useful diagnostic info; placed BEFORE action items so users see
+  // the evidence before the prescription.
+  let queryDetailsEndY = finalY(doc) + 12;
+  {
+    let y = queryDetailsEndY;
+    if (y > 230) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); y = 20; }
+
+    doc.setTextColor(...BRAND_COLOR);
+    doc.setFontSize(16);
+    doc.text('Query Details', margin, y);
+    y += 6;
+
+    doc.setFontSize(8);
+    doc.setTextColor(...LIGHT_GRAY);
+    doc.text("What the AI actually said for each query, and which sources it cited.", margin, y);
+    y += 8;
+
+    for (let i = 0; i < result.queries.length; i++) {
+      const q = result.queries[i];
+
+      const queryText = `#${i + 1}. ${q.query}`;
+      const queryLines = doc.splitTextToSize(queryText, pageW - margin * 2);
+      const snippetLines = q.answerSnippet
+        ? doc.splitTextToSize(`"${q.answerSnippet.trim()}${q.answerSnippet.length >= 300 ? '..."' : '"'}`, pageW - margin * 2)
+        : [];
+      const citationCount = Math.min(q.citations.length, 5);
+      const estHeight = queryLines.length * 4.5 + 5 + snippetLines.length * 4 + 4 + (citationCount > 0 ? 5 + citationCount * 4 : 0) + 6;
+
+      if (y + estHeight > 280) {
+        doc.addPage();
+        doc.setFillColor(...DARK_COLOR);
+        doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
+        y = 20;
+      }
+
+      // Query
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(queryLines, margin, y);
+      y += queryLines.length * 4.5 + 1;
+
+      // Status badge
+      const statusColor: [number, number, number] = q.productCited
+        ? [34, 197, 94]
+        : q.productMentionedInAnswer
+        ? [234, 179, 8]
+        : [156, 163, 175];
+      const statusLabel = q.productCited ? 'CITED' : q.productMentionedInAnswer ? 'MENTIONED' : 'NOT FOUND';
+      doc.setFontSize(7);
+      doc.setTextColor(...statusColor);
+      doc.text(statusLabel, margin, y);
+      y += 4;
+
+      // Answer snippet (italic, light)
+      if (snippetLines.length > 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(180, 185, 195);
+        doc.setFont('helvetica', 'italic');
+        doc.text(snippetLines, margin, y);
+        y += snippetLines.length * 4 + 1;
+        doc.setFont('helvetica', 'normal');
+      }
+
+      // Top citations
+      if (citationCount > 0) {
+        doc.setFontSize(7);
+        doc.setTextColor(...LIGHT_GRAY);
+        doc.text('Sources cited:', margin, y);
+        y += 3.5;
+        const topCitations = q.citations.slice(0, citationCount);
+        for (const c of topCitations) {
+          const url = c.url.length > 105 ? c.url.substring(0, 102) + '...' : c.url;
+          doc.text(`  • ${url}`, margin, y);
+          y += 3.5;
+        }
+      }
+
+      y += 5; // gap between queries
+    }
+    queryDetailsEndY = y;
+  }
+
   // Action Items
   if (result.actionItems.length > 0) {
-    let y = finalY(doc) + 12;
+    let y = queryDetailsEndY + 6;
     if (y > 240) { doc.addPage(); doc.setFillColor(...DARK_COLOR); doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F'); y = 20; }
 
     doc.setTextColor(...BRAND_COLOR);
