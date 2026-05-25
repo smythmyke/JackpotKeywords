@@ -181,19 +181,27 @@ These platforms make sense IF specific signals appear, but aren't worth building
 
 ## Resume-here checkpoint
 
-**Last action 2026-05-25 (end of day):** Stage 1 complete. Everything shipped — self-serve signup, MCP server built + npm published + MCP Registry submitted + GitHub source live. Usage tracking instrumented (latencyMs + errCode + analyze script). Path D locked for `/v1/score`. Hosting + functions both deployed to prod.
+**Last action 2026-05-25 (end of session):** Stage 1 complete + Zapier promoted from deferred to Stage 3 active. MCP server installed in Michael's Claude Code (verified working via fresh-session `jackpotkeywords_credit_balance` call). 60-second Firebase Hosting edge timeout bug discovered and fixed (mcp-server v0.1.2 + Developers.tsx now use direct Cloud Function URL — see `[[firebase-hosting-60s-edge-timeout]]`). Admin bypass live for `smythmyke@gmail.com` so internal dogfooding is free.
 
-**Next session's first action — pick one:**
+**Next session's first action: BUILD ZAPIER APP** (committed by user 2026-05-25).
 
-- **(A) Stage 2 post (lowest effort, highest leverage if traction matters):** Write one short post on whichever community Michael has presence on (Indie Hackers, r/SEO, Show HN, or skip). 1 paragraph, links to `/developers`, mentions MCP + REST. One-time action. No follow-up obligation.
+Steps for next session:
+1. Create Zapier developer account at `developer.zapier.com` (if not already)
+2. In their Developer Platform UI, create a new app — name: "JackpotKeywords"
+3. Define **Authentication**: API key (already in our REST surface as `Authorization: Bearer jk_live_...`)
+4. Define **Actions**:
+   - **"Find keyword recommendations"** — wraps `POST /v1/recommend`. Input: url and/or description, optional limit. Output: array of recommendation objects.
+   - **"Run AEO scan"** — wraps `POST /v1/aeo-scan`. Input: url. Output: visibilityScore, queriesCited, queriesMentioned, queries array.
+5. Test in Developer Platform sandbox using a real `jk_live_...` key
+6. Submit for review — 4-6 week passive wait
 
-- **(B) Dogfood from own portfolio (highest validation):** Install the MCP server in Michael's own Claude Code config (`~/.claude/mcp.json`), use it for real keyword research on BulkListingPro / GovToolsPro / MarkItUp landing pages. Generates real `/v1/recommend` traffic, accumulates data toward the `/v1/score` reversibility test, surfaces UX gaps from first-person use.
+**CRITICAL:** Use the **direct Cloud Function URL** in the Zapier app config (`https://us-central1-even-plate-378520.cloudfunctions.net/api/api/v1`), NOT the Hosting URL. The Hosting URL silently 502s long-running endpoints at 60s. See `[[firebase-hosting-60s-edge-timeout]]`.
 
-- **(C) Stage 3 opportunistic — n8n community node (~2 days):** Build only if (B) shows ops-style usage that justifies it.
+**While Zapier is in review, return to Bucket 1:**
+- Dogfood MCP server from portfolio (BulkListingPro, GovToolsPro, MarkItUp landing pages)
+- Stage 2 community post (Indie Hackers / r/SEO / Show HN)
 
-- **(D) Address non-API roadmap items:** Relevance scoring tuning, blog image creation, Budget Calculator forecast API, custom domain — see `[[project_roadmap]]` for the full list.
-
-**Recommended order:** B → A → (D or C depending on what surfaces).
+**Reference for Zapier build:** Zapier's docs at `platform.zapier.com/docs` are authoritative. Their CLI option (`zapier-platform-cli`) lets you scaffold + version-control the app, which is cleaner than UI-only. Worth considering for a JK/Zapier repo structure.
 
 ---
 
