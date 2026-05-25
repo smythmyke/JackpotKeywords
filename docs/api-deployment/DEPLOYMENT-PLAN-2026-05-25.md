@@ -120,6 +120,7 @@ Goal: make the surface findable. No coordinated launch.
 
 Each item ships independently when (a) dogfoodable from Michael's own products AND (b) revenue from current surfaces justifies it.
 
+- **Zapier app** — **promoted from deferred 2026-05-25.** ~2-3 days build + 4-6 week passive Zapier review wait. Once approved, sits in Zapier's app directory permanently. Indie SEO + ops audience actively searches for keyword research integrations there; one of the highest passive-distribution wins available. Single tool wrap of `/v1/recommend` plus optional `/v1/aeo-scan`. Low ongoing maintenance — Zapier handles infra.
 - **n8n community node** — ~2 days when calm. Worth doing if `/v1/recommend` traffic shows ops-style usage patterns.
 - **Sheets add-on** — only if Michael personally uses it.
 - **`/v1/score` ship decision** — gated on reversibility test against first 50 real `/v1/recommend` samples (then 500 as traffic permits). Path D: defer until recommend traffic is high enough that the test is empirically meaningful AND revenue from existing endpoints justifies the ToS surface area.
@@ -135,7 +136,7 @@ These platforms make sense IF specific signals appear, but aren't worth building
 
 | Surface | Reason |
 |---|---|
-| Zapier app | 4-6 week review, low solo capacity, audience overlap with n8n |
+| ~~Zapier app~~ | ~~4-6 week review, low solo capacity, audience overlap with n8n~~ — **promoted to active Stage 3 on 2026-05-25** |
 | Shopify app | 12-18 month review, requires existing revenue ramp |
 | WordPress plugin | Review pipeline + low solo capacity |
 | Notion integration | Audience-discovery work + custom Notion API surface for low ROI |
