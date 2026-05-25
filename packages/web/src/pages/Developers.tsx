@@ -12,14 +12,36 @@ interface CodeBlockProps {
 }
 
 function CodeBlock({ language, children }: CodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(children);
+      setCopied(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked — user can still select text manually */
+    }
+  };
+
   return (
-    <div className="relative">
+    <div className="relative group">
       {language && (
-        <div className="absolute right-3 top-2 text-[10px] uppercase tracking-wider text-gray-600 font-mono">
+        <div className="absolute right-16 top-2.5 text-[10px] uppercase tracking-wider text-gray-600 font-mono pointer-events-none">
           {language}
         </div>
       )}
-      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-4 overflow-x-auto text-xs text-gray-300 font-mono leading-relaxed">
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label="Copy code"
+        className="absolute right-2 top-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded border border-gray-700 bg-gray-900/80 text-gray-400 hover:border-jackpot-500/60 hover:text-jackpot-400 transition opacity-60 group-hover:opacity-100 focus:opacity-100"
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-4 pr-20 overflow-x-auto text-xs text-gray-300 font-mono leading-relaxed">
         <code>{children}</code>
       </pre>
     </div>
