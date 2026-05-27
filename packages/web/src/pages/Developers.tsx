@@ -473,15 +473,71 @@ curl ${API_BASE}/me \\
             </p>
           </section>
 
+          {/* MCP server — live */}
+          <section id="mcp">
+            <h2 className="text-2xl font-bold text-white mb-2">MCP server</h2>
+            <p className="text-gray-400 mb-3">
+              Run JackpotKeywords directly from Claude Code, Claude Desktop, Cursor,
+              Windsurf, or any MCP-compatible client. The MCP server wraps the same
+              REST endpoints (<code className="font-mono text-jackpot-300">recommend</code>,{' '}
+              <code className="font-mono text-jackpot-300">aeo_scan</code>,{' '}
+              <code className="font-mono text-jackpot-300">credit_balance</code>) — your
+              API key works the same way.
+            </p>
+            <CodeBlock language="bash">{`npx -y jackpotkeywords-mcp-server`}</CodeBlock>
+            <p className="text-gray-400 mt-3 mb-2 text-sm">
+              Available on:{' '}
+              <a
+                href="https://smithery.ai/servers/smythmyke/jackpotkeywords-mcp-server"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-jackpot-400 hover:underline"
+              >
+                Smithery
+              </a>
+              {' · '}
+              <a
+                href="https://glama.ai/mcp/servers/smythmyke/jackpotkeywords-mcp-server"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-jackpot-400 hover:underline"
+              >
+                Glama
+              </a>
+              {' · '}
+              <a
+                href="https://registry.modelcontextprotocol.io/v0/servers?search=jackpotkeywords"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-jackpot-400 hover:underline"
+              >
+                MCP Registry
+              </a>
+              {' · '}
+              <a
+                href="https://www.npmjs.com/package/jackpotkeywords-mcp-server"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-jackpot-400 hover:underline"
+              >
+                npm
+              </a>
+              {' · '}
+              <a
+                href="https://github.com/smythmyke/jackpotkeywords-mcp-server"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-jackpot-400 hover:underline"
+              >
+                GitHub
+              </a>
+            </p>
+          </section>
+
           {/* What's coming */}
           <section id="roadmap">
             <h2 className="text-2xl font-bold text-white mb-2">What's coming</h2>
             <ul className="space-y-2 text-gray-400">
-              <li>
-                <span className="text-white font-medium">MCP server</span> —
-                wraps the same endpoints for Claude, Cursor, Windsurf, and any
-                MCP-compatible agent. Distributed via npm + MCP Registry.
-              </li>
               <li>
                 <span className="text-white font-medium">
                   <code className="font-mono text-jackpot-300">/v1/score</code> endpoint
