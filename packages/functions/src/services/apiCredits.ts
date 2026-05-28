@@ -27,10 +27,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 const db = admin.firestore();
 
-export const SIGNUP_CREDIT_CENTS = 500;     // $5.00 free signup credit
-export const MIN_TOPUP_CENTS = 2500;        // $25.00 minimum top-up
+export const SIGNUP_CREDIT_CENTS = 200;     // $2.00 starter credit — sized to 2 AEO scans / 20 recommends
+export const MIN_TOPUP_CENTS = 500;         // $5.00 minimum top-up
 export const AEO_SCAN_COST_CENTS = 100;     // $1.00 per /v1/aeo-scan
 export const RECOMMEND_COST_CENTS = 10;     // $0.10 per /v1/recommend (1B)
+export const RECOMMEND_DEEP_COST_CENTS = 30; // $0.30 per /v1/recommend-deep — adds competitor discovery + clusters + categories
+export const AUDIT_COST_CENTS = 50;          // $0.50 per /v1/audit — SEO-only (AEO sold separately via /v1/aeo-scan)
 export const SCORE_COST_PER_KW_HUNDREDTHS = 50;  // $0.005 per keyword = 50 hundredths of a cent (1B)
 
 /**
@@ -47,10 +49,28 @@ export function isAdminApiCustomer(customer: { email: string } | null | undefine
 }
 
 export const TOPUP_PACKS = [
+  { id: 'mini',    label: '$5', amountCents: 500 },
   { id: 'starter', label: '$25', amountCents: 2500 },
   { id: 'growth',  label: '$100', amountCents: 10000 },
   { id: 'scale',   label: '$500', amountCents: 50000 },
 ] as const;
+
+/**
+ * Which surface a request came from. The API customer system has only two
+ * surfaces today: the published MCP server, or direct API calls. Both share
+ * the same auth (Bearer jk_live_<key>) and billing — this is purely for the
+ * seller dashboard's attribution rollups.
+ */
+export type ApiSource = 'mcp' | 'api';
+
+const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api']);
+
+/** Validate an arbitrary value against ApiSource, defaulting to "api". */
+export function coerceApiSource(value: unknown): ApiSource {
+  return typeof value === 'string' && API_SOURCES.has(value as ApiSource)
+    ? (value as ApiSource)
+    : 'api';
+}
 
 export interface ApiCustomer {
   id: string;
@@ -59,6 +79,8 @@ export interface ApiCustomer {
   lifetimeDepositedCents: number;
   stripeCustomerId?: string;
   createdAt: string;
+  /** First-touch surface that triggered customer creation. Never overwritten. */
+  signupSource?: ApiSource;
 }
 
 export interface ApiKeyRecord {
@@ -118,7 +140,10 @@ export async function getCustomerByApiKey(rawKey: string): Promise<ApiCustomer |
  * existing customer and a NEW key (so re-signups can recover access without
  * burning the signup credit again).
  */
-export async function createApiCustomer(email: string): Promise<{
+export async function createApiCustomer(
+  email: string,
+  signupSource?: ApiSource,
+): Promise<{
   customer: ApiCustomer;
   apiKey: string;
   newSignup: boolean;
@@ -138,6 +163,12 @@ export async function createApiCustomer(email: string): Promise<{
     customerId = doc.id;
     customer = { id: doc.id, ...(doc.data() as Omit<ApiCustomer, 'id'>) };
     newSignup = false;
+    // Backfill signupSource on legacy docs that pre-date this field.
+    // First-touch wins — never overwrite once stamped.
+    if (signupSource && !customer.signupSource) {
+      await db.doc(`apiCustomers/${customerId}`).update({ signupSource });
+      customer.signupSource = signupSource;
+    }
   } else {
     customerId = db.collection('apiCustomers').doc().id;
     customer = {
@@ -146,20 +177,25 @@ export async function createApiCustomer(email: string): Promise<{
       balanceCents: SIGNUP_CREDIT_CENTS,
       lifetimeDepositedCents: 0,
       createdAt: new Date().toISOString(),
+      ...(signupSource ? { signupSource } : {}),
     };
     await db.doc(`apiCustomers/${customerId}`).set({
       email: customer.email,
       balanceCents: customer.balanceCents,
       lifetimeDepositedCents: 0,
       createdAt: customer.createdAt,
+      ...(signupSource ? { signupSource } : {}),
     });
-    await db.collection('apiTransactions').add({
-      customerId,
-      type: 'signup_credit',
-      amountCents: SIGNUP_CREDIT_CENTS,
-      description: 'Welcome credit — $5.00',
-      timestamp: FieldValue.serverTimestamp(),
-    });
+    if (SIGNUP_CREDIT_CENTS > 0) {
+      await db.collection('apiTransactions').add({
+        customerId,
+        type: 'signup_credit',
+        amountCents: SIGNUP_CREDIT_CENTS,
+        description: `Welcome credit — $${(SIGNUP_CREDIT_CENTS / 100).toFixed(2)}`,
+        ...(signupSource ? { source: signupSource } : {}),
+        timestamp: FieldValue.serverTimestamp(),
+      });
+    }
     newSignup = true;
   }
 
@@ -260,6 +296,7 @@ export async function deductBalance(
   customerId: string,
   costCents: number,
   endpoint: string,
+  source?: ApiSource,
 ): Promise<{ newBalance: number; callId: string }> {
   const customerRef = db.doc(`apiCustomers/${customerId}`);
   const callRef = db.collection('apiCalls').doc();
@@ -284,6 +321,7 @@ export async function deductBalance(
       costCents,           // record the would-be cost for breakdown
       ok: true,
       ...(isAdmin ? { admin: true } : {}),
+      ...(source ? { source } : {}),
       timestamp: FieldValue.serverTimestamp(),
     });
     return nextBalance;
@@ -359,6 +397,7 @@ export async function creditTopup(
   customerId: string,
   amountCents: number,
   stripeSessionId: string,
+  source?: ApiSource,
 ): Promise<void> {
   const customerRef = db.doc(`apiCustomers/${customerId}`);
   const txQuery = await db.collection('apiTransactions')
@@ -381,6 +420,7 @@ export async function creditTopup(
       amountCents,
       description: `Top-up: $${(amountCents / 100).toFixed(2)}`,
       stripeSessionId,
+      ...(source ? { source } : {}),
       timestamp: FieldValue.serverTimestamp(),
     });
   });

@@ -166,8 +166,8 @@ function ApiSignupCard() {
       <h2 className="text-2xl font-bold text-white mb-2">Get your API key</h2>
       <p className="text-gray-300 mb-4">
         Self-serve. Enter your email, get a key and a{' '}
-        <span className="text-jackpot-300 font-semibold">$5 starter credit</span>{' '}
-        (no card, no expiration). That's it.
+        <span className="text-jackpot-300 font-semibold">$2 starter credit</span>{' '}
+        (no card, no expiration). $5 minimum top-up when you need more.
       </p>
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
         <input
@@ -209,7 +209,7 @@ export default function Developers() {
         <title>API for Developers — JackpotKeywords</title>
         <meta
           name="description"
-          content="REST API for AI-powered keyword research and AI-visibility scans. Composite Jackpot Score, real Google Ads data, $0.10/recommend, $1.00/aeo-scan. $5 free credit, no card required."
+          content="REST API for AI-powered keyword research and AI-visibility scans. Composite Jackpot Score, real Google Ads data, $0.10/recommend, $1.00/aeo-scan. $2 starter credit, no card required, $5 minimum top-up."
         />
         <link rel="canonical" href="https://jackpotkeywords.web.app/developers" />
       </Helmet>
@@ -227,7 +227,7 @@ export default function Developers() {
               href="#signup"
               className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2.5 rounded-lg transition"
             >
-              Get API Key — $5 free
+              Get API Key — $2 free
             </a>
             <a
               href="#endpoints"
@@ -237,8 +237,8 @@ export default function Developers() {
             </a>
           </div>
           <p className="mt-4 text-xs text-gray-500">
-            Self-serve, no card required. $5 starter credit is enough for 50
-            recommend calls or 5 AEO scans.
+            Self-serve, no card required. $2 starter credit = 2 AEO scans or 20
+            recommend calls. $5 minimum top-up after that.
           </p>
         </div>
 
@@ -247,7 +247,7 @@ export default function Developers() {
           <section id="endpoints">
             <h2 className="text-2xl font-bold text-white mb-2">Endpoints</h2>
             <p className="text-gray-500 mb-5">
-              Two endpoints live today. A third (<code className="text-jackpot-300 font-mono">/v1/score</code>) is
+              Four endpoints live today. A fifth (<code className="text-jackpot-300 font-mono">/v1/score</code>) is
               held until we've collected enough real traffic to validate it
               against our composite-scoring reversibility test.
             </p>
@@ -269,6 +269,45 @@ export default function Developers() {
                 <p className="text-xs text-gray-600 mt-2">
                   Latency: ~60–180s. Limit configurable up to 200 results.
                   Refunded on pipeline failure.
+                </p>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <div className="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
+                  <h3 className="font-mono text-white">
+                    <span className="text-jackpot-400">POST</span> /v1/recommend-deep
+                  </h3>
+                  <span className="text-jackpot-300 font-bold text-base">$0.30 / call</span>
+                </div>
+                <p className="text-gray-400">
+                  Same as <code className="font-mono text-jackpot-300">/v1/recommend</code>,
+                  plus parallel competitor discovery and full cluster + category
+                  aggregates. Built for agencies and consultants who need to see
+                  which keyword clusters matter and who else is ranking for them
+                  — in one call.
+                </p>
+                <p className="text-xs text-gray-600 mt-2">
+                  Latency: ~75–200s. Limit configurable up to 200 results.
+                  Refunded on pipeline failure.
+                </p>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <div className="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
+                  <h3 className="font-mono text-white">
+                    <span className="text-jackpot-400">POST</span> /v1/audit
+                  </h3>
+                  <span className="text-jackpot-300 font-bold text-base">$0.50 / audit</span>
+                </div>
+                <p className="text-gray-400">
+                  SEO audit on a URL — page-quality checks across technical,
+                  content, crawlability, structured data, local, and social
+                  sharing. Returns scored checks, per-page issues, keyword gaps,
+                  and prioritized recommendations. AEO (AI-visibility) data is
+                  sold separately via <code className="font-mono text-jackpot-300">/v1/aeo-scan</code>.
+                </p>
+                <p className="text-xs text-gray-600 mt-2">
+                  Latency: ~20–60s. Refunded on failure.
                 </p>
               </div>
 
@@ -315,7 +354,7 @@ export default function Developers() {
             <p className="text-gray-400 mb-5">
               Sign up returns an API key prefixed{' '}
               <code className="text-jackpot-300 font-mono">jk_live_</code>{' '}
-              plus a $5 starter credit (no card, no expiration). Authenticate
+              plus a $2 starter credit (no card, no expiration). Authenticate
               with <code className="text-jackpot-300 font-mono">Authorization: Bearer …</code> on
               every request. The raw key is shown once at creation — store it
               immediately.
@@ -381,6 +420,100 @@ curl ${API_BASE}/me \\
             </p>
           </section>
 
+          {/* /v1/recommend-deep */}
+          <section id="recommend-deep">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              <span className="font-mono text-jackpot-400 text-lg">POST</span>{' '}
+              <code className="font-mono">/v1/recommend-deep</code>
+            </h2>
+            <p className="text-gray-400 mb-5">
+              Same inputs as <code className="font-mono text-jackpot-300">/v1/recommend</code>,
+              with two additions on the server side: competitor discovery runs
+              in parallel with autocomplete (broadens the keyword set with
+              competitor-derived seeds), and the response surfaces the cluster +
+              category + competitor-brand aggregates that{' '}
+              <code className="font-mono text-jackpot-300">/v1/recommend</code>{' '}
+              computes internally and discards.
+            </p>
+            <CodeBlock language="bash">{`curl -X POST ${API_BASE}/recommend-deep \\
+  -H "Authorization: Bearer $JK_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "url": "https://yourproduct.com",
+    "description": "AI-powered keyword research tool for indie makers",
+    "limit": 25
+  }'`}</CodeBlock>
+            <p className="text-gray-400 mt-5 mb-2">Response (truncated):</p>
+            <CodeBlock language="json">{`{
+  "recommendations": [
+    { "keyword": "ebay bulk listing tool", "monthlyVolume": 720, "jackpotScore": 88, ... }
+  ],
+  "clusters": [
+    { "id": "c1", "name": "bulk listing tools", "keywordCount": 24, "totalVolume": 8400 }
+  ],
+  "categories": [
+    { "category": "competitor", "count": 18 },
+    { "category": "problem", "count": 12 }
+  ],
+  "competitors": ["InkFrog", "ListPerfectly", "Auctiva"],
+  "balanceCents": 470
+}`}</CodeBlock>
+            <p className="text-xs text-gray-600 mt-3">
+              <code className="text-jackpot-300 font-mono">limit</code> applies to the
+              recommendations array only — cluster, category, and competitor lists
+              are not truncated. Cost is flat $0.30 per call. Refunded on pipeline
+              failure.
+            </p>
+          </section>
+
+          {/* /v1/audit */}
+          <section id="audit">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              <span className="font-mono text-jackpot-400 text-lg">POST</span>{' '}
+              <code className="font-mono">/v1/audit</code>
+            </h2>
+            <p className="text-gray-400 mb-5">
+              SEO audit on a single URL. Crawls the primary page plus up to 8
+              priority secondary pages, builds a deterministic check matrix
+              across technical, content, crawlability, structured data, local,
+              and social-sharing categories, and uses Gemini for keyword-gap
+              identification + prioritized recommendations. AEO data is not
+              bundled — pair with <code className="font-mono text-jackpot-300">/v1/aeo-scan</code> if
+              you need it.
+            </p>
+            <CodeBlock language="bash">{`curl -X POST ${API_BASE}/audit \\
+  -H "Authorization: Bearer $JK_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://yourproduct.com"}'`}</CodeBlock>
+            <p className="text-gray-400 mt-5 mb-2">Response (truncated):</p>
+            <CodeBlock language="json">{`{
+  "url": "https://yourproduct.com",
+  "domain": "https://yourproduct.com",
+  "overallScore": 72,
+  "categoryScores": {
+    "technical": 84, "content": 68, "crawlability": 90,
+    "structured_data": 50, "local_geo": 60, "social_sharing": 75
+  },
+  "checks": [
+    { "id": "primary_title", "category": "content", "status": "warning",
+      "label": "Title length 78 chars", "recommendation": "Shorten to under 60..." }
+  ],
+  "pageResults": [...],
+  "keywordGaps": [
+    { "keyword": "bulk lister ebay", "opportunity": "...", "difficulty": "LOW" }
+  ],
+  "recommendations": [
+    { "title": "Add JSON-LD Product schema", "description": "...", "priority": "high" }
+  ],
+  "metadata": { "pagesAnalyzed": 9, "executionTimeMs": 32140 },
+  "balanceCents": 150
+}`}</CodeBlock>
+            <p className="text-xs text-gray-600 mt-3">
+              Cost is flat $0.50 per audit. Latency varies with site size and
+              response time — typically 20–60s. Refunded on failure.
+            </p>
+          </section>
+
           {/* /v1/aeo-scan */}
           <section id="aeo-scan">
             <h2 className="text-2xl font-bold text-white mb-2">
@@ -434,7 +567,7 @@ curl ${API_BASE}/me \\
                 <tbody>
                   <tr className="border-b border-gray-800">
                     <td className="px-5 py-3 text-gray-400">Signup credit</td>
-                    <td className="px-5 py-3 text-jackpot-300 font-semibold text-right">$5.00 (no expiration)</td>
+                    <td className="px-5 py-3 text-jackpot-300 font-semibold text-right">$2.00 (no expiration)</td>
                   </tr>
                   <tr className="border-b border-gray-800">
                     <td className="px-5 py-3 text-gray-400">
@@ -444,13 +577,25 @@ curl ${API_BASE}/me \\
                   </tr>
                   <tr className="border-b border-gray-800">
                     <td className="px-5 py-3 text-gray-400">
+                      <code className="font-mono text-jackpot-300">/v1/recommend-deep</code>
+                    </td>
+                    <td className="px-5 py-3 text-white font-semibold text-right">$0.30 / call</td>
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="px-5 py-3 text-gray-400">
+                      <code className="font-mono text-jackpot-300">/v1/audit</code>
+                    </td>
+                    <td className="px-5 py-3 text-white font-semibold text-right">$0.50 / audit</td>
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="px-5 py-3 text-gray-400">
                       <code className="font-mono text-jackpot-300">/v1/aeo-scan</code>
                     </td>
                     <td className="px-5 py-3 text-white font-semibold text-right">$1.00 / scan</td>
                   </tr>
                   <tr>
                     <td className="px-5 py-3 text-gray-400">Topup packs</td>
-                    <td className="px-5 py-3 text-white text-right">$25 / $100 / $500 (or custom &ge; $25)</td>
+                    <td className="px-5 py-3 text-white text-right">$5 / $25 / $100 / $500 (or custom &ge; $5)</td>
                   </tr>
                 </tbody>
               </table>

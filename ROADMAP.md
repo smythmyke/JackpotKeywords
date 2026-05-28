@@ -1,287 +1,160 @@
-# JackpotKeywords — Development Roadmap
+# ROADMAP — JackpotKeywords
 
-## Current Status: MVP Scaffold Complete (March 28, 2026)
+**Last updated:** 2026-05-27
+**Scope:** Keyword research / SEO tool. Full-stack monorepo (web + Firebase Functions + shared packages). Gemini-backed seed generation, autocomplete expansion, Keyword Planner API enrichment, Google Trends overlay, Jackpot Score aggregation. MVP scaffold complete 2026-03-28; deploying to Firebase next. AEO scan module is a parallel track. Converted from Phase-structured roadmap on 2026-05-27.
 
-Full-stack monorepo built and compiling. All packages type-check clean. Web app builds successfully.
+<!-- DASHBOARD-META
+project_key: jackpotkeywords
+title: "JackpotKeywords"
+purpose: "Keyword research / SEO tool — AI seed → autocomplete → Keyword Planner → Trends pipeline with Jackpot Score"
+phase: "Phase 1 — Deploy MVP"
+phases: ["Phase 1 — Deploy MVP", "Phase 2 — Pipeline testing", "Phase 3 — Frontend polish", "Phase 4 — Launch prep", "Phase 5 — Post-launch growth", "Phase 6 — V2 features"]
+key_dates: []
+-->
 
----
+**Status legend:** ☐ todo · ◐ in progress · ✓ done · ⊘ blocked · ✗ dropped
 
-## Phase 1: Deploy MVP (Next Session)
+> Editing rules: `C:\Projects\dashboards\project-dashboard\STRUCTURE.md`.
 
-### 1.1 Firebase Setup
-- [ ] Create Firebase project (jackpotkeywords or similar)
-- [ ] `firebase init` — connect project to local repo
-- [ ] Enable Firebase Auth (Google provider)
-- [ ] Enable Firestore
-- [ ] Configure Firestore security rules (already written in firestore.rules)
+## ACTIVE — This Week
 
-### 1.2 Environment Variables
-- [ ] Set Gemini API key (`GEMINI_API_KEY`)
-- [ ] Set Google Ads credentials (`GOOGLE_ADS_CUSTOMER_ID`, `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`)
-- [ ] Set Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`)
-- [ ] Set `APP_URL` for Stripe redirect URLs
-- [ ] Configure via `firebase functions:config:set` or `.env` in functions
+- ☐ FB-1: Create Firebase project (jackpotkeywords or similar)
+- ☐ FB-2: `firebase init` — connect project to local repo
+- ☐ FB-3: Enable Firebase Auth (Google provider)
+- ☐ FB-4: Enable Firestore
+- ☐ FB-5: Configure Firestore security rules (already written in `firestore.rules`)
+- ☐ ENV-1: Set Gemini API key (`GEMINI_API_KEY`)
+- ☐ ENV-2: Set Google Ads credentials (`GOOGLE_ADS_*` — 5 keys)
+- ☐ MCP-SUB-1: Cursor Directory submission at `cursor.directory/plugins/new` (~5 min) — paste-ready content at `C:\Projects\MarkItUp\planning\CURSOR-DIRECTORY-SUBMISSIONS.md`.
 
-### 1.3 Stripe Setup
-- [ ] Create 3 credit pack products ($0.99/1, $1.99/3, $4.99/10)
-- [ ] Create 2 subscription products ($9.99/mo Pro, $19.99/mo Agency)
-- [ ] Get Stripe price IDs and update `SUBSCRIPTION_PLANS` in shared/credits.ts
-- [ ] Set up webhook endpoint pointing to `/api/stripe/webhook`
+## ACTIVE — Next Two Weeks
 
-### 1.4 Firebase Auth Setup
-- [ ] Add Google OAuth client to web app (firebase config in web/src/services/)
-- [ ] Build `useAuth` hook connecting Firebase Auth to backend `/api/auth/init`
-- [ ] Build `useCredits` hook for balance checking and credit purchases
+- ☐ ENV-3: Set Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) + `APP_URL`
+- ☐ ENV-4: Configure via `firebase functions:config:set` or `.env` in functions
+- ☐ STRIPE-1: Create 3 credit pack products ($0.99/1, $1.99/3, $4.99/10)
+- ☐ STRIPE-2: Create 2 subscription products ($9.99/mo Pro, $19.99/mo Agency)
+- ☐ STRIPE-3: Get Stripe price IDs, update `SUBSCRIPTION_PLANS` in `shared/credits.ts`
+- ☐ STRIPE-4: Set up webhook endpoint pointing to `/api/stripe/webhook`
+- ☐ AUTH-1: Add Google OAuth client to web app (firebase config in `web/src/services/`)
+- ☐ AUTH-2: Build `useAuth` hook connecting Firebase Auth to backend `/api/auth/init`
+- ☐ AUTH-3: Build `useCredits` hook for balance + purchases
+- ☐ DEPLOY-1: `npm run build:all`
+- ☐ DEPLOY-2: `firebase deploy` (functions + hosting + rules)
+- ☐ DEPLOY-3: Verify health check `GET /api/health`, test auth flow E2E, test free search (blurred), test credit purchase → unblurred
 
-### 1.5 Deploy
-- [ ] `npm run build:all`
-- [ ] `firebase deploy` (functions + hosting + rules)
-- [ ] Verify health check: `GET /api/health`
-- [ ] Test auth flow end-to-end
-- [ ] Test free search (blurred results)
-- [ ] Test credit purchase → unblurred results
+## BACKLOG
 
----
+### Phase 2 — Search pipeline integration testing
+- ☐ P2-1: E2E pipeline test — Gemini seed generation, autocomplete expansion (rate limit + dedup), Keyword Planner enrichment (batch + errors), Google Trends overlay (rate limit + trend calc), full orchestration (15–30s), credit deduction + refund on failure
+- ☐ P2-2: Pipeline optimizations — caching layer for Keyword Planner (Firestore or Redis), autocomplete batching (parallel with delays), Google Trends backoff retry, timeout handling
+- ☐ P2-3: Results quality tuning — Jackpot Score weights, Gemini seed prompts across niches, category assignment accuracy, concept report verdict accuracy
 
-## Phase 2: Search Pipeline Integration Testing
+### Phase 3 — Frontend polish
+- ☐ P3-1: Wire Results page to real API (replace demo placeholders); sorting, filtering, category counts, paywall blur overlay, Ad Score ↔ SEO Score toggle
+- ☐ P3-2: Build `ConceptReport.tsx` — demand score, competition, opportunity breakdown, related niches, budget analysis, 15-keyword preview, "Run full keyword search" CTA
+- ☐ P3-3: Wire `SearchProgress` to real pipeline step updates (SSE or polling); error/retry UI; "search again" flow; mobile responsive
+- ☐ P3-4: Account page — Google avatar/email/plan, credit balance + transaction history, saved searches with links, Stripe portal subscription mgmt
+- ☐ P3-5: CSV export — all keywords with metrics; export button wiring; gating decision
 
-### 2.1 End-to-End Pipeline Test
-- [ ] Test Gemini seed generation with real product descriptions
-- [ ] Test autocomplete expansion (rate limiting, deduplication)
-- [ ] Test Keyword Planner API enrichment (batch queries, error handling)
-- [ ] Test Google Trends overlay (rate limiting, trend calculation)
-- [ ] Test full pipeline orchestration (15-30 second execution)
-- [ ] Test credit deduction and refund on failure
+### Phase 4 — Launch prep
+- ☐ P4-1: Register domain (jackpotkeywords.com or keymine.com), DNS → Firebase Hosting, meta tags + OG + Twitter, robots.txt + sitemap.xml, SoftwareApplication schema
+- ☐ P4-2: Landing page — feature sections, 3-step "How it works", comparison table (vs SEMrush/Ahrefs/Ubersuggest), testimonials placeholder, FAQ targeting "free keyword research tool"
+- ☐ P4-3: GA4 + conversion tracking (free search → credit → subscription); pipeline performance metrics
+- ☐ P4-4: Error handling — API exhaustion, empty results, short descriptions, URL scrape failures, input validation
 
-### 2.2 Pipeline Optimizations
-- [ ] Add caching layer for Keyword Planner results (Firestore or Redis)
-- [ ] Optimize autocomplete batching (parallel with delays)
-- [ ] Handle Google Trends rate limiting gracefully (retry with backoff)
-- [ ] Add timeout handling for long-running searches
+### Phase 5 — Post-launch growth
+- ☐ P5-1: Google Ads campaign — use own keyword research; ad groups per `KEYWORD-GOLDMINE-RESEARCH.md`; target "free keyword research tool" (6,600/mo, $1.90 CPC), "ubersuggest" (22,200/mo, $0.76 CPC), "semrush alternative" (1,900/mo, $10.84 CPC); $11/day across 5 groups
+- ☐ P5-2: Content marketing — "JackpotKeywords vs SEMrush", "How to find goldmine keywords in 30s", "Why we built JackpotKeywords"; YouTube demo
+- ☐ P5-3: Product Hunt launch — listing, screenshots, video, social announcement
 
-### 2.3 Results Quality Tuning
-- [ ] Tune Jackpot Score weights based on real data
-- [ ] Tune Gemini prompts for seed quality (test across multiple niches)
-- [ ] Validate category assignment accuracy
-- [ ] Test concept report quality and verdict accuracy
+### Phase 6 — V2 features
+- ☐ V2-1: Google Ads Campaign Builder Export (CSV for Google Ads Editor) — Pro+ feature
+- ☐ V2-2: Branded PDF Goldmine Reports — Agency tier
+- ☐ V2-3: Chrome Extension Companion — right-click → "Find keywords for this site"; 5 free results funnel
+- ☐ V2-4: Google Search Console integration — OAuth, overlay rankings on Jackpot results, "low-hanging fruit" tab; Pro tier
+- ☐ V2-5: Keyword Monitoring Dashboard — track volume/CPC changes monthly, email alerts; Pro+
+- ☐ V2-6: Competitor Gap Analysis — side-by-side keyword comparison, "they rank, you don't" report; Agency tier
 
----
+### AEO Scan module (parallel track)
+- ☐ AEO-1: Decide location (`packages/aeo-scan/` workspace vs. `scripts/aeo-scan/` tool-only). Lean workspace if migrating to Cloud Function later.
+- ☐ AEO-2: Decide language — TypeScript (reuses JK Gemini client) vs. Python. Default TS.
+- ☐ AEO-3: Implement buyer-voice query generator (Gemini, new prompt template)
+- ☐ AEO-4: Citation capture across 4 surfaces — Gemini grounding, OpenAI Responses `web_search`, Perplexity Sonar, SerpAPI/DataForSEO for Google AI Overview
+- ☐ AEO-5: Citation classification (Reddit/Medium/vendor blog/YouTube/docs/forum)
+- ☐ AEO-6: AEO Score aggregation (visibility × platform coverage × citation quality)
+- ☐ AEO-7: Non-determinism mitigation (2–3x runs, aggregate)
+- ☐ AEO-8: Output CSV + Markdown score card; CLI args (product/URL, query count, output)
+- ☐ AEO-9: A-2 validation — run against GovToolsPro, BulkListingPro, MarkItUp, JackpotKeywords (5 buyer-voice queries each); decide migrate to product or park
+- ⊘ AEO-10: A-3 JK product integration — blocked: requires MVP shipped + A-2 validated. Port to `packages/functions/src/aeo/` Cloud Function, wrap in auth + credits, add to results pages, credit cost 3–5x keyword scan
 
-## Phase 3: Frontend Polish
+### Agent SDK expansion track
+- ☐ AGENT-1: Full-Funnel Campaign Agent (priority #1, new $29/mo tier) — desc + goal (SEO/PPC/Amazon) → keyword research + content brief OR ad copy OR listing copy. Add `packages/agents` workspace, expose keyword-search as MCP tool. CLI first, validate with 3 unlimited users before Stripe tier.
+- ☐ AGENT-2: Saved-Search Watcher (priority #2 — overlaps V2-5) — weekly re-run + diff + opportunity/CPC digest email. Consider consolidating with V2-5.
+- ☐ AGENT-3: Niche Auditor (priority #3 — $49 one-time or $149/mo agency) — niche → 15–25 page competitive audit PDF. Fits with V2-6.
 
-### 3.1 Results Dashboard
-- [ ] Wire Results page to real API data (replace demo placeholders)
-- [ ] Implement keyword sorting (by score, volume, CPC, competition)
-- [ ] Implement keyword filtering (by category, score range, volume range)
-- [ ] Show category keyword counts in tabs
-- [ ] Implement paywall overlay (blur + unlock CTA for free users)
-- [ ] Implement score view toggle (Ad Score ↔ SEO Score)
+### MCP/API distribution (cross-portfolio playbook)
+- ⊘ MCP-SUB-2: awesome-mcp-servers PR #6960 (punkpeye) — `Add smythmyke/jackpotkeywords-mcp-server (Marketing)` — filed, awaiting Frank's review. Backlog is ~1,300 PRs; expect weeks. Check periodically: `gh pr view 6960 --repo punkpeye/awesome-mcp-servers --json state,reviewDecision`.
+- ⊘ MCP-SUB-3: MCP.so issue #2528 at `chatmcp/mcpso` — filed, awaiting. Check: `gh issue view 2528 --repo chatmcp/mcpso --json state`.
+- ✗ MCP-SUB-4: appcypher/awesome-mcp-servers — DROPPED, maintainer disabled PRs/issues 2026-05-26.
+- ☐ MCP-V11-1: v1.1 tools — surface usage data after launch; add new tools driven by what real MCP clients call most.
 
-### 3.2 Concept Report Page
-- [ ] Build ConceptReport.tsx with demand score, competition, opportunity breakdown
-- [ ] Show related niches section
-- [ ] Show budget analysis (if budget was entered)
-- [ ] Show truncated 15-keyword preview at bottom
-- [ ] CTA: "Run full keyword search" (unlocks full table, no extra credit)
+### Tech debt
+- ☐ TD-1: Unit tests for scoring formulas
+- ☐ TD-2: Integration tests for search pipeline
+- ☐ TD-3: CI/CD (GitHub Actions → Firebase deploy)
+- ☐ TD-4: Monitor API costs + rate limits
+- ☐ TD-5: Error reporting (Sentry or similar)
+- ☐ TD-6: Regular Gemini prompt tuning based on user feedback
 
-### 3.3 Search Experience
-- [ ] Wire SearchProgress component to real pipeline step updates (SSE or polling)
-- [ ] Add error handling and retry UI
-- [ ] Add "search again with different description" flow
-- [ ] Mobile responsive layout
+## DONE (recent wins)
 
-### 3.4 Account Page
-- [ ] Show user profile (Google avatar, email, plan)
-- [ ] Show credit balance and transaction history
-- [ ] Show saved searches list with links to results
-- [ ] Subscription management (upgrade/cancel via Stripe portal)
+- ✓ 2026-05-28 — **v1 API surface expanded + free tier recalibrated.** Shipped two new endpoints: `POST /v1/recommend-deep` ($0.30 — adds parallel competitor discovery + clusters + categories + competitor brands to recommend's response) and `POST /v1/audit` ($0.50 — SEO-only audit reusing the consumer `runSeoAudit` pipeline, AEO sold separately). Signup credit reduced $5 → $2 (sized to 2 AEO scans, the moat product); topup packs gained `mini` $5 tier, custom-min dropped $25 → $5. Driver: 427 npm downloads with 0 real signups against the old config. Deploy: `firebase deploy --only functions,hosting` to `even-plate-378520`. MCP server v0.2.0 built locally with two matching tools (`jackpotkeywords_recommend_deep`, `jackpotkeywords_audit`) — npm publish + MCP Registry + GitHub Release pending. Docs updated: `PRICING-RESEARCH-2026-05-23.md` (revision section + new endpoints in price table), `DEPLOYMENT-PLAN-2026-05-25.md` (revision section + current-state list).
+- ✓ 2026-05-27 — MCP server live on 5 surfaces — `jackpotkeywords-mcp-server@0.1.2` published to npm + Official MCP Registry (`io.github.smythmyke/jackpotkeywords-mcp-server`) + Smithery (`.mcpb` bundle, Settings tab filled, Visibility=Public) + Glama (auto-indexed from standalone repo `smythmyke/jackpotkeywords-mcp-server`) + GitHub Release v0.1.2. Adopted the MarkItUp Tier-1 + Tier-2 cloning playbook per `[[mcp-deployment-cloning-strategy]]`.
+- ✓ 2026-05-25 — MCP Stage 1 shipped in a single day — leveraged existing `middleware/apiKeyAuth.ts` from prior sprint. `DEPLOYMENT-PLAN-2026-05-25.md` documented the playbook adoption from MarkItUp.
+- ✓ 2026-03-28 — MVP scaffold complete. Full-stack monorepo built and compiling. All packages type-check clean. Web app builds successfully.
 
-### 3.5 Export Features
-- [ ] CSV export (all keywords with metrics)
-- [ ] Wire export button to generate and download CSV
-- [ ] Disable export for free/credit users if we decide to gate it (currently all paid users get export)
+## DROPPED
 
----
-
-## Phase 4: Launch Preparation
-
-### 4.1 Domain & SEO
-- [ ] Register domain (jackpotkeywords.com or keymine.com)
-- [ ] Set up DNS → Firebase Hosting
-- [ ] Add meta tags, OG images, Twitter cards
-- [ ] Create robots.txt and sitemap.xml
-- [ ] Add structured data (SoftwareApplication schema)
-
-### 4.2 Landing Page Optimization
-- [ ] Add feature explanation sections below the fold
-- [ ] Add "How it works" (3-step visual)
-- [ ] Add comparison table (vs SEMrush, Ahrefs, Ubersuggest)
-- [ ] Add testimonials section (placeholder, fill after launch)
-- [ ] Add FAQ section targeting "free keyword research tool" queries
-
-### 4.3 Analytics
-- [ ] Set up Google Analytics 4
-- [ ] Set up conversion tracking (free search → credit purchase → subscription)
-- [ ] Track search pipeline performance metrics
-
-### 4.4 Error Handling & Edge Cases
-- [ ] Handle API key exhaustion / rate limiting gracefully
-- [ ] Handle empty results (no keywords found)
-- [ ] Handle very short descriptions (prompt user for more detail)
-- [ ] Handle URL scraping failures
-- [ ] Input validation and sanitization
+*(none)*
 
 ---
 
-## Phase 5: Post-Launch Growth
+# Reference
 
-### 5.1 Google Ads Campaign
-- [ ] Use our own keyword research (KEYWORD-GOLDMINE-RESEARCH.md) to set up ads
-- [ ] Create ad groups per KEYWORD-GOLDMINE-RESEARCH.md recommendations
-- [ ] Target "free keyword research tool" (6,600/mo, $1.90 CPC)
-- [ ] Target "ubersuggest" (22,200/mo, $0.76 CPC)
-- [ ] Target "semrush alternative" (1,900/mo, $10.84 CPC)
-- [ ] Budget: $11/day across 5 ad groups
+*Below this line is preserved-as-was reference material. The dashboard parser ignores everything from here down.*
 
-### 5.2 Content Marketing
-- [ ] Blog: "JackpotKeywords vs SEMrush — 14x cheaper with AI scoring"
-- [ ] Blog: "How to find goldmine keywords for your product in 30 seconds"
-- [ ] Blog: "Free keyword research tool — why we built JackpotKeywords"
-- [ ] YouTube: Demo video showing a real product search
+## AEO Scan module — background
 
-### 5.3 Product Hunt Launch
-- [ ] Prepare PH listing (tagline, screenshots, video)
-- [ ] Schedule launch day
-- [ ] Prepare social media announcement
+See `AEO-MODULE-RESEARCH.md` for full module design, citation-landscape research, customer-facing output spec, and risks. Originating research: `C:\Projects\ideas\reddit-seed-pipeline\VIABILITY.md`. AEO track runs in parallel — script phase (AEO-1 through AEO-8) does NOT block MVP; integration phase (AEO-10) is gated on MVP shipping first.
 
----
-
-## Phase 6: V2 Features (Post-Launch)
-
-### 6.1 Google Ads Campaign Builder Export
-- [ ] Generate Google Ads Editor CSV from search results
-- [ ] Include match types, CPC bids, ad group structure
-- [ ] Pro+ feature
-
-### 6.2 Branded PDF Goldmine Reports
-- [ ] Generate PDF with charts, tier rankings, recommendations
-- [ ] Agency branding options (logo, colors)
-- [ ] Agency tier feature
-
-### 6.3 Chrome Extension Companion
-- [ ] Right-click any website → "Find keywords for this site"
-- [ ] Shows 5 free results → funnels to web app
-- [ ] Competitive spy: scrape competitor page + run analysis
-
-### 6.4 Google Search Console Integration
-- [ ] OAuth connection to user's GSC
-- [ ] Overlay actual rankings/impressions on Jackpot results
-- [ ] "Low-hanging fruit" tab (keywords already ranking that have high Jackpot Scores)
-- [ ] Pro tier feature
-
-### 6.5 Keyword Monitoring Dashboard
-- [ ] Save goldmine keywords → track volume/CPC changes monthly
-- [ ] Email alerts: "Keyword X dropped from $0.85 to $0.40 CPC — bid now"
-- [ ] Pro+ feature
-
-### 6.6 Competitor Gap Analysis
-- [ ] Enter your URL + competitor URL
-- [ ] Side-by-side keyword comparison
-- [ ] "They rank for X, you don't" gap report
-- [ ] Agency tier feature
-
----
-
-## AEO Scan Module Track
-
-See `AEO-MODULE-RESEARCH.md` for full module design, citation-landscape research, customer-facing output spec, and risks. Originating research: `C:\Projects\ideas\reddit-seed-pipeline\VIABILITY.md`. This track runs in parallel to the core roadmap — script phase (A-1, A-2) does **not** block MVP; integration phase (A-3) is gated on MVP shipping first.
-
-### Phase A-1: Reconnaissance script (standalone CLI, lives in this repo)
-
-Script is a separate CLI/package inside the JK monorepo — does **not** hit the web app, Firebase auth, or credit system in this phase.
-
-- [ ] Decide location: `packages/aeo-scan/` (monorepo workspace) vs. `scripts/aeo-scan/` (tool-only). Lean toward workspace if logic is likely to migrate to Cloud Function.
-- [ ] Decide language: TypeScript (reuses existing JK Gemini client and prompt helpers) vs. Python (richer AI library ecosystem). Default to TypeScript unless library gaps force otherwise.
-- [ ] Implement buyer-voice query generator (Gemini) — new prompt template, distinct from keyword-seed prompt
-- [ ] Implement citation capture across 4 surfaces:
-  - [ ] Gemini API with grounding/search tool
-  - [ ] OpenAI Responses API with `web_search` tool
-  - [ ] Perplexity Sonar API
-  - [ ] SerpAPI or DataForSEO for Google AI Overview extraction (lowest reliability — expect partial coverage)
-- [ ] Implement citation classification (Reddit thread / Medium article / vendor blog / YouTube / docs / forum / other)
-- [ ] Implement AEO Score aggregation (visibility × platform coverage × citation quality)
-- [ ] Implement non-determinism mitigation (run each query 2–3x, aggregate)
-- [ ] Output: CSV (per-query citation table) + Markdown (score card + action list)
-- [ ] CLI args: product description OR URL, query count, output path
-
-### Phase A-2: Internal validation against Michael's products
-
-- [ ] Run script against GovToolsPro with 5 buyer-voice queries
-- [ ] Run against BulkListingPro with 5 queries
-- [ ] Run against Markitup with 5 queries (requires product description)
-- [ ] Run against JackpotKeywords itself (eat own dogfood; also informs JK's own launch AEO strategy)
-- [ ] Critical read: signal-to-noise ratio, action list usefulness, score correlation with real competitive reality
-- [ ] Decision point: migrate into JK product (→ Phase A-3) or park
-
-### Phase A-3: JK product integration (gated: MVP shipped + A-2 validated)
-
-- [ ] Port script logic into `packages/functions/src/aeo/` as Cloud Function
-- [ ] Wrap in existing Firebase auth + credit system
-- [ ] Add "Run AEO Scan" action on Flow A and Flow B results pages
-- [ ] Credit cost model: 3–5x keyword scan (4 API surfaces per query, 2–3 reruns each)
-- [ ] Pricing decision: Pro-tier gated feature vs. premium credit pack vs. both
-- [ ] Free tier hook: 1 free AEO scan at signup (parallel to 3 free keyword searches)
-- [ ] Build AEO Report UI: per-query citation table + AEO Score card + action list
-- [ ] Update Stripe if new credit pack is introduced
-- [ ] Landing page feature section and marketing copy
-- [ ] Update PRODUCT-DESIGN.md with the new flow
-
-### Open questions (answer during A-1 build)
-
+**Open questions to answer during AEO-3 through AEO-8:**
 1. Does JK's existing Gemini client support the grounding/search tool, or only text generation?
 2. Appetite for a second AI provider (OpenAI/Perplexity) in JK infra? Adds key management, billing separation.
 3. Sweet-spot query count per scan (5 = cheap/shallow, 15 = thorough/expensive)?
 4. Separate competitor-AEO scan type vs. bundled into main scan?
 
----
+## Agent SDK Expansion track — quarterly review
 
-## Agent SDK Expansion Track
-
-See `docs/AGENT_SDK.md` for full opportunity analysis, starter code, and pricing math. This track layers on top of the core product once Phase 1–3 ship — not a replacement for existing roadmap.
-
-### Near-term agents (after core ships)
-
-- [ ] **Full-Funnel Campaign Agent** (priority #1 — new $29/mo tier)
-  - Description + goal (SEO / PPC / Amazon) → keyword research + content brief OR ad copy variants OR listing copy
-  - Architecture: add `packages/agents` workspace, expose existing keyword-search as custom MCP tool
-  - First step: build as CLI script, validate with 3 unlimited-tier users before wiring Stripe tier
-- [ ] **Saved-Search Watcher** (priority #2 — overlaps with 6.5 Keyword Monitoring Dashboard)
-  - Weekly re-run saved searches, diff against last week, email digest of opportunities and CPC shifts
-  - Consider consolidating with planned 6.5 work to avoid duplicate effort
-- [ ] **Niche Auditor** (priority #3 — $49 one-time or $149/mo agency)
-  - Niche in → 15–25 page competitive audit PDF
-  - Fits naturally with existing 6.6 Competitor Gap Analysis
-
-### Explore Agent SDK for more opportunities
-
-**Task:** Revisit `docs/AGENT_SDK.md` quarterly as the SDK evolves and user data accumulates. Candidate areas beyond the three above:
+See `docs/AGENT_SDK.md` for full opportunity analysis, starter code, pricing math. Beyond the three planned agents:
 
 - Content production agent (brief → full article)
 - Amazon listing optimizer (dedicated vertical)
 - YouTube/TikTok short-form keyword angle
-- Google Ads campaign builder (overlaps with existing 6.1)
+- Google Ads campaign builder (overlaps V2-1)
 - Multi-language keyword research
-- Competitive gap tracker (agent version of 6.6)
+- Competitive gap tracker (agent version of V2-6)
 
-Review cadence: after each agent ships, re-read `C:\Projects\ideas\claude-code-research\agent-sdk.md` and check `https://code.claude.com/docs/en/agent-sdk/overview` for new capabilities.
+Review cadence: after each agent ships, re-read `C:\Projects\ideas\claude-code-research\agent-sdk.md` + check `https://code.claude.com/docs/en/agent-sdk/overview` for new capabilities.
 
----
+## Related docs
 
-## Technical Debt & Maintenance
-
-- [ ] Add unit tests for scoring formulas
-- [ ] Add integration tests for search pipeline
-- [ ] Set up CI/CD (GitHub Actions → Firebase deploy)
-- [ ] Monitor API costs and rate limits
-- [ ] Set up error reporting (Sentry or similar)
-- [ ] Regular Gemini prompt tuning based on user feedback
+- `AEO-MODULE-RESEARCH.md` — AEO module design
+- `docs/AGENT_SDK.md` — Agent SDK opportunities
+- `docs/api-deployment/DEPLOYMENT-PLAN-2026-05-25.md` — latest deployment plan
+- `docs/api-deployment/SCORING-V2-DESIGN.md` — scoring redesign
+- `docs/api-deployment/DESIGN-PARTNER-1PAGER.md` — outreach
+- `docs/MCP-REGISTRY-EXPANSION-2026-05-26.md` — MCP strategy
+- `docs/PORTFOLIO-OUTLOOK.md`, `PORTFOLIO-INTEGRATION-RESEARCH-2026-05-21.md` — positioning
+- `docs/REVENUE-BENCHMARKS.md` — economics
+- `docs/medium/` — 4 marketing-content drafts
+- `KEYWORD-GOLDMINE-RESEARCH.md` — own-product keyword research (drives P5-1 ad targeting)

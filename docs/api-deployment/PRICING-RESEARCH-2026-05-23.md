@@ -1,9 +1,25 @@
 # API Pricing Research — Locked Decisions
 
 **Date:** 2026-05-23
-**Status:** Q1 resolved. Pricing model + per-call rates + free tier all locked.
+**Status:** Q1 resolved. Pricing model + per-call rates locked. **Free tier partially revised 2026-05-28 — see below.**
 
 This doc captures the competitive research and reasoning behind the locked pricing decisions. Companion to `DEPLOYMENT-PLAN-2026-05-23.md` (Q1 section).
+
+---
+
+## 2026-05-28 revision — free tier recalibrated
+
+Three locked decisions below have been revised after Stage 1 traffic data: 427 npm downloads of the MCP server produced **0 real customer signups** (only admin + 3 internal test accounts). The original numbers were inherited from the OpenAI/Anthropic $5 comp without testing against JK's actual unit economics ($1/scan, not $0.0001/LLM token).
+
+**Changes:**
+
+- **Signup credit: $5 → $2.** Still satisfies "free trial sized to evaluate" — $2 buys 2 AEO scans (the moat product, no PAYG competitor), or 20 recommend calls, or 400 keyword scores when `/v1/score` ships. Per-signup giveaway exposure capped at $2.
+- **Topup packs: added `mini` tier ($5).** Existing `starter` ($25), `growth` ($100), `scale` ($500) unchanged.
+- **Custom topup minimum: $25 → $5.** Consistent with the new `mini` pack.
+
+**What didn't change:** per-call prices ($0.10 / $1.00 / $0.005), pricing model (PAYG-only), the "free credit at signup is necessary" principle. The dollar amount is now calibrated to JK's unit economics rather than the OpenAI/Anthropic LLM-token comp.
+
+**Hypothesis being tested:** if signup conversion stays at 0% with $2 credit, friction isn't the bottleneck — move to $0 with empirical data behind it. If conversion climbs, the smaller credit was the right calibration. $5 → $2 is a smaller, faster experiment than $5 → $0; we learn more by stepping.
 
 ---
 
@@ -20,13 +36,15 @@ This doc captures the competitive research and reasoning behind the locked prici
 |---|---|---|---|
 | `/v1/score` | **$0.005 per keyword scored** (batch up to 200 = $0.10–$1.00 per call) | ~$0.0005/100 kw | 99.9% |
 | `/v1/recommend` | **$0.10 per call** | ~$0.008 | 92% |
+| `/v1/recommend-deep` *(added 2026-05-28)* | **$0.30 per call** | ~$0.013 | 96% |
+| `/v1/audit` *(added 2026-05-28)* | **$0.50 per audit** | ~$0.02 | 96% |
 | `/v1/aeo-scan` | **$1.00 per scan** | ~$0.015 | 98.5% |
 
-### Free tier: $5 signup credit, no expiration, no card required
-- Matches OpenAI/Anthropic norm (both $5 credit, both no card)
-- More generous on expiration (OpenAI 3mo, Anthropic 14d, us = none)
-- Translates to ~1,000 keyword scores OR 50 recommends OR 5 aeo-scans — enough to fully evaluate the API
-- Phone verification gate may be needed at scale to prevent abuse (decide when we see signups)
+### Free tier: ~~$5~~ **$2** signup credit, no expiration, no card required *(revised 2026-05-28)*
+- Originally matched OpenAI/Anthropic norm ($5 credit, no card). Revised to $2 after Stage 1 showed 0 real signups against 427 npm downloads — the dollar amount was inherited comp, not unit-economics-calibrated.
+- More generous on expiration than competitors (OpenAI 3mo, Anthropic 14d, us = none).
+- $2 translates to **2 aeo-scans OR 20 recommends OR ~400 keyword scores** — enough to evaluate the differentiated product (`/v1/aeo-scan` whitespace).
+- Phone verification gate may still be needed at scale to prevent abuse (decide when we see signups actually arrive).
 
 ---
 
@@ -126,7 +144,7 @@ Reasoning for C:
 
 ## What's still open
 
-- **Phone verification at signup** — defer until we see whether $5 credit gets abused at scale. If first 100 signups burn the credit without converting, add SMS verification.
+- **Phone verification at signup** — defer until we see whether the $2 credit (revised from $5 on 2026-05-28) gets abused at scale. If first 100 signups burn the credit without converting, add SMS verification.
 - **Volume discount tiers** — none for Stage 1. Layer in once usage data shows the call-volume distribution among first 10–20 customers.
 - **Enterprise / private contracts** — defer; revisit once we have someone asking for one.
 

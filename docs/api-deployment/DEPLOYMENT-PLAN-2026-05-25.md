@@ -1,8 +1,27 @@
 # JackpotKeywords API Deployment Plan — Streamlined
 
 **Date:** 2026-05-25
-**Status:** Active. Supersedes `DEPLOYMENT-PLAN-2026-05-23.md`.
+**Status:** Active. Supersedes `DEPLOYMENT-PLAN-2026-05-23.md`. **Pricing/free-tier revised 2026-05-28 — see revision section below.**
 **Driver:** Realignment after recognizing that the prior plan inherited B2B partnership framing that doesn't fit solo-dev execution. Comparison with `C:\Projects\MarkItUp` confirmed there's an existing solo-dev playbook in the user's own portfolio — this plan adopts it.
+
+---
+
+## 2026-05-28 revision — free tier + topup tiers
+
+Two of the "Locked 2026-05-23" pricing decisions have been partially revised after Stage 1 traffic data showed 427 npm downloads but **0 real customer signups** (only admin + 3 internal test accounts). The locked numbers were inherited from OpenAI/Anthropic comp without empirical testing against JK's unit economics.
+
+**Changes:**
+
+- Signup credit reduced **$5 → $2**. Still satisfies the "free trial sized to evaluate" requirement (2 AEO scans = the moat product). Per-signup giveaway exposure capped at $2.
+- Topup packs gained **`mini` ($5) tier**. Existing `starter`/`growth`/`scale` unchanged.
+- Custom topup minimum: **$25 → $5**. Consistent with the new `mini` pack.
+- **Two new endpoints added to the v1 surface** (live, billable):
+  - `POST /v1/recommend-deep` — $0.30/call. `/v1/recommend` plus parallel competitor discovery + cluster/category/competitor-brand aggregates in the response.
+  - `POST /v1/audit` — $0.50/call. Reuses the consumer SEO audit pipeline via `runSeoAudit(url, { includeAeo: false })`. AEO sold separately via `/v1/aeo-scan`.
+
+**Driver:** 0 real signups against 427 npm downloads means the funnel is the bottleneck, not the giveaway size. $5 → $2 is a smaller, faster experiment than $5 → $0 — preserves the trial lever while reducing per-signup giveaway exposure 60%. If conversion stays at 0% at $2, friction isn't the bottleneck and we go to $0 with data behind it.
+
+**What's unchanged:** Per-call prices ($0.10 / $1.00 / $0.005). Pricing model (PAYG-only). `/v1/score` Path D gate. All other locked decisions. See `PRICING-RESEARCH-2026-05-23.md` for the full pricing rationale + revision details.
 
 ---
 
@@ -23,7 +42,7 @@
 | No raw GKP fields cross the API boundary | Same. |
 | `/v1/aeo-scan` requires customers to render Gemini `searchEntryPoint` HTML | Gemini grounded-search ToS requirement. |
 | Endpoint naming `/v1/score`, `/v1/recommend`, `/v1/aeo-scan` | Locked 2026-05-23, no reason to revisit. |
-| Pricing: $0.005/keyword, $0.10/recommend, $1.00/scan; $5 signup credit | Locked 2026-05-23, no reason to revisit. |
+| Pricing: $0.005/keyword, $0.10/recommend, $1.00/scan; ~~$5~~ $2 signup credit *(revised 2026-05-28)* | Per-call prices locked 2026-05-23. Signup credit recalibrated 2026-05-28 — see revision section above. |
 
 ---
 
@@ -31,7 +50,7 @@
 
 Reference: `C:\Projects\MarkItUp\mcp-server\` and `markitup.app/api`.
 
-1. **Self-serve from day one.** No invitation, no manual provisioning, no whitelist. Email → API key → use immediately. The free credit ($5) IS the trial.
+1. **Self-serve from day one.** No invitation, no manual provisioning, no whitelist. Email → API key → use immediately. The free credit ($2, revised from $5 on 2026-05-28) IS the trial.
 2. **One distribution channel per context, all same day.** REST API on the site. MCP server on npm + MCP Registry + Glama + GitHub. No "coordinated launch" — distribution channels handle discovery.
 3. **Build only what you can dogfood.** Every surface must have at least one real user before it ships — and that user is *you*, calling it from one of your own products. If you wouldn't use it personally, don't build it.
 4. **Observability replaces feedback loops.** `scripts/analyze-api-usage.mjs` is the source of truth on what works. No 1:1 design-partner calls.
@@ -58,11 +77,13 @@ Reference: `C:\Projects\MarkItUp\mcp-server\` and `markitup.app/api`.
 - All consumer-facing surfaces live and deployed
 
 **API (`/api/v1`):**
-- ✅ `POST /v1/signup` — email → API key (`jk_live_…`) + $5 credit
+- ✅ `POST /v1/signup` — email → API key (`jk_live_…`) + $2 credit *(revised from $5 on 2026-05-28)*
 - ✅ `GET /v1/me` — balance + customer info
-- ✅ `POST /v1/topup` — Stripe checkout ($25/$100/$500 packs or custom ≥$25)
+- ✅ `POST /v1/topup` — Stripe checkout ($5/$25/$100/$500 packs or custom ≥$5) *(revised 2026-05-28: added `mini` $5 pack, dropped custom min from $25 to $5)*
 - ✅ `POST /v1/aeo-scan` — $1.00, refunded on failure
 - ✅ `POST /v1/recommend` — $0.10, refunded on failure
+- ✅ `POST /v1/recommend-deep` — $0.30, refunded on failure *(added 2026-05-28)*
+- ✅ `POST /v1/audit` — $0.50, refunded on failure, AEO not bundled *(added 2026-05-28)*
 - ✅ `POST/GET/DELETE /v1/keys` — key rotation
 - ✅ Per-key rate limit (60/min, 1000/hr)
 - ✅ Usage tracking — `apiCalls` records `latencyMs`, `errCode`, `refunded`

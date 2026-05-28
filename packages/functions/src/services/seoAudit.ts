@@ -73,8 +73,16 @@ interface SiteStructure {
 
 /**
  * Main entry point: run a full SEO audit on a URL.
+ *
+ * `includeAeo` defaults to true (consumer audit + `/api/audit` behavior).
+ * The public `/v1/audit` endpoint passes `includeAeo: false` so customers
+ * who want AEO data buy it via the dedicated `/v1/aeo-scan` endpoint.
  */
-export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id' | 'paid' | 'createdAt'>> {
+export async function runSeoAudit(
+  url: string,
+  options: { includeAeo?: boolean } = {},
+): Promise<Omit<SeoAuditResult, 'id' | 'paid' | 'createdAt'>> {
+  const includeAeo = options.includeAeo ?? true;
   const startTime = Date.now();
   const parsedUrl = new URL(url);
   const domain = parsedUrl.origin;
@@ -115,19 +123,24 @@ export async function runSeoAudit(url: string): Promise<Omit<SeoAuditResult, 'id
   const { keywordGaps, recommendations } = await generateInsights(primaryAnalysis, checks, domain, structure);
   functions.logger.info(`Step 5 done: ${keywordGaps.length} gaps, ${recommendations.length} recommendations`);
 
-  // Step 6: AEO — AI Visibility check (lightweight, non-fatal)
+  // Step 6: AEO — AI Visibility check (lightweight, non-fatal). Skipped when
+  // the caller opts out (e.g. /v1/audit, which sells AEO via /v1/aeo-scan).
   let aeoResult: AeoResult | null = null;
-  try {
-    functions.logger.info('Step 6: Running AEO light scan...');
-    const productName = primaryAnalysis.title?.replace(/[—–|:].*/,  '').trim() || undefined;
-    aeoResult = await runAeoScanLight(
-      primaryAnalysis.contentSummary,
-      domain,
-      productName,
-    );
-    functions.logger.info(`Step 6 done: visibility ${aeoResult.visibilityScore}/100, ${aeoResult.queriesCited}/${aeoResult.queriesChecked} cited`);
-  } catch (err: any) {
-    functions.logger.warn(`Step 6 AEO scan failed (non-fatal): ${err.message}`);
+  if (includeAeo) {
+    try {
+      functions.logger.info('Step 6: Running AEO light scan...');
+      const productName = primaryAnalysis.title?.replace(/[—–|:].*/,  '').trim() || undefined;
+      aeoResult = await runAeoScanLight(
+        primaryAnalysis.contentSummary,
+        domain,
+        productName,
+      );
+      functions.logger.info(`Step 6 done: visibility ${aeoResult.visibilityScore}/100, ${aeoResult.queriesCited}/${aeoResult.queriesChecked} cited`);
+    } catch (err: any) {
+      functions.logger.warn(`Step 6 AEO scan failed (non-fatal): ${err.message}`);
+    }
+  } else {
+    functions.logger.info('Step 6: AEO scan skipped (includeAeo=false)');
   }
 
   // Calculate scores (now includes per-page issues)

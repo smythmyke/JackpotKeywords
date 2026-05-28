@@ -33,6 +33,8 @@ import {
   isAdminApiCustomer,
   AEO_SCAN_COST_CENTS,
   RECOMMEND_COST_CENTS,
+  RECOMMEND_DEEP_COST_CENTS,
+  AUDIT_COST_CENTS,
   MIN_TOPUP_CENTS,
   TOPUP_PACKS,
 } from '../services/apiCredits';
@@ -44,11 +46,13 @@ import {
 } from '../services/gemini';
 import {
   expandAutocomplete,
+  discoverCompetitors,
 } from '../services/autocomplete';
 import { enrichKeywords } from '../services/keywordPlanner';
 import { fetchAndParse } from '../services/htmlParser';
 import { overlayTrends } from '../services/googleTrends';
 import { inferCategory } from '../services/categoryInference';
+import { runSeoAudit } from '../services/seoAudit';
 
 const router = Router();
 
@@ -77,14 +81,18 @@ router.post('/signup', async (req, res) => {
     return;
   }
   try {
-    const { customer, apiKey, newSignup } = await createApiCustomer(email);
+    // /signup happens before the caller has a key, so apiKeyAuth doesn't run
+    // here. Derive the first-touch source from User-Agent independently.
+    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    const signupSource = ua.startsWith('jackpotkeywords-mcp-server') ? 'mcp' : 'api';
+    const { customer, apiKey, newSignup } = await createApiCustomer(email, signupSource);
     res.json({
       apiKey,
       balanceCents: customer.balanceCents,
       customerId: customer.id,
       newSignup,
       message: newSignup
-        ? 'Welcome — your $5.00 starter credit has been applied.'
+        ? 'Welcome — your $2.00 starter credit has been applied. Top up via POST /v1/topup ($5 minimum) when you need more.'
         : 'Existing customer — a new API key has been issued. Your previous key still works unless revoked.',
     });
   } catch (err: any) {
@@ -171,6 +179,7 @@ router.post('/topup', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) 
         purpose: 'api_topup',
         apiCustomerId: c.id,
         amountCents: String(amountCents),
+        source: req.apiSource || 'api',
       },
       payment_intent_data: {
         statement_descriptor: 'JACKPOTKEYWORDS API',
@@ -217,7 +226,7 @@ router.post('/aeo-scan', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, re
   let newBalance: number;
   let callId: string;
   try {
-    ({ newBalance, callId } = await deductBalance(c.id, AEO_SCAN_COST_CENTS, '/v1/aeo-scan'));
+    ({ newBalance, callId } = await deductBalance(c.id, AEO_SCAN_COST_CENTS, '/v1/aeo-scan', req.apiSource));
   } catch (err: any) {
     res.status(402).json({ error: 'insufficient_balance', message: err.message });
     return;
@@ -361,7 +370,7 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
   let newBalance: number;
   let callId: string;
   try {
-    ({ newBalance, callId } = await deductBalance(c.id, RECOMMEND_COST_CENTS, '/v1/recommend'));
+    ({ newBalance, callId } = await deductBalance(c.id, RECOMMEND_COST_CENTS, '/v1/recommend', req.apiSource));
   } catch (err: any) {
     res.status(402).json({ error: 'insufficient_balance', message: err.message });
     return;
@@ -507,5 +516,264 @@ function errCodeFromMessage(message: string): string {
   if (m.includes('invalid') || m.includes('parse')) return 'parse_error';
   return 'other';
 }
+
+/**
+ * POST /api/v1/recommend-deep
+ * body: { description?, url?, budget?, location?, limit? }
+ *
+ * Same input contract as /v1/recommend, but runs the fuller consumer-search
+ * pipeline: adds competitor discovery in parallel with autocomplete, and
+ * surfaces the cluster + category + competitor-brand aggregates that
+ * /v1/recommend computes internally and then discards.
+ *
+ * Cost: $0.30 (30 cents) — 3x /v1/recommend. Refunded on pipeline failure.
+ * Defaults: limit=50, max=200.
+ */
+router.post('/recommend-deep', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) => {
+  const c = req.apiCustomer!;
+  const { description, url, budget, location, limit: rawLimit } = req.body || {};
+
+  if ((!description || !description.toString().trim()) && (!url || !url.toString().trim())) {
+    res.status(400).json({
+      error: 'missing_input',
+      message: 'Provide a "description" or "url" (or both).',
+    });
+    return;
+  }
+
+  const limit = Math.max(1, Math.min(200, parseInt(rawLimit, 10) || 50));
+
+  if (!isAdminApiCustomer(c) && c.balanceCents < RECOMMEND_DEEP_COST_CENTS) {
+    res.status(402).json({
+      error: 'insufficient_balance',
+      message: `Need ${RECOMMEND_DEEP_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
+      balanceCents: c.balanceCents,
+    });
+    return;
+  }
+
+  let newBalance: number;
+  let callId: string;
+  try {
+    ({ newBalance, callId } = await deductBalance(c.id, RECOMMEND_DEEP_COST_CENTS, '/v1/recommend-deep', req.apiSource));
+  } catch (err: any) {
+    res.status(402).json({ error: 'insufficient_balance', message: err.message });
+    return;
+  }
+
+  const startTime = Date.now();
+  try {
+    // Step 0: URL fetch + context
+    let parsedPage: Awaited<ReturnType<typeof fetchAndParse>> | undefined;
+    if (url) {
+      parsedPage = await fetchAndParse(url.toString());
+    }
+    const context = await extractProductContext(
+      (description || '').toString(),
+      url ? url.toString() : undefined,
+      parsedPage,
+    );
+
+    // Step 1: AI seed generation
+    const seeds = await generateSeeds(context, location);
+
+    // Step 1b + 2: Competitor discovery + autocomplete in parallel (the
+    // "deep" delta vs /v1/recommend). Adds competitor-derived seeds to
+    // the master list, which broadens KP enrichment downstream.
+    const [competitorSeeds, autocompleteKeywords] = await Promise.all([
+      discoverCompetitors(seeds.productLabel, seeds.allSeeds),
+      expandAutocomplete(seeds.topSeeds),
+    ]);
+    if (competitorSeeds.length > 0) {
+      seeds.allSeeds.push(...competitorSeeds);
+    }
+
+    // Step 3: Merge & dedupe seeds + autocomplete
+    const sourceCounts = new Map<string, Set<string>>();
+    const seen = new Set<string>();
+    const masterList: { keyword: string; category: string; source: string }[] = [];
+    for (const seed of seeds.allSeeds) {
+      const key = seed.keyword.toLowerCase().trim();
+      const set = sourceCounts.get(key) ?? new Set<string>();
+      set.add(seed.source);
+      sourceCounts.set(key, set);
+      if (!seen.has(key)) {
+        seen.add(key);
+        masterList.push(seed);
+      }
+    }
+    for (const kw of autocompleteKeywords) {
+      const key = kw.keyword.toLowerCase().trim();
+      const set = sourceCounts.get(key) ?? new Set<string>();
+      set.add(kw.source);
+      sourceCounts.set(key, set);
+      if (!seen.has(key)) {
+        seen.add(key);
+        masterList.push({ ...kw, category: inferCategory(kw.keyword) });
+      }
+    }
+
+    // Step 4: KP enrichment
+    const enriched = await enrichKeywords(masterList);
+    for (const kw of enriched) {
+      const key = kw.keyword.toLowerCase().trim();
+      const src = (kw as any).source;
+      if (src) {
+        const set = sourceCounts.get(key) ?? new Set<string>();
+        set.add(src);
+        sourceCounts.set(key, set);
+      }
+    }
+    let maxPlatforms = 1;
+    for (const set of sourceCounts.values()) {
+      if (set.size > maxPlatforms) maxPlatforms = set.size;
+    }
+
+    // Step 5: Trends overlay
+    const withTrends = await overlayTrends(enriched);
+
+    // Step 6: AI scoring + classification (writes clusters + categories)
+    const scored = await scoreAndClassify(withTrends, context, budget, { sourceCounts, maxPlatforms });
+
+    scored.keywords.sort((a, b) => (b.jackpotScore_v2 ?? b.jackpotScore) - (a.jackpotScore_v2 ?? a.jackpotScore));
+    const recommendations = scored.keywords.slice(0, limit).map((kw) => ({
+      keyword: kw.keyword,
+      monthlyVolume: kw.avgMonthlySearches,
+      lowCpc: kw.lowCpc,
+      highCpc: kw.highCpc,
+      competition: kw.competition,
+      jackpotScore: kw.jackpotScore_v2 ?? kw.jackpotScore,
+      intent: kw.intent,
+      category: kw.category,
+      trendDirection: kw.trendDirection,
+      suggestHits: kw.suggestHits,
+    }));
+
+    const latencyMs = Date.now() - startTime;
+    res.json({
+      productName: context.productName || context.productLabel,
+      query: description || '',
+      url: url || '',
+      recommendations,
+      clusters: scored.clusters,
+      categories: scored.categories,
+      competitors: context.competitors,
+      totalCandidates: scored.keywords.length,
+      returned: recommendations.length,
+      balanceCents: newBalance,
+      executionTimeMs: latencyMs,
+    });
+    void recordApiCallResult(callId, {
+      ok: true,
+      latencyMs,
+      resultCount: recommendations.length,
+    });
+  } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
+    functions.logger.error('v1/recommend-deep error:', err.stack || err.message);
+    let refunded = false;
+    try {
+      await refundBalance(c.id, RECOMMEND_DEEP_COST_CENTS, `recommend-deep failed: ${err.message}`);
+      refunded = true;
+    } catch { /* non-fatal */ }
+    void recordApiCallResult(callId, {
+      ok: false,
+      latencyMs,
+      errCode: errCodeFromMessage(err.message),
+      refunded,
+    });
+    res.status(500).json({
+      error: 'recommend_deep_failed',
+      message: 'Deep keyword recommendation failed. Your balance has been refunded.',
+    });
+  }
+});
+
+/**
+ * POST /api/v1/audit
+ * body: { url }
+ *
+ * SEO audit: page-quality checks, keyword gaps, recommendations, per-page
+ * issues, scores. AEO is intentionally NOT bundled — customers who want
+ * AI-visibility data buy it separately via /v1/aeo-scan.
+ *
+ * Cost: $0.50 (50 cents). Refunded on pipeline failure.
+ */
+router.post('/audit', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) => {
+  const c = req.apiCustomer!;
+  const rawUrl = (req.body?.url || '').toString().trim();
+
+  if (!rawUrl) {
+    res.status(400).json({ error: 'missing_url', message: 'A url is required.' });
+    return;
+  }
+
+  // Normalize + validate (mirrors consumer audit handler)
+  let normalizedUrl = rawUrl;
+  if (!/^https?:\/\//i.test(normalizedUrl)) {
+    normalizedUrl = `https://${normalizedUrl}`;
+  }
+  try {
+    const parsed = new URL(normalizedUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+  } catch {
+    res.status(400).json({
+      error: 'invalid_url',
+      message: 'Invalid URL. Provide a domain like example.com or a full URL like https://example.com.',
+    });
+    return;
+  }
+
+  if (!isAdminApiCustomer(c) && c.balanceCents < AUDIT_COST_CENTS) {
+    res.status(402).json({
+      error: 'insufficient_balance',
+      message: `Need ${AUDIT_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
+      balanceCents: c.balanceCents,
+    });
+    return;
+  }
+
+  let newBalance: number;
+  let callId: string;
+  try {
+    ({ newBalance, callId } = await deductBalance(c.id, AUDIT_COST_CENTS, '/v1/audit', req.apiSource));
+  } catch (err: any) {
+    res.status(402).json({ error: 'insufficient_balance', message: err.message });
+    return;
+  }
+
+  const startTime = Date.now();
+  try {
+    const auditData = await runSeoAudit(normalizedUrl, { includeAeo: false });
+    const latencyMs = Date.now() - startTime;
+    res.json({
+      ...auditData,
+      url: normalizedUrl,
+      balanceCents: newBalance,
+      executionTimeMs: latencyMs,
+    });
+    void recordApiCallResult(callId, { ok: true, latencyMs });
+  } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
+    functions.logger.error('v1/audit error:', err.stack || err.message);
+    let refunded = false;
+    try {
+      await refundBalance(c.id, AUDIT_COST_CENTS, `audit failed: ${err.message}`);
+      refunded = true;
+    } catch { /* non-fatal */ }
+    void recordApiCallResult(callId, {
+      ok: false,
+      latencyMs,
+      errCode: errCodeFromMessage(err.message),
+      refunded,
+    });
+    res.status(500).json({
+      error: 'audit_failed',
+      message: 'SEO audit failed. Your balance has been refunded.',
+    });
+  }
+});
 
 export default router;
