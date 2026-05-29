@@ -10,6 +10,26 @@ const db = admin.firestore();
 const ADMIN_EMAILS = ['smythmyke@gmail.com'];
 
 /**
+ * Should a given email be excluded from all stats counters?
+ *
+ * - Admin (smythmyke@gmail.com) — internal usage, never counted as a customer.
+ * - Anything ending @example.com — convention for smoke-test accounts.
+ * - Anything with "test" in the local-part — covers v1-test-*, mcp-test-*, etc.
+ *
+ * Null/empty email returns false: we can't classify, so we err toward keeping
+ * the row (it'll bucket as "unknown" until backfilled). Same predicate is used
+ * by MarkItUp and Bull-Generator admin handlers — keep these in sync.
+ */
+function isExcludedEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const e = email.toLowerCase().trim();
+  if (e === 'smythmyke@gmail.com') return true;
+  if (e.endsWith('@example.com')) return true;
+  if (e.includes('test')) return true;
+  return false;
+}
+
+/**
  * GET /api/admin/stats
  * Aggregate user + credit + transaction counts for the JK dashboard.
  * Auth: x-admin-key header must match ADMIN_API_KEY env var (shared secret
@@ -72,6 +92,67 @@ router.get('/stats', async (req, res) => {
       functions.logger.warn('Admin stats: skipping recentPurchases (index not enabled):', txErr.message);
     }
 
+    // --- API customer system attribution rollups (separate from consumer app) ---
+    // JackpotKeywords has two revenue surfaces in the API system: "mcp" (calls
+    // through the published MCP server) and "api" (direct REST). "unknown" is
+    // a bucket for pre-attribution legacy rows.
+    const SOURCES = ['mcp', 'api', 'unknown'] as const;
+    type Bucket = typeof SOURCES[number];
+    const bucket = (v: unknown): Bucket =>
+      v === 'mcp' || v === 'api' ? v : 'unknown';
+
+    const usageBySource: Record<Bucket, number> = { mcp: 0, api: 0, unknown: 0 };
+    const revenueBySource: Record<Bucket, { topup: number; subscription: number; total: number }> = {
+      mcp:     { topup: 0, subscription: 0, total: 0 },
+      api:     { topup: 0, subscription: 0, total: 0 },
+      unknown: { topup: 0, subscription: 0, total: 0 },
+    };
+    const usersBySignupSource: Record<Bucket, number> = { mcp: 0, api: 0, unknown: 0 };
+
+    try {
+      // First pass: load customers and build the set of excluded customerIds
+      // (admin + smoke-test accounts) so we can filter their calls and
+      // transactions in the subsequent passes. We do this before iterating
+      // apiCalls / apiTransactions so the filter applies uniformly.
+      const apiCustomersSnap = await db.collection('apiCustomers').get();
+      const excludedCustomerIds = new Set<string>();
+      apiCustomersSnap.forEach(doc => {
+        const d = doc.data();
+        if (isExcludedEmail(d.email as string | undefined)) {
+          excludedCustomerIds.add(doc.id);
+          return;
+        }
+        usersBySignupSource[bucket(d.signupSource)] += 1;
+      });
+
+      // Count API calls by source (skip admin-flagged rows and rows owned by
+      // excluded customers so internal/test usage never pollutes attribution).
+      const callsSnap = await db.collection('apiCalls').get();
+      callsSnap.forEach(doc => {
+        const d = doc.data();
+        if (d.admin) return;
+        if (excludedCustomerIds.has(d.customerId)) return;
+        usageBySource[bucket(d.source)] += 1;
+      });
+
+      // Sum topup revenue by source. JK's API system has no subscriptions
+      // today; everything goes into the topup bucket. Schema kept consistent
+      // with MarkItUp/PatentSearch so the same dashboard renderer works.
+      const txSnap = await db.collection('apiTransactions')
+        .where('type', '==', 'topup')
+        .get();
+      txSnap.forEach(doc => {
+        const d = doc.data();
+        if (excludedCustomerIds.has(d.customerId)) return;
+        const b = bucket(d.source);
+        const amount = Number(d.amountCents || 0);
+        revenueBySource[b].topup += amount;
+        revenueBySource[b].total += amount;
+      });
+    } catch (err: any) {
+      functions.logger.warn('Admin stats: API attribution rollups failed:', err.message);
+    }
+
     res.json({
       totalUsers,
       planCounts,
@@ -79,6 +160,11 @@ router.get('/stats', async (req, res) => {
       currentCreditsBalance: currentBalance,
       lifetimeCreditsUsed: lifetimeUsed,
       recentPurchases,
+      // API customer system attribution (mcp / api / unknown only — JK's API
+      // system has no extension/website/canva surfaces).
+      usageBySource,
+      revenueBySource,
+      usersBySignupSource,
       fetched_at: new Date().toISOString(),
     });
   } catch (err: any) {
