@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import * as functions from 'firebase-functions';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS } from '@jackpotkeywords/shared';
-import { creditTopup } from './apiCredits';
+import { creditTopup, coerceApiSource } from './apiCredits';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia' as Stripe.LatestApiVersion,
@@ -88,10 +88,11 @@ export async function handleWebhook(event: Stripe.Event): Promise<void> {
       if (meta.purpose === 'api_topup' && meta.apiCustomerId && meta.amountCents) {
         const apiCustomerId = meta.apiCustomerId;
         const amountCents = parseInt(meta.amountCents, 10);
+        const source = coerceApiSource(meta.source);
         if (Number.isFinite(amountCents) && amountCents > 0) {
           try {
-            await creditTopup(apiCustomerId, amountCents, session.id);
-            functions.logger.info(`API top-up credited: ${amountCents} cents to customer ${apiCustomerId}`);
+            await creditTopup(apiCustomerId, amountCents, session.id, source);
+            functions.logger.info(`API top-up credited: ${amountCents} cents to customer ${apiCustomerId} (source: ${source})`);
           } catch (err: any) {
             functions.logger.error(`API top-up credit failed for ${apiCustomerId}: ${err.message}`);
           }

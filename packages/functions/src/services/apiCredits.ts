@@ -36,6 +36,20 @@ export const AUDIT_COST_CENTS = 50;          // $0.50 per /v1/audit — SEO-only
 export const SCORE_COST_PER_KW_HUNDREDTHS = 50;  // $0.005 per keyword = 50 hundredths of a cent (1B)
 
 /**
+ * Per-operation cost lookup, keyed by the endpoint slug used by the async job
+ * layer (POST /v1/jobs). Lets the job initiator do a fast balance pre-check
+ * before enqueueing — the actual deduction still happens when the worker calls
+ * the matching sync endpoint, so this stays a convenience, not a second source
+ * of truth.
+ */
+export const OPERATION_COST_CENTS: Readonly<Record<string, number>> = {
+  recommend: RECOMMEND_COST_CENTS,
+  'recommend-deep': RECOMMEND_DEEP_COST_CENTS,
+  'aeo-scan': AEO_SCAN_COST_CENTS,
+  audit: AUDIT_COST_CENTS,
+};
+
+/**
  * Emails that get unlimited free API use. Same pattern as the consumer-app
  * admin bypass for smythmyke@gmail.com. Calls still get logged to apiCalls
  * with `admin: true` so usage stats stay accurate and the analyze script
@@ -48,6 +62,20 @@ export function isAdminApiCustomer(customer: { email: string } | null | undefine
   return ADMIN_EMAILS.has(customer.email.toLowerCase().trim());
 }
 
+/**
+ * Whether a customer's calls skip balance deduction. True for admins (free
+ * internal use) and for the RapidAPI "house" account, where RapidAPI is the
+ * ledger — it meters + bills its own subscribers, so JK must not also deduct.
+ * Calls are still logged to apiCalls either way. Use this (not isAdmin) for the
+ * per-endpoint balance pre-checks so the house account isn't 402'd on $0.
+ */
+export function isBillingExemptApiCustomer(
+  customer: { email: string; billingExempt?: boolean } | null | undefined,
+): boolean {
+  if (!customer) return false;
+  return isAdminApiCustomer(customer) || customer.billingExempt === true;
+}
+
 export const TOPUP_PACKS = [
   { id: 'mini',    label: '$5', amountCents: 500 },
   { id: 'starter', label: '$25', amountCents: 2500 },
@@ -56,14 +84,15 @@ export const TOPUP_PACKS = [
 ] as const;
 
 /**
- * Which surface a request came from. The API customer system has only two
- * surfaces today: the published MCP server, or direct API calls. Both share
- * the same auth (Bearer jk_live_<key>) and billing — this is purely for the
- * seller dashboard's attribution rollups.
+ * Which surface a request came from. 'mcp' = the published MCP server, 'api' =
+ * direct calls (incl. n8n/Zapier), 'rapidapi' = proxied through the RapidAPI
+ * gateway (the house account; RapidAPI owns billing). 'mcp'/'api' share the
+ * same Bearer jk_live_<key> auth + JK billing; 'rapidapi' is billing-exempt on
+ * JK's side. Used for the seller dashboard's attribution rollups.
  */
-export type ApiSource = 'mcp' | 'api';
+export type ApiSource = 'mcp' | 'api' | 'rapidapi';
 
-const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api']);
+const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api', 'rapidapi']);
 
 /** Validate an arbitrary value against ApiSource, defaulting to "api". */
 export function coerceApiSource(value: unknown): ApiSource {
@@ -81,6 +110,12 @@ export interface ApiCustomer {
   createdAt: string;
   /** First-touch surface that triggered customer creation. Never overwritten. */
   signupSource?: ApiSource;
+  /**
+   * When true, this customer's calls skip balance deduction (calls are still
+   * logged). Set on the single RapidAPI "house" account, where RapidAPI is the
+   * ledger. Distinct from admin so RapidAPI revenue stays visible in attribution.
+   */
+  billingExempt?: boolean;
 }
 
 export interface ApiKeyRecord {
@@ -130,6 +165,18 @@ export async function getCustomerByApiKey(rawKey: string): Promise<ApiCustomer |
     .catch(() => { /* non-fatal */ });
 
   return { id: customerDoc.id, ...(customerDoc.data() as Omit<ApiCustomer, 'id'>) };
+}
+
+/**
+ * Look up a customer directly by their document id. Used by the async job
+ * worker, which authenticates internally (shared secret + customer id) rather
+ * than by raw API key. Returns null if the customer doesn't exist.
+ */
+export async function getApiCustomerById(customerId: string): Promise<ApiCustomer | null> {
+  if (!customerId) return null;
+  const doc = await db.doc(`apiCustomers/${customerId}`).get();
+  if (!doc.exists) return null;
+  return { id: doc.id, ...(doc.data() as Omit<ApiCustomer, 'id'>) };
 }
 
 /**
@@ -305,9 +352,12 @@ export async function deductBalance(
     if (!snap.exists) throw new Error('Customer not found');
     const data = snap.data() as ApiCustomer;
     const isAdmin = ADMIN_EMAILS.has(data.email);
+    // RapidAPI house account is billing-exempt (RapidAPI is the ledger) but is
+    // NOT admin — so it skips deduction here yet stays out of the admin filter.
+    const isExempt = isAdmin || data.billingExempt === true;
 
     let nextBalance = data.balanceCents;
-    if (!isAdmin) {
+    if (!isExempt) {
       if (data.balanceCents < costCents) {
         throw new Error(`Insufficient balance: have ${data.balanceCents} cents, need ${costCents}`);
       }

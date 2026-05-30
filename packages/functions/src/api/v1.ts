@@ -31,30 +31,61 @@ import {
   refundBalance,
   recordApiCallResult,
   isAdminApiCustomer,
+  isBillingExemptApiCustomer,
   AEO_SCAN_COST_CENTS,
   RECOMMEND_COST_CENTS,
   RECOMMEND_DEEP_COST_CENTS,
   AUDIT_COST_CENTS,
   MIN_TOPUP_CENTS,
   TOPUP_PACKS,
+  OPERATION_COST_CENTS,
 } from '../services/apiCredits';
+import {
+  API_JOB_OPERATIONS,
+  createApiJob,
+  getApiJob,
+  type ApiJobOperation,
+} from '../services/apiJobs';
 import { runAeoScanFull } from '../services/aeoScan';
-import {
-  extractProductContext,
-  generateSeeds,
-  scoreAndClassify,
-} from '../services/gemini';
-import {
-  expandAutocomplete,
-  discoverCompetitors,
-} from '../services/autocomplete';
-import { enrichKeywords } from '../services/keywordPlanner';
-import { fetchAndParse } from '../services/htmlParser';
-import { overlayTrends } from '../services/googleTrends';
-import { inferCategory } from '../services/categoryInference';
+import { extractProductContext } from '../services/gemini';
+import { runRecommendPipeline } from '../services/recommendPipeline';
 import { runSeoAudit } from '../services/seoAudit';
 
 const router = Router();
+
+/**
+ * RapidAPI billing: per-route Credit cost (1 Credit = 1 US cent of list price).
+ * Keyed by the router-relative req.path. Endpoints absent here bill 0 Credits.
+ */
+const RAPIDAPI_BILLABLE_CREDITS: Readonly<Record<string, number>> = {
+  '/recommend': RECOMMEND_COST_CENTS,
+  '/recommend-deep': RECOMMEND_DEEP_COST_CENTS,
+  '/aeo-scan': AEO_SCAN_COST_CENTS,
+  '/audit': AUDIT_COST_CENTS,
+};
+
+/**
+ * Emit the X-RapidAPI-Billing header on RapidAPI-sourced requests so RapidAPI
+ * meters the call against our `Credits` custom quota. Patches res.json (read at
+ * call time, after apiKeyAuth has set req.apiSource):
+ *   - 2xx success → Credits = the route's cent cost
+ *   - non-2xx     → Credits = 0 (don't bill the dev for their own bad input;
+ *                   RapidAPI also ignores >=500 on its own, matching our
+ *                   refund-on-failure contract)
+ * No-op for every other surface.
+ */
+router.use((req: ApiKeyRequest, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body?: unknown) => {
+    if (req.apiSource === 'rapidapi') {
+      const cost = RAPIDAPI_BILLABLE_CREDITS[req.path] ?? 0;
+      const credits = res.statusCode >= 200 && res.statusCode < 300 ? cost : 0;
+      res.setHeader('X-RapidAPI-Billing', `Credits=${credits}`);
+    }
+    return originalJson(body);
+  };
+  next();
+});
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia' as Stripe.LatestApiVersion,
@@ -107,6 +138,21 @@ router.post('/signup', async (req, res) => {
  */
 router.get('/me', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) => {
   const c = req.apiCustomer!;
+  // RapidAPI consumers share the house account — its balance is meaningless to
+  // them (RapidAPI owns billing). Return a surface-appropriate probe instead.
+  if (req.apiSource === 'rapidapi') {
+    res.json({
+      surface: 'rapidapi',
+      message: 'Authenticated via RapidAPI. Usage is billed through your RapidAPI subscription.',
+      creditCosts: {
+        '/v1/recommend': RECOMMEND_COST_CENTS,
+        '/v1/recommend-deep': RECOMMEND_DEEP_COST_CENTS,
+        '/v1/audit': AUDIT_COST_CENTS,
+        '/v1/aeo-scan': AEO_SCAN_COST_CENTS,
+      },
+    });
+    return;
+  }
   const admin = isAdminApiCustomer(c);
   res.json({
     customerId: c.id,
@@ -214,7 +260,7 @@ router.post('/aeo-scan', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, re
     return;
   }
 
-  if (!isAdminApiCustomer(c) && c.balanceCents < AEO_SCAN_COST_CENTS) {
+  if (!isBillingExemptApiCustomer(c) && c.balanceCents < AEO_SCAN_COST_CENTS) {
     res.status(402).json({
       error: 'insufficient_balance',
       message: `Need ${AEO_SCAN_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
@@ -358,7 +404,7 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
 
   const limit = Math.max(1, Math.min(200, parseInt(rawLimit, 10) || 50));
 
-  if (!isAdminApiCustomer(c) && c.balanceCents < RECOMMEND_COST_CENTS) {
+  if (!isBillingExemptApiCustomer(c) && c.balanceCents < RECOMMEND_COST_CENTS) {
     res.status(402).json({
       error: 'insufficient_balance',
       message: `Need ${RECOMMEND_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
@@ -378,102 +424,22 @@ router.post('/recommend', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, r
 
   const startTime = Date.now();
   try {
-    // Step 0: Optional URL fetch + product context extraction
-    let parsedPage: Awaited<ReturnType<typeof fetchAndParse>> | undefined;
-    if (url) {
-      parsedPage = await fetchAndParse(url.toString());
-    }
-    const context = await extractProductContext(
-      (description || '').toString(),
-      url ? url.toString() : undefined,
-      parsedPage,
-    );
-
-    // Step 1: AI seed generation
-    const seeds = await generateSeeds(context, location);
-
-    // Step 2: Autocomplete expansion (skipping competitor discovery for API
-    // recommend — adds 5+ seconds and competitors are surfaced separately
-    // via context.competitors anyway)
-    const autocompleteKeywords = await expandAutocomplete(seeds.topSeeds);
-
-    // Step 3: Merge & dedupe seeds + autocomplete keywords
-    const sourceCounts = new Map<string, Set<string>>();
-    const seen = new Set<string>();
-    const masterList: { keyword: string; category: string; source: string }[] = [];
-    for (const seed of seeds.allSeeds) {
-      const key = seed.keyword.toLowerCase().trim();
-      const set = sourceCounts.get(key) ?? new Set<string>();
-      set.add(seed.source);
-      sourceCounts.set(key, set);
-      if (!seen.has(key)) {
-        seen.add(key);
-        masterList.push(seed);
-      }
-    }
-    for (const kw of autocompleteKeywords) {
-      const key = kw.keyword.toLowerCase().trim();
-      const set = sourceCounts.get(key) ?? new Set<string>();
-      set.add(kw.source);
-      sourceCounts.set(key, set);
-      if (!seen.has(key)) {
-        seen.add(key);
-        masterList.push({ ...kw, category: inferCategory(kw.keyword) });
-      }
-    }
-
-    // Step 4: Google Ads Keyword Planner enrichment
-    const enriched = await enrichKeywords(masterList);
-    for (const kw of enriched) {
-      const key = kw.keyword.toLowerCase().trim();
-      const src = (kw as any).source;
-      if (src) {
-        const set = sourceCounts.get(key) ?? new Set<string>();
-        set.add(src);
-        sourceCounts.set(key, set);
-      }
-    }
-    let maxPlatforms = 1;
-    for (const set of sourceCounts.values()) {
-      if (set.size > maxPlatforms) maxPlatforms = set.size;
-    }
-
-    // Step 5: Google Trends overlay
-    const withTrends = await overlayTrends(enriched);
-
-    // Step 6: AI scoring + classification (writes jackpotScore + jackpotScore_v2)
-    const scored = await scoreAndClassify(withTrends, context, budget, { sourceCounts, maxPlatforms });
-
-    // Sort by v2 (composite) score descending and trim to limit
-    scored.keywords.sort((a, b) => (b.jackpotScore_v2 ?? b.jackpotScore) - (a.jackpotScore_v2 ?? a.jackpotScore));
-    const recommendations = scored.keywords.slice(0, limit).map((kw) => ({
-      keyword: kw.keyword,
-      monthlyVolume: kw.avgMonthlySearches,
-      lowCpc: kw.lowCpc,
-      highCpc: kw.highCpc,
-      competition: kw.competition,
-      jackpotScore: kw.jackpotScore_v2 ?? kw.jackpotScore,
-      intent: kw.intent,
-      category: kw.category,
-      trendDirection: kw.trendDirection,
-      suggestHits: kw.suggestHits,
-    }));
-
+    const result = await runRecommendPipeline({ description, url, budget, location, limit });
     const latencyMs = Date.now() - startTime;
     res.json({
-      productName: context.productName || context.productLabel,
-      query: description || '',
-      url: url || '',
-      recommendations,
-      totalCandidates: scored.keywords.length,
-      returned: recommendations.length,
+      productName: result.productName,
+      query: result.query,
+      url: result.url,
+      recommendations: result.recommendations,
+      totalCandidates: result.totalCandidates,
+      returned: result.returned,
       balanceCents: newBalance,
       executionTimeMs: latencyMs,
     });
     void recordApiCallResult(callId, {
       ok: true,
       latencyMs,
-      resultCount: recommendations.length,
+      resultCount: result.returned,
     });
   } catch (err: any) {
     const latencyMs = Date.now() - startTime;
@@ -543,7 +509,7 @@ router.post('/recommend-deep', apiKeyAuth, apiRateLimit, async (req: ApiKeyReque
 
   const limit = Math.max(1, Math.min(200, parseInt(rawLimit, 10) || 50));
 
-  if (!isAdminApiCustomer(c) && c.balanceCents < RECOMMEND_DEEP_COST_CENTS) {
+  if (!isBillingExemptApiCustomer(c) && c.balanceCents < RECOMMEND_DEEP_COST_CENTS) {
     res.status(402).json({
       error: 'insufficient_balance',
       message: `Need ${RECOMMEND_DEEP_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
@@ -563,110 +529,25 @@ router.post('/recommend-deep', apiKeyAuth, apiRateLimit, async (req: ApiKeyReque
 
   const startTime = Date.now();
   try {
-    // Step 0: URL fetch + context
-    let parsedPage: Awaited<ReturnType<typeof fetchAndParse>> | undefined;
-    if (url) {
-      parsedPage = await fetchAndParse(url.toString());
-    }
-    const context = await extractProductContext(
-      (description || '').toString(),
-      url ? url.toString() : undefined,
-      parsedPage,
-    );
-
-    // Step 1: AI seed generation
-    const seeds = await generateSeeds(context, location);
-
-    // Step 1b + 2: Competitor discovery + autocomplete in parallel (the
-    // "deep" delta vs /v1/recommend). Adds competitor-derived seeds to
-    // the master list, which broadens KP enrichment downstream.
-    const [competitorSeeds, autocompleteKeywords] = await Promise.all([
-      discoverCompetitors(seeds.productLabel, seeds.allSeeds),
-      expandAutocomplete(seeds.topSeeds),
-    ]);
-    if (competitorSeeds.length > 0) {
-      seeds.allSeeds.push(...competitorSeeds);
-    }
-
-    // Step 3: Merge & dedupe seeds + autocomplete
-    const sourceCounts = new Map<string, Set<string>>();
-    const seen = new Set<string>();
-    const masterList: { keyword: string; category: string; source: string }[] = [];
-    for (const seed of seeds.allSeeds) {
-      const key = seed.keyword.toLowerCase().trim();
-      const set = sourceCounts.get(key) ?? new Set<string>();
-      set.add(seed.source);
-      sourceCounts.set(key, set);
-      if (!seen.has(key)) {
-        seen.add(key);
-        masterList.push(seed);
-      }
-    }
-    for (const kw of autocompleteKeywords) {
-      const key = kw.keyword.toLowerCase().trim();
-      const set = sourceCounts.get(key) ?? new Set<string>();
-      set.add(kw.source);
-      sourceCounts.set(key, set);
-      if (!seen.has(key)) {
-        seen.add(key);
-        masterList.push({ ...kw, category: inferCategory(kw.keyword) });
-      }
-    }
-
-    // Step 4: KP enrichment
-    const enriched = await enrichKeywords(masterList);
-    for (const kw of enriched) {
-      const key = kw.keyword.toLowerCase().trim();
-      const src = (kw as any).source;
-      if (src) {
-        const set = sourceCounts.get(key) ?? new Set<string>();
-        set.add(src);
-        sourceCounts.set(key, set);
-      }
-    }
-    let maxPlatforms = 1;
-    for (const set of sourceCounts.values()) {
-      if (set.size > maxPlatforms) maxPlatforms = set.size;
-    }
-
-    // Step 5: Trends overlay
-    const withTrends = await overlayTrends(enriched);
-
-    // Step 6: AI scoring + classification (writes clusters + categories)
-    const scored = await scoreAndClassify(withTrends, context, budget, { sourceCounts, maxPlatforms });
-
-    scored.keywords.sort((a, b) => (b.jackpotScore_v2 ?? b.jackpotScore) - (a.jackpotScore_v2 ?? a.jackpotScore));
-    const recommendations = scored.keywords.slice(0, limit).map((kw) => ({
-      keyword: kw.keyword,
-      monthlyVolume: kw.avgMonthlySearches,
-      lowCpc: kw.lowCpc,
-      highCpc: kw.highCpc,
-      competition: kw.competition,
-      jackpotScore: kw.jackpotScore_v2 ?? kw.jackpotScore,
-      intent: kw.intent,
-      category: kw.category,
-      trendDirection: kw.trendDirection,
-      suggestHits: kw.suggestHits,
-    }));
-
+    const result = await runRecommendPipeline({ description, url, budget, location, limit }, { deep: true });
     const latencyMs = Date.now() - startTime;
     res.json({
-      productName: context.productName || context.productLabel,
-      query: description || '',
-      url: url || '',
-      recommendations,
-      clusters: scored.clusters,
-      categories: scored.categories,
-      competitors: context.competitors,
-      totalCandidates: scored.keywords.length,
-      returned: recommendations.length,
+      productName: result.productName,
+      query: result.query,
+      url: result.url,
+      recommendations: result.recommendations,
+      clusters: result.clusters,
+      categories: result.categories,
+      competitors: result.competitors,
+      totalCandidates: result.totalCandidates,
+      returned: result.returned,
       balanceCents: newBalance,
       executionTimeMs: latencyMs,
     });
     void recordApiCallResult(callId, {
       ok: true,
       latencyMs,
-      resultCount: recommendations.length,
+      resultCount: result.returned,
     });
   } catch (err: any) {
     const latencyMs = Date.now() - startTime;
@@ -726,7 +607,7 @@ router.post('/audit', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) 
     return;
   }
 
-  if (!isAdminApiCustomer(c) && c.balanceCents < AUDIT_COST_CENTS) {
+  if (!isBillingExemptApiCustomer(c) && c.balanceCents < AUDIT_COST_CENTS) {
     res.status(402).json({
       error: 'insufficient_balance',
       message: `Need ${AUDIT_COST_CENTS} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
@@ -774,6 +655,133 @@ router.post('/audit', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) 
       message: 'SEO audit failed. Your balance has been refunded.',
     });
   }
+});
+
+/**
+ * SSRF guard for job callback URLs. Only https URLs to allow-listed hosts may
+ * receive job results. Defaults to Zapier's hook hosts.
+ */
+const JOB_CALLBACK_HOSTS = (process.env.JK_JOB_CALLBACK_HOSTS || 'hooks.zapier.com,zapier.com')
+  .split(',')
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+
+function callbackUrlAllowed(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    return JOB_CALLBACK_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * POST /api/v1/jobs
+ * body: { operation, input, callbackUrl? }
+ *
+ * Async wrapper for the long-running synchronous endpoints, for surfaces that
+ * can't hold a 60-180s request open (e.g. Zapier's 30s action timeout). Enqueues
+ * a job (Firestore onCreate trigger runs it), returns immediately. When done,
+ * the worker POSTs the result to callbackUrl (if given) and/or it's pollable via
+ * GET /v1/jobs/:id.
+ *
+ * Billing is NOT done here — the worker calls the matching sync endpoint, which
+ * deducts/refunds exactly as a direct call would. The balance check below is a
+ * fast-fail courtesy so we don't enqueue a job that can't pay.
+ */
+router.post('/jobs', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) => {
+  const c = req.apiCustomer!;
+  const { operation, input, callbackUrl } = req.body || {};
+
+  if (typeof operation !== 'string' || !API_JOB_OPERATIONS.has(operation)) {
+    res.status(400).json({
+      error: 'invalid_operation',
+      message: `operation must be one of: ${[...API_JOB_OPERATIONS].join(', ')}.`,
+    });
+    return;
+  }
+  const op = operation as ApiJobOperation;
+  const inp: Record<string, unknown> =
+    input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+
+  // Light input validation mirroring the sync endpoints, so obviously-doomed
+  // jobs are rejected synchronously rather than failing later via callback.
+  const hasUrl = typeof inp.url === 'string' && inp.url.trim().length > 0;
+  const hasDescription = typeof inp.description === 'string' && inp.description.trim().length > 0;
+  if ((op === 'aeo-scan' || op === 'audit') && !hasUrl) {
+    res.status(400).json({ error: 'missing_url', message: 'input.url is required for this operation.' });
+    return;
+  }
+  if ((op === 'recommend' || op === 'recommend-deep') && !hasUrl && !hasDescription) {
+    res.status(400).json({ error: 'missing_input', message: 'Provide input.url and/or input.description.' });
+    return;
+  }
+
+  if (callbackUrl !== undefined) {
+    if (typeof callbackUrl !== 'string' || !callbackUrlAllowed(callbackUrl)) {
+      res.status(400).json({
+        error: 'invalid_callback_url',
+        message: `callbackUrl must be an https URL on an allowed host (${JOB_CALLBACK_HOSTS.join(', ')}).`,
+      });
+      return;
+    }
+  }
+
+  // Fast-fail balance check (the worker's sync call is the real deduction).
+  const cost = OPERATION_COST_CENTS[op] ?? 0;
+  if (!isBillingExemptApiCustomer(c) && c.balanceCents < cost) {
+    res.status(402).json({
+      error: 'insufficient_balance',
+      message: `Need ${cost} cents (have ${c.balanceCents}). Top up with POST /v1/topup.`,
+      balanceCents: c.balanceCents,
+    });
+    return;
+  }
+
+  try {
+    const jobId = await createApiJob({
+      customerId: c.id,
+      operation: op,
+      input: inp,
+      callbackUrl: typeof callbackUrl === 'string' ? callbackUrl : undefined,
+    });
+    res.json({
+      jobId,
+      status: 'processing',
+      operation: op,
+      message: callbackUrl
+        ? 'Job queued. The result will be POSTed to your callback URL when ready.'
+        : 'Job queued. Poll GET /v1/jobs/{jobId} for the result.',
+    });
+  } catch (err: any) {
+    functions.logger.error('v1/jobs POST error:', err.message);
+    res.status(500).json({ error: 'job_create_failed', message: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/jobs/:id
+ * Returns job status and, once finished, the result or error. Customers can
+ * only read their own jobs.
+ */
+router.get('/jobs/:id', apiKeyAuth, apiRateLimit, async (req: ApiKeyRequest, res) => {
+  const c = req.apiCustomer!;
+  const job = await getApiJob(req.params.id);
+  if (!job || job.customerId !== c.id) {
+    res.status(404).json({ error: 'job_not_found' });
+    return;
+  }
+  res.json({
+    jobId: job.id,
+    operation: job.operation,
+    status: job.status,
+    ...(job.status === 'success' ? { result: job.result } : {}),
+    ...(job.status === 'error' ? { error: job.error } : {}),
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  });
 });
 
 export default router;
