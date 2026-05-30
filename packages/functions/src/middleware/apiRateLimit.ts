@@ -38,6 +38,14 @@ export function apiRateLimit(
     return;
   }
 
+  // RapidAPI enforces its own per-plan rate limits, and all RapidAPI traffic
+  // shares the single house customer — so this per-customer limiter would
+  // throttle every RapidAPI subscriber collectively. Skip it on that path.
+  if (req.apiSource === 'rapidapi') {
+    next();
+    return;
+  }
+
   const now = Date.now();
   const minuteAgo = now - ONE_MINUTE_MS;
   const hourAgo = now - ONE_HOUR_MS;
