@@ -1,0 +1,323 @@
+openapi: 3.0.3
+info:
+  title: JackpotKeywords — Keyword & SEO Intelligence
+  version: "1.0.0"
+  description: >-
+    Keyword research, SEO auditing, and AI-answer-engine (AEO) visibility for any
+    product or page. Give a description and/or a URL; get back volume/CPC/competition
+    data, a ranked Jackpot Score, SEO issues, and AI-search visibility.
+
+
+    **Billing:** usage is metered by your RapidAPI subscription against the
+    `Credits` quota. Each endpoint consumes a fixed number of Credits:
+    `/recommend` = 10, `/recommend-deep` = 30, `/audit` = 50, `/aeo-scan` = 100.
+    Failed requests (5xx) are not charged.
+  contact:
+    name: JackpotKeywords
+    url: https://jackpotkeywords.web.app
+servers:
+  # Overridden by the listing's General-tab Base URL. The direct Cloud Function
+  # URL is used (not Firebase Hosting) to avoid the 60s hosting edge timeout.
+  - url: https://us-central1-even-plate-378520.cloudfunctions.net/api
+    description: Production (direct Cloud Function)
+tags:
+  - name: Keywords
+    description: Keyword research pipeline
+  - name: SEO
+    description: On-page SEO auditing
+  - name: AEO
+    description: AI answer-engine visibility
+  - name: Account
+    description: Surface/health probe
+paths:
+  /api/v1/recommend:
+    post:
+      tags: [Keywords]
+      summary: Ranked keyword recommendations (10 Credits)
+      description: >-
+        Runs the keyword pipeline (context extraction → AI seeds → autocomplete
+        expansion → Keyword Planner enrichment → trends → scoring) and returns
+        keywords ranked by Jackpot Score, descending. Provide `description`,
+        `url`, or both. Typical latency 60–180s.
+      operationId: recommend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+            examples:
+              byDescription:
+                summary: By product description
+                value:
+                  description: Reusable silicone food storage bags for meal prep
+                  limit: 50
+              byUrl:
+                summary: By URL
+                value:
+                  url: https://example.com/products/silicone-bags
+                  budget: 1500
+                  location: United States
+      responses:
+        '200':
+          description: Ranked recommendations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/PipelineError'
+  /api/v1/recommend-deep:
+    post:
+      tags: [Keywords]
+      summary: Deep keyword recommendations with clusters & competitors (30 Credits)
+      description: >-
+        Same input as `/recommend`, plus competitor discovery and the cluster /
+        category / competitor-brand aggregates. Typical latency 90–180s.
+      operationId: recommendDeep
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+            example:
+              description: Reusable silicone food storage bags for meal prep
+              limit: 50
+      responses:
+        '200':
+          description: Ranked recommendations plus aggregates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendDeepResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/PipelineError'
+  /api/v1/audit:
+    post:
+      tags: [SEO]
+      summary: On-page SEO audit (50 Credits)
+      description: >-
+        Crawls the page (and a small set of internal pages), returning
+        page-quality checks, keyword gaps, prioritized recommendations,
+        per-page issues, and scores. AEO is sold separately via `/aeo-scan`.
+      operationId: audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UrlRequest'
+            example:
+              url: https://example.com
+      responses:
+        '200':
+          description: Audit result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/PipelineError'
+  /api/v1/aeo-scan:
+    post:
+      tags: [AEO]
+      summary: AI answer-engine visibility scan (100 Credits)
+      description: >-
+        Checks whether a product/page surfaces in AI answer engines and returns
+        visibility signals. Provide `url` (we extract product context) or
+        `url` + `productContext` to skip extraction. Typical latency 30–120s.
+      operationId: aeoScan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AeoScanRequest'
+            example:
+              url: https://example.com/products/silicone-bags
+      responses:
+        '200':
+          description: AEO scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AeoScanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/PipelineError'
+  /api/v1/me:
+    get:
+      tags: [Account]
+      summary: Surface probe & per-endpoint Credit costs (0 Credits)
+      description: >-
+        Free health/credentials probe. On the RapidAPI surface, returns the
+        surface name and the Credit cost of each endpoint (billing is handled by
+        your RapidAPI subscription).
+      operationId: me
+      responses:
+        '200':
+          description: Surface info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+components:
+  responses:
+    BadRequest:
+      description: Invalid or missing input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: missing_input
+            message: Provide a "description" or "url" (or both).
+    PipelineError:
+      description: Pipeline failed (not charged)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: recommend_failed
+            message: Keyword recommendation failed.
+  schemas:
+    RecommendRequest:
+      type: object
+      description: At least one of `description` or `url` is required.
+      properties:
+        description:
+          type: string
+          description: Plain-language product/service description.
+          example: Reusable silicone food storage bags for meal prep
+        url:
+          type: string
+          format: uri
+          description: Product or landing page URL. Improves context extraction.
+          example: https://example.com/products/silicone-bags
+        budget:
+          type: number
+          description: Optional monthly ad budget (USD) to contextualize scoring.
+          example: 1500
+        location:
+          type: string
+          description: Optional target market.
+          example: United States
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+          description: Number of keywords to return.
+    UrlRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          example: https://example.com
+    AeoScanRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          example: https://example.com/products/silicone-bags
+        productContext:
+          type: object
+          description: Optional pre-extracted context; skips Gemini extraction when provided.
+          additionalProperties: true
+    RecommendationItem:
+      type: object
+      properties:
+        keyword: { type: string, example: silicone food storage bags }
+        monthlyVolume: { type: integer, example: 8100 }
+        lowCpc: { type: number, example: 0.42 }
+        highCpc: { type: number, example: 1.31 }
+        competition: { type: string, example: MEDIUM }
+        jackpotScore: { type: number, example: 87.4 }
+        intent: { type: string, example: transactional }
+        category: { type: string, example: Product }
+        trendDirection: { type: string, example: rising }
+        suggestHits: { type: integer, example: 4 }
+    RecommendResponse:
+      type: object
+      properties:
+        productName: { type: string, example: Silicone Storage Bags }
+        query: { type: string, example: silicone food storage bags }
+        url: { type: string, example: https://example.com/products/silicone-bags }
+        recommendations:
+          type: array
+          items: { $ref: '#/components/schemas/RecommendationItem' }
+        totalCandidates: { type: integer, example: 412 }
+        returned: { type: integer, example: 50 }
+        balanceCents:
+          type: integer
+          description: Internal account balance; not meaningful on the RapidAPI surface.
+        executionTimeMs: { type: integer, example: 94210 }
+    RecommendDeepResponse:
+      allOf:
+        - $ref: '#/components/schemas/RecommendResponse'
+        - type: object
+          properties:
+            clusters:
+              type: object
+              description: Keyword clusters (deep mode only).
+              additionalProperties: true
+            categories:
+              type: object
+              description: Category aggregates (deep mode only).
+              additionalProperties: true
+            competitors:
+              type: object
+              description: Discovered competitor brands (deep mode only).
+              additionalProperties: true
+    AuditResponse:
+      type: object
+      description: >-
+        SEO audit payload. Top-level fields below are always present; the audit
+        body (scores, checks, per-page issues, keyword gaps, recommendations)
+        varies by page and is returned as additional properties.
+      additionalProperties: true
+      properties:
+        url: { type: string, example: https://example.com }
+        balanceCents: { type: integer }
+        executionTimeMs: { type: integer, example: 18400 }
+    AeoScanResponse:
+      type: object
+      description: >-
+        AEO visibility payload. `url` and `productName` plus the scan body
+        (visibility signals, mentions, scoring) which varies by product.
+      additionalProperties: true
+      properties:
+        url: { type: string, example: https://example.com/products/silicone-bags }
+        productName: { type: string, example: Silicone Storage Bags }
+        balanceCents: { type: integer }
+        executionTimeMs: { type: integer, example: 62300 }
+    MeResponse:
+      type: object
+      properties:
+        surface: { type: string, example: rapidapi }
+        message: { type: string }
+        creditCosts:
+          type: object
+          properties:
+            /v1/recommend: { type: integer, example: 10 }
+            /v1/recommend-deep: { type: integer, example: 30 }
+            /v1/audit: { type: integer, example: 50 }
+            /v1/aeo-scan: { type: integer, example: 100 }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
