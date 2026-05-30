@@ -1,7 +1,7 @@
 # RapidAPI Pilot — Build Plan (JackpotKeywords)
 
-**Date:** 2026-05-29
-**Status:** Planned — not started. JK is the portfolio's first RapidAPI surface (best fit + lowest effort; patent-search and GovToolsPro reuse this playbook).
+**Date:** 2026-05-29 (built + deployed 2026-05-30)
+**Status:** LIVE / PUBLIC. Backend shim deployed to `even-plate-378520` and verified in prod (proxy-secret enforced, anti-bypass confirmed, `X-RapidAPI-Billing` emits). House account `9hVHVHX2SypzP7HOC9al` provisioned. RapidAPI listing built (endpoints imported, `Credits` quota, BASIC/PRO/ULTRA plans) and set public 2026-05-30. JK is the portfolio's first RapidAPI surface (best fit + lowest effort; patent-search and GovToolsPro reuse this playbook).
 **Parent plan:** [`DEPLOYMENT-PLAN-2026-05-25.md`](./DEPLOYMENT-PLAN-2026-05-25.md) → Conditional surfaces → RapidAPI entry.
 **Cross-portfolio surface tracker:** `C:/Projects/MarkItUp/planning/MCP-DISTRIBUTION-SURFACES.md`.
 
@@ -98,19 +98,25 @@ Small, additive, behind the proxy-secret gate so existing `jk_live_` / MCP / n8n
 
 ---
 
-## Phase 3 — Pricing tiers (illustrative — finalize against `PRICING-RESEARCH-2026-05-23.md`)
+## Phase 3 — Pricing tiers (LOCKED 2026-05-30, entered in the Monetize tab)
 
-Plans priced as monthly **Credit** allotments. Use **Soft Limit** so over-quota calls bill an overage per Credit rather than hard-blocking. RapidAPI's hard floor: $0.00003/call minimum on paid plans over 500K req/mo; RapidAPI free-tier cap is 1000 req/hr & 500K/mo.
+Plans priced as monthly **Credit** allotments (1 Credit = 1¢ of list value). Paid plans use **Soft Limit** so over-quota calls bill an overage per Credit; the free plan uses a **Hard Limit** so it can never generate cost. MEGA toggled **off** for the pilot. RapidAPI floor: $0.00003/call minimum on paid plans over 500K req/mo; RapidAPI free-tier cap is 1000 req/hr & 500K/mo.
 
-| Plan | Monthly price | Included Credits | Overage / Credit | Rough call mix | Rate limit |
+| Plan | Monthly price | Included Credits | Limit | Overage / Credit | Rough call mix |
 |---|---|---|---|---|---|
-| **Basic (Free)** | $0 | e.g. 300 Credits | hard limit (no overage) | ~30 recommend or ~3 aeo-scan | low (e.g. 30/min) |
-| **Pro** | TBD | e.g. 5,000 Credits | small per-Credit overage | ~500 recommend | medium |
-| **Ultra** | TBD | e.g. 30,000 Credits | smaller per-Credit overage | volume | higher |
+| **BASIC (Free)** | $0 | **100 Credits** | **Hard** | — | ~10 recommend, or 1 aeo-scan, or 2 audits |
+| **PRO** | **$25** | **3,500 Credits** | Soft | **$0.012** | ~350 recommend or ~35 aeo-scan |
+| **ULTRA** | **$99** | **18,000 Credits** | Soft | **$0.009** | ~1,800 recommend or ~180 aeo-scan |
+| ~~MEGA~~ | off for pilot | — | — | — | — |
 
-**Pricing constraints to honor when setting numbers:**
-- Net of RapidAPI's **25%** fee, each Credit must still clear JK's *marginal* cost per call (Gemini + Keyword Planner + Serper). `/aeo-scan` (Serper + grounding) and `/recommend` (KP + Gemini) have real per-call cost — price the Credit so 75% × Credit price > marginal cost.
-- Keep RapidAPI list price **at or above** JK's direct per-call price so the marketplace channel doesn't undercut direct sales.
+**Free-tier alignment with the direct API (resolved 2026-05-30):**
+- **Per-call cost is identical across surfaces** — 1 Credit = 1¢ = the direct API's cent pricing (`/recommend` 10, `/recommend-deep` 30, `/audit` 50, `/aeo-scan` 100). No divergence on price.
+- **Free allowance is structurally different and must stay tighter on RapidAPI.** The direct API gives a **$2.00 one-time** signup credit (`SIGNUP_CREDIT_CENTS = 200`); RapidAPI BASIC is a **recurring monthly** allotment. A monthly free tier compounds, so BASIC was set to **100/month hard** — below the one-time $2 in absolute terms and tight enough that users evaluate rather than operate on free. (300/month was rejected as too generous: it would let a small user run ~30 recommends every month indefinitely.)
+- **Separate ledgers.** RapidAPI bills its own subscribers and pays out 75%; the direct `$2 signup + topup` system is untouched. A RapidAPI BASIC user gets no direct credit and vice-versa — the only shared quantity is the per-call cent cost.
+
+**Pricing constraints honored:**
+- Net of RapidAPI's **25%** fee, each Credit still clears JK's *marginal* cost per call (Gemini + Keyword Planner + Serper). Even at ULTRA's effective ~$0.0055/Credit, an aeo-scan (100 Credits) nets ~$0.55 vs a few cents of marginal cost.
+- RapidAPI list price stays **at or above** JK's direct per-call price (paid overage is premium to the direct rate), so the marketplace channel doesn't undercut direct sales.
 - `/v1/score` stays **off** this surface entirely (Path D — Google Ads ToS exposure).
 
 ---
