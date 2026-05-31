@@ -4,7 +4,7 @@ import * as functions from 'firebase-functions';
 import { authMiddleware, optionalAuthMiddleware, type AuthRequest } from '../middleware/auth';
 import { anonymousRateLimit } from '../middleware/rateLimit';
 import { anonSearchLimit, refundAnonSearch } from '../middleware/anonSearchLimit';
-import { checkAndDeductCredits, refundCredits, getCreditBypassOptions } from '../middleware/credits';
+import { checkAndDeductCredits, refundCredits, getCreditBypassOptions, isEffectiveAdmin } from '../middleware/credits';
 import { runSeoAudit } from '../services/seoAudit';
 import { runMiniKeywordPipeline } from '../services/miniKeywordPipeline';
 import type { SeoAuditResult, MiniKeywordResult } from '@jackpotkeywords/shared';
@@ -259,6 +259,16 @@ router.get('/:auditId', authMiddleware, async (req: AuthRequest, res) => {
   const { auditId } = req.params;
 
   try {
+    // Determine the caller's entitlement (read-only — never deduct credits here).
+    // Authentication alone does NOT grant paid access; only admins, active
+    // subscribers, or an audit they actually paid for unlock the full payload.
+    const callerDoc = await db.doc(`users/${userId}`).get();
+    const callerData = callerDoc.data();
+    const plan = callerData?.plan || 'free';
+    const email = callerData?.email || '';
+    const isAdmin = isEffectiveAdmin(email, req);
+    const entitled = isAdmin || plan === 'pro' || plan === 'agency';
+
     // Check user's personal audits first
     let doc = await db.doc(`users/${userId}/audits/${auditId}`).get();
 
@@ -266,9 +276,11 @@ router.get('/:auditId', authMiddleware, async (req: AuthRequest, res) => {
     if (!doc.exists) {
       doc = await db.doc(`audits/${auditId}`).get();
       if (doc.exists) {
-        // Copy to user's collection for future lookups
+        // Cache into the user's collection for future lookups, PRESERVING the
+        // original paid state. Granting paid:true here was a paywall bypass —
+        // any signed-in user could fetch a global audit and own it for free.
         const data = doc.data()!;
-        const userAuditData = { ...data, userId, paid: true, savedAt: admin.firestore.FieldValue.serverTimestamp() };
+        const userAuditData = { ...data, userId, paid: data.paid === true, savedAt: admin.firestore.FieldValue.serverTimestamp() };
         await db.collection(`users/${userId}/audits`).doc(auditId).set(userAuditData);
       }
     }
@@ -278,9 +290,12 @@ router.get('/:auditId', authMiddleware, async (req: AuthRequest, res) => {
       return;
     }
 
-    // Return with paid=true since user is authenticated
     const data = doc.data()!;
-    res.json({ ...data, paid: true });
+    const paid = entitled || data.paid === true;
+    const response = paid
+      ? { ...data, paid: true }
+      : { ...maskAnonymousAuditResponse(data as unknown as SeoAuditResult), paid: false };
+    res.json(response);
   } catch (error: any) {
     functions.logger.error('Get audit error:', error);
     res.status(500).json({ error: 'Failed to load audit' });

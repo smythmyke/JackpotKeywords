@@ -697,22 +697,40 @@ router.get('/:searchId', authMiddleware, async (req: AuthRequest, res) => {
   const userId = req.userId!;
   const { searchId } = req.params;
 
-  // Check user's saved searches first
-  let doc = await db.doc(`users/${userId}/searches/${searchId}`).get();
+  try {
+    // Determine the caller's entitlement (read-only — never deduct credits here).
+    // Authentication alone does NOT grant paid access; only admins, active
+    // subscribers, or a search they actually paid for unlock the full keyword set.
+    const callerDoc = await db.doc(`users/${userId}`).get();
+    const callerData = callerDoc.data();
+    const plan = callerData?.plan || 'free';
+    const email = callerData?.email || '';
+    const isAdmin = isEffectiveAdmin(email, req);
+    const entitled = isAdmin || plan === 'pro' || plan === 'agency';
 
-  // Fall back to global searches collection (handles anonymous searches claimed after login)
-  if (!doc.exists) {
-    doc = await db.doc(`searches/${searchId}`).get();
+    // Check user's saved searches first
+    let doc = await db.doc(`users/${userId}/searches/${searchId}`).get();
+
+    // Fall back to global searches collection (handles anonymous searches claimed after login)
+    if (!doc.exists) {
+      doc = await db.doc(`searches/${searchId}`).get();
+    }
+
+    if (!doc.exists) {
+      res.status(404).json({ error: 'Search not found' });
+      return;
+    }
+
+    const data = doc.data()!;
+    const paid = entitled || data.paid === true;
+    // Mask keyword strings on read for non-paying callers — the stored doc holds
+    // the full unmasked set, so returning it raw was the sign-in paywall bypass.
+    const payload = maskUnpaidSearchResponse(data as any, paid);
+    res.json({ ...payload, paid });
+  } catch (error: any) {
+    functions.logger.error('Get search error:', error.stack || error.message);
+    res.status(500).json({ error: 'Failed to load search' });
   }
-
-  if (!doc.exists) {
-    res.status(404).json({ error: 'Search not found' });
-    return;
-  }
-
-  // Return with paid=true since user is authenticated
-  const data = doc.data()!;
-  res.json({ ...data, paid: true });
 });
 
 /**

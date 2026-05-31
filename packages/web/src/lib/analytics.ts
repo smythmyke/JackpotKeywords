@@ -7,7 +7,11 @@ export type FunnelEvent =
   | 'upgrade_clicked'
   | 'signin_prompted'
   | 'signin_completed'
-  | 'anon_search_completed';
+  | 'anon_search_completed'
+  // Completion event (NOT purchase intent) — fired after a paid user finishes
+  // a PDF export. Kept out of the upgrade_clicked funnel so checkout_started
+  // stays a trustworthy intent signal.
+  | 'pdf_exported';
 
 export function trackEvent(
   event: FunnelEvent,

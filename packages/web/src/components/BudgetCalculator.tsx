@@ -8,9 +8,7 @@ interface BudgetCalculatorProps {
   keywords: KeywordResult[];
   selectedKeywords: Set<string>;
   paid: boolean;
-  user: any;
   profile: any;
-  signInWithGoogle: () => void;
   getToken: () => Promise<string | null>;
 }
 
@@ -20,7 +18,7 @@ interface ForecastData {
   isEstimate: boolean;
 }
 
-export default function BudgetCalculator({ keywords, selectedKeywords, paid, user, profile, signInWithGoogle, getToken }: BudgetCalculatorProps) {
+export default function BudgetCalculator({ keywords, selectedKeywords, paid, profile, getToken }: BudgetCalculatorProps) {
   const isAdmin = isEffectiveAdmin(profile?.email);
   const userPlan = profile?.plan || 'free';
   const hasAccess = paid || isAdmin || userPlan === 'pro' || userPlan === 'agency';
@@ -110,15 +108,10 @@ export default function BudgetCalculator({ keywords, selectedKeywords, paid, use
       {/* Body */}
       {expanded && (
         <div className="border-t border-gray-800 px-5 py-5">
-          {/* Not signed in */}
-          {!user ? (
-            <div className="text-center py-4">
-              <p className="text-gray-400 text-sm mb-3">Sign in to use the Budget Calculator</p>
-              <button onClick={signInWithGoogle} className="bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold px-5 py-2 rounded-lg text-sm transition">
-                Sign In
-              </button>
-            </div>
-          ) : !hasAccess ? (
+          {/* Locked (anonymous, free, or no credit) → pricing-first.
+              UpgradePrompt handles the not-signed-in case: click a price → Google
+              sign-in → purchase, so anonymous users never hit a bare sign-in wall. */}
+          {!hasAccess ? (
             <div className="py-4">
               <UpgradePrompt mode="inline" featureName="Budget Calculator" />
             </div>

@@ -12,6 +12,7 @@ const ALLOWED_EVENTS = new Set([
   'signin_completed',
   'anon_search_completed',
   'checkout_started',
+  'pdf_exported',
 ]);
 
 const MAX_DETAIL_STR = 200;

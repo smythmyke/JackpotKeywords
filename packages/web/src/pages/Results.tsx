@@ -991,9 +991,7 @@ export default function Results() {
         keywords={allKeywords}
         selectedKeywords={selectedKeywords}
         paid={paid}
-        user={user}
         profile={profile}
-        signInWithGoogle={signInWithGoogle}
         getToken={getToken}
       />
 

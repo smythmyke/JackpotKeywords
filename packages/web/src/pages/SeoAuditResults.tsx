@@ -385,7 +385,7 @@ export default function SeoAuditResults() {
               try {
                 const { exportAuditPdf } = await import('../services/pdfExport');
                 await exportAuditPdf(result, keywordPreview);
-                trackEvent('upgrade_clicked', { source: 'audit_pdf_exported', result: 'success' });
+                trackEvent('pdf_exported', { source: 'audit', result: 'success' });
               } catch (err) {
                 console.error('[AuditResults] PDF export failed:', err);
               } finally {
@@ -920,7 +920,7 @@ export default function SeoAuditResults() {
 
             {!paid && result.aeoResult.actionItems.length === 0 && (
               <p className="text-gray-500 text-sm text-center">
-                Sign in to see AI visibility recommendations.
+                Upgrade to see AI visibility recommendations.
               </p>
             )}
           </section>
