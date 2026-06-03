@@ -86,13 +86,15 @@ export const TOPUP_PACKS = [
 /**
  * Which surface a request came from. 'mcp' = the published MCP server, 'api' =
  * direct calls (incl. n8n/Zapier), 'rapidapi' = proxied through the RapidAPI
- * gateway (the house account; RapidAPI owns billing). 'mcp'/'api' share the
- * same Bearer jk_live_<key> auth + JK billing; 'rapidapi' is billing-exempt on
- * JK's side. Used for the seller dashboard's attribution rollups.
+ * gateway (the house account; RapidAPI owns billing), 'x402' = anonymous
+ * agent-to-agent pay-per-call settled in USDC (no customer, no prepaid balance;
+ * Stripe is the ledger via a crypto PaymentIntent). 'mcp'/'api' share the same
+ * Bearer jk_live_<key> auth + JK billing; 'rapidapi' and 'x402' do not deduct a
+ * JK balance. Used for the seller dashboard's attribution rollups.
  */
-export type ApiSource = 'mcp' | 'api' | 'rapidapi';
+export type ApiSource = 'mcp' | 'api' | 'rapidapi' | 'x402';
 
-const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api', 'rapidapi']);
+const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api', 'rapidapi', 'x402']);
 
 /** Validate an arbitrary value against ApiSource, defaulting to "api". */
 export function coerceApiSource(value: unknown): ApiSource {
@@ -377,6 +379,31 @@ export async function deductBalance(
     return nextBalance;
   });
   return { newBalance, callId: callRef.id };
+}
+
+/**
+ * Log an x402 (agent-to-agent) call to the same `apiCalls` ledger the keyed
+ * surfaces use, so usage/revenue rollups see it. x402 has no customer and no
+ * prepaid balance — settlement is the Stripe crypto PaymentIntent, recorded as
+ * `settlementRef` — so this does NOT touch any balance (cf. deductBalance).
+ * Returns the call's doc id so the handler can later attach latency/result via
+ * recordApiCallResult, exactly like the keyed paths.
+ */
+export async function recordX402Call(params: {
+  endpoint: string;
+  costCents: number;
+  settlementRef: string;
+}): Promise<{ callId: string }> {
+  const callRef = db.collection('apiCalls').doc();
+  await callRef.create({
+    endpoint: params.endpoint,
+    costCents: params.costCents,
+    ok: true,
+    source: 'x402' as ApiSource,
+    settlementRef: params.settlementRef,
+    timestamp: FieldValue.serverTimestamp(),
+  });
+  return { callId: callRef.id };
 }
 
 /**

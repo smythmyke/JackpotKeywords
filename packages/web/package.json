@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node scripts/prerender.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "indexnow": "node scripts/indexnow-ping.mjs"
   },
   "dependencies": {
     "@jackpotkeywords/shared": "file:../jackpotkeywords-shared-1.0.0.tgz",

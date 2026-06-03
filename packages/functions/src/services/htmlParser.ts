@@ -31,11 +31,29 @@ export interface ParsedPage {
   bodyText: string; // stripped text, capped — used for downstream summarization
   hasRobotsMetaNoindex: boolean;
   isSpaShell: boolean;
+  httpStatus: number;
+  redirected: boolean;
+  finalUrl: string;
+  hasXRobotsNoindex: boolean;
+  images: { total: number; missingAlt: number };
 }
 
-async function fetchHtml(url: string): Promise<string | null> {
+interface FetchResult {
+  html: string | null;
+  httpStatus: number;
+  finalUrl: string;
+  redirected: boolean;
+  contentType: string;
+  xRobotsTag: string;
+  error?: string;
+}
+
+async function fetchHtml(url: string): Promise<FetchResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const result: FetchResult = {
+    html: null, httpStatus: 0, finalUrl: url, redirected: false, contentType: '', xRobotsTag: '',
+  };
   try {
     const response = await fetch(url, {
       signal: controller.signal,
@@ -45,24 +63,33 @@ async function fetchHtml(url: string): Promise<string | null> {
         Accept: 'text/html,application/xhtml+xml',
       },
     });
+    result.httpStatus = response.status;
+    result.finalUrl = response.url || url;
+    result.redirected = response.redirected;
+    result.contentType = response.headers.get('content-type') || '';
+    result.xRobotsTag = response.headers.get('x-robots-tag') || '';
     if (!response.ok) {
       functions.logger.warn(`Fetch ${url} returned ${response.status}`);
-      return null;
+      result.error = `http_${response.status}`;
+      return result;
     }
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType && !/text\/html|application\/xhtml/i.test(contentType)) {
-      functions.logger.warn(`Fetch ${url} non-HTML content-type: ${contentType}`);
-      return null;
+    if (result.contentType && !/text\/html|application\/xhtml/i.test(result.contentType)) {
+      functions.logger.warn(`Fetch ${url} non-HTML content-type: ${result.contentType}`);
+      result.error = 'non_html';
+      return result;
     }
     const text = await response.text();
     if (text.length > MAX_HTML_BYTES) {
       functions.logger.warn(`Fetch ${url} exceeded ${MAX_HTML_BYTES} bytes (${text.length})`);
-      return null;
+      result.error = 'too_large';
+      return result;
     }
-    return text;
+    result.html = text;
+    return result;
   } catch (err: any) {
     functions.logger.warn(`Fetch ${url} failed: ${err.message || err}`);
-    return null;
+    result.error = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'fetch_error');
+    return result;
   } finally {
     clearTimeout(timer);
   }
@@ -89,6 +116,11 @@ function emptyParsed(url: string, fetchError: string): ParsedPage {
     bodyText: '',
     hasRobotsMetaNoindex: false,
     isSpaShell: false,
+    httpStatus: 0,
+    redirected: false,
+    finalUrl: url,
+    hasXRobotsNoindex: false,
+    images: { total: 0, missingAlt: 0 },
   };
 }
 
@@ -156,6 +188,17 @@ function collectInternalLinks($: cheerio.CheerioAPI, baseUrl: string): string[] 
   return Array.from(seen).slice(0, MAX_INTERNAL_LINKS);
 }
 
+function collectImages($: cheerio.CheerioAPI): { total: number; missingAlt: number } {
+  let total = 0;
+  let missingAlt = 0;
+  $('img').each((_, el) => {
+    total++;
+    // alt="" is a valid "decorative" marker; only a missing attribute is an issue.
+    if ($(el).attr('alt') === undefined) missingAlt++;
+  });
+  return { total, missingAlt };
+}
+
 function collectOgTags($: cheerio.CheerioAPI): ParsedPage['ogTags'] {
   return {
     title: $('meta[property="og:title"]').attr('content') || undefined,
@@ -165,10 +208,17 @@ function collectOgTags($: cheerio.CheerioAPI): ParsedPage['ogTags'] {
 }
 
 export async function fetchAndParse(url: string): Promise<ParsedPage> {
-  const html = await fetchHtml(url);
-  if (!html) return emptyParsed(url, 'fetch_failed_or_invalid_response');
+  const fetched = await fetchHtml(url);
+  if (!fetched.html) {
+    const empty = emptyParsed(url, fetched.error || 'fetch_failed_or_invalid_response');
+    empty.httpStatus = fetched.httpStatus;
+    empty.redirected = fetched.redirected;
+    empty.finalUrl = fetched.finalUrl;
+    empty.hasXRobotsNoindex = /(^|[,\s])noindex([,\s]|$)/i.test(fetched.xRobotsTag);
+    return empty;
+  }
 
-  const $ = cheerio.load(html);
+  const $ = cheerio.load(fetched.html);
 
   const title = $('title').first().text().trim() || undefined;
   const metaDescription = $('meta[name="description"]').attr('content')?.trim() || undefined;
@@ -209,5 +259,10 @@ export async function fetchAndParse(url: string): Promise<ParsedPage> {
     bodyText: bodyText.slice(0, 8000),
     hasRobotsMetaNoindex: robotsMeta.split(',').map((s) => s.trim()).includes('noindex'),
     isSpaShell: detectSpaShell($, wordCount),
+    httpStatus: fetched.httpStatus,
+    redirected: fetched.redirected,
+    finalUrl: fetched.finalUrl,
+    hasXRobotsNoindex: /(^|[,\s])noindex([,\s]|$)/i.test(fetched.xRobotsTag),
+    images: collectImages($),
   };
 }

@@ -109,11 +109,33 @@ const pages = [
     description: 'Describe your product. Find your goldmine keywords. AI-powered keyword research with real Google data at 1/14th the price of SEMrush.',
     extraHead: `<script type="application/ld+json">${JSON.stringify({
       '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'JackpotKeywords',
+      url: 'https://jackpotkeywords.web.app',
+      logo: 'https://jackpotkeywords.web.app/logo.png',
+      description: 'AI-powered keyword research and SEO audits with real Google Ads data.',
+    })}</script>
+<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'JackpotKeywords',
+      url: 'https://jackpotkeywords.web.app',
+    })}</script>
+<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
       name: 'JackpotKeywords',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
       description: 'AI-powered keyword research tool with real Google Ads data. Discover 1,000+ keyword opportunities across 12 intent categories.',
+      featureList: [
+        'AI keyword generation from a plain-English product description',
+        'Real Google Ads Keyword Planner data — search volume, CPC, competition',
+        'Composite Jackpot Score across 12 intent categories',
+        'AI-visibility (AEO) scanning — see if ChatGPT/Gemini cite your site',
+        'Free SEO audit covering 20+ ranking factors',
+        'Affordable SEMrush & Ahrefs alternative built for small businesses',
+      ],
       url: 'https://jackpotkeywords.web.app',
       offers: [
         { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free tier — 3 searches' },

@@ -13,7 +13,7 @@ import KeywordGapModal from '../components/audit/KeywordGapModal';
 import MaskedKeyword from '../components/MaskedKeyword';
 
 const CATEGORIES: SeoAuditCategory[] = [
-  'technical', 'content', 'crawlability', 'structured_data', 'local_geo', 'social_sharing',
+  'technical', 'content', 'crawlability', 'performance', 'ai_readiness', 'structured_data', 'local_geo', 'social_sharing',
 ];
 
 /** Number of checklist items to show before blurring for unpaid users */

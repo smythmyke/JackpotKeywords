@@ -2,6 +2,8 @@ import * as functions from 'firebase-functions';
 import { geminiGenerate, safeParseGeminiJSON } from './gemini';
 import { fetchAndParse, type ParsedPage } from './htmlParser';
 import { runAeoScanLight } from './aeoScan';
+import { runPageSpeed, type PageSpeedResult } from './pageSpeed';
+import { SEO_AUDIT_CATEGORY_WEIGHTS } from '@jackpotkeywords/shared';
 import type { AeoResult } from '@jackpotkeywords/shared';
 import type {
   SeoAuditResult,
@@ -12,15 +14,11 @@ import type {
   SeoAuditRecommendation,
 } from '@jackpotkeywords/shared';
 
-// Re-import the weights constant (shared exports it as a value)
-const CATEGORY_WEIGHTS: Record<SeoAuditCategory, number> = {
-  technical: 25,
-  content: 20,
-  crawlability: 20,
-  structured_data: 15,
-  local_geo: 10,
-  social_sharing: 10,
-};
+// Single source of truth for category weights — shared with web renderers.
+const CATEGORY_WEIGHTS: Record<SeoAuditCategory, number> = SEO_AUDIT_CATEGORY_WEIGHTS;
+
+// AI answer-engine crawlers we check robots.txt access for (#6).
+const AI_CRAWLERS = ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended', 'CCBot'];
 
 const MAX_SECONDARY_PAGES = 8;
 const PAGE_FETCH_TIMEOUT = 8000;
@@ -61,14 +59,25 @@ interface PrimaryPageAnalysis {
   wordCount: number;
   hasRobotsMetaNoindex: boolean;
   isSpaShell: boolean;
+  pageUrl: string;
+  finalUrl: string;
+  httpStatus: number;
+  redirected: boolean;
+  hasXRobotsNoindex: boolean;
+  images: { total: number; missingAlt: number };
   contentSummary: string;
 }
 
 interface SiteStructure {
   sitemapUrls: string[];
   sitemapExists: boolean;
+  sitemapReferencedInRobots: boolean;
+  sitemapContentType: string;
+  sitemapHasLastmod: boolean;
   robotsTxt: string | null;
   robotsBlocksImportant: boolean;
+  aiCrawlerBlocks: string[];
+  llmsTxtExists: boolean;
 }
 
 /**
@@ -88,6 +97,9 @@ export async function runSeoAudit(
   const domain = parsedUrl.origin;
 
   functions.logger.info(`SEO Audit starting for ${domain}`);
+
+  // Kick off PageSpeed (Lighthouse) in parallel — slow (~5-15s) and non-fatal. (#8)
+  const pageSpeedPromise = runPageSpeed(url);
 
   // Step 1: Analyze the primary page with Gemini URL context
   functions.logger.info('Step 1: Analyzing primary page...');
@@ -109,14 +121,16 @@ export async function runSeoAudit(
 
   // Step 4: Build the checklist (deterministic, no AI)
   functions.logger.info('Step 4: Building checklist...');
+  const pageSpeed = await pageSpeedPromise;
   const siteChecks = buildChecklist(primaryAnalysis, pageResults, structure);
+  const perfChecks = buildPerformanceChecks(pageSpeed);
   // Fold per-page issues into the main checks array so the score and summary
   // counts reflect per-page warnings (title-too-long on blogs, thin content on
   // /about, etc.). Their `id` starts with `page_` so renderers can choose to
   // skip them in the per-category Detailed Checklist if they're already shown
   // in the page-by-page section.
   const pageIssues = pageResults.flatMap((r) => r.issues);
-  const checks = [...siteChecks, ...pageIssues];
+  const checks = [...siteChecks, ...perfChecks, ...pageIssues];
 
   // Step 5: Generate keyword gaps + recommendations (Gemini)
   functions.logger.info('Step 5: Generating recommendations...');
@@ -170,6 +184,9 @@ export async function runSeoAudit(
     keywordGaps,
     recommendations,
     aeoResult,
+    performanceMetrics: pageSpeed
+      ? { score: pageSpeed.score, lcp: pageSpeed.lcp, cls: pageSpeed.cls, tbt: pageSpeed.tbt }
+      : null,
     metadata: {
       pagesAnalyzed: 1 + pageResults.length,
       executionTimeMs,
@@ -211,6 +228,12 @@ function parsedToPrimaryAnalysis(p: ParsedPage, contentSummary: string): Primary
     wordCount: p.wordCount,
     hasRobotsMetaNoindex: p.hasRobotsMetaNoindex,
     isSpaShell: p.isSpaShell,
+    pageUrl: p.url,
+    finalUrl: p.finalUrl,
+    httpStatus: p.httpStatus,
+    redirected: p.redirected,
+    hasXRobotsNoindex: p.hasXRobotsNoindex,
+    images: p.images,
     contentSummary,
   };
 }
@@ -238,36 +261,120 @@ ${p.bodyText}`;
 // ---------------------------------------------------------------------------
 
 async function discoverSiteStructure(domain: string): Promise<SiteStructure> {
-  const [sitemapResult, robotsResult] = await Promise.allSettled([
-    fetchWithTimeout(`${domain}/sitemap.xml`, PAGE_FETCH_TIMEOUT),
+  const [sitemapResult, robotsResult, llmsResult] = await Promise.allSettled([
+    fetchWithMeta(`${domain}/sitemap.xml`, PAGE_FETCH_TIMEOUT),
     fetchWithTimeout(`${domain}/robots.txt`, PAGE_FETCH_TIMEOUT),
+    fetchWithTimeout(`${domain}/llms.txt`, PAGE_FETCH_TIMEOUT),
   ]);
 
-  // Parse sitemap
-  let sitemapUrls: string[] = [];
+  // Parse sitemap (+ content-type and lastmod for validity, #2)
+  const sitemapUrls: string[] = [];
   let sitemapExists = false;
+  let sitemapContentType = '';
+  let sitemapHasLastmod = false;
   if (sitemapResult.status === 'fulfilled' && sitemapResult.value) {
-    const text = sitemapResult.value;
-    if (text.includes('<urlset') || text.includes('<sitemapindex')) {
+    const { body, contentType } = sitemapResult.value;
+    sitemapContentType = contentType;
+    if (body.includes('<urlset') || body.includes('<sitemapindex')) {
       sitemapExists = true;
-      const locMatches = text.matchAll(/<loc>(.*?)<\/loc>/g);
-      for (const match of locMatches) {
-        sitemapUrls.push(match[1].trim());
-      }
+      const locMatches = body.matchAll(/<loc>(.*?)<\/loc>/g);
+      for (const match of locMatches) sitemapUrls.push(match[1].trim());
+      sitemapHasLastmod = /<lastmod>/i.test(body);
     }
   }
 
-  // Parse robots.txt
+  // Parse robots.txt (+ Sitemap: reference #1, AI-crawler access #6)
   let robotsTxt: string | null = null;
   let robotsBlocksImportant = false;
+  let sitemapReferencedInRobots = false;
+  let aiCrawlerBlocks: string[] = [];
   if (robotsResult.status === 'fulfilled' && robotsResult.value) {
     robotsTxt = robotsResult.value;
-    // Check if robots blocks important pages
-    const disallowLines = robotsTxt.match(/Disallow:\s*\/\s*$/m);
-    if (disallowLines) robotsBlocksImportant = true;
+    if (/Disallow:\s*\/\s*$/m.test(robotsTxt)) robotsBlocksImportant = true;
+    sitemapReferencedInRobots = /^\s*Sitemap:\s*\S+/im.test(robotsTxt);
+    aiCrawlerBlocks = AI_CRAWLERS.filter((bot) => robotsFullyBlocks(robotsTxt!, bot));
   }
 
-  return { sitemapUrls, sitemapExists, robotsTxt, robotsBlocksImportant };
+  const llmsTxtExists =
+    llmsResult.status === 'fulfilled' && !!llmsResult.value && llmsResult.value.trim().length > 0;
+
+  return {
+    sitemapUrls,
+    sitemapExists,
+    sitemapReferencedInRobots,
+    sitemapContentType,
+    sitemapHasLastmod,
+    robotsTxt,
+    robotsBlocksImportant,
+    aiCrawlerBlocks,
+    llmsTxtExists,
+  };
+}
+
+/** Like fetchWithTimeout but also returns the HTTP status + content-type (for sitemap validity, #2). */
+async function fetchWithMeta(
+  url: string,
+  timeoutMs: number,
+): Promise<{ body: string; status: number; contentType: string } | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'JackpotKeywords-SEO-Audit/1.0' },
+    });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type') || '';
+    const body = await response.text();
+    if (body.length > 500_000) return null;
+    return { body, status: response.status, contentType };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True if `userAgent` is disallowed from the whole site (`Disallow: /`). A
+ * UA-specific group wins over the `*` group. Lightweight robots.txt grouping —
+ * enough to detect a deliberate full block of an AI crawler (#6).
+ */
+function robotsFullyBlocks(robotsTxt: string, userAgent: string): boolean {
+  const lines = robotsTxt
+    .split(/\r?\n/)
+    .map((l) => l.replace(/#.*$/, '').trim())
+    .filter(Boolean);
+
+  const groups: { agents: string[]; disallows: string[] }[] = [];
+  let cur: { agents: string[]; disallows: string[] } | null = null;
+  let prevWasAgent = false;
+
+  for (const line of lines) {
+    const idx = line.indexOf(':');
+    if (idx === -1) continue;
+    const field = line.slice(0, idx).trim().toLowerCase();
+    const val = line.slice(idx + 1).trim();
+    if (field === 'user-agent') {
+      if (!prevWasAgent || !cur) {
+        cur = { agents: [], disallows: [] };
+        groups.push(cur);
+      }
+      cur.agents.push(val.toLowerCase());
+      prevWasAgent = true;
+    } else if (field === 'disallow') {
+      if (cur) cur.disallows.push(val);
+      prevWasAgent = false;
+    } else {
+      prevWasAgent = false;
+    }
+  }
+
+  const ua = userAgent.toLowerCase();
+  const blocksRoot = (g: { disallows: string[] }) => g.disallows.includes('/');
+  const specific = groups.find((g) => g.agents.includes(ua));
+  if (specific) return blocksRoot(specific);
+  const star = groups.find((g) => g.agents.includes('*'));
+  return star ? blocksRoot(star) : false;
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<string | null> {
@@ -457,11 +564,27 @@ function buildChecklist(
     checks.push({ id: 'viewport_ok', category: 'technical', label: 'Mobile viewport', status: 'pass', details: 'Viewport meta tag is set', priority: 'low' });
   }
 
-  // Canonical
+  // Canonical (presence + correctness #3)
   if (!primary.hasCanonical) {
     checks.push({ id: 'canonical_missing', category: 'technical', label: 'Canonical URL', status: 'warning', details: 'No canonical tag found', recommendation: 'Add a <link rel="canonical"> tag to prevent duplicate content issues', priority: 'medium' });
   } else {
-    checks.push({ id: 'canonical_ok', category: 'technical', label: 'Canonical URL', status: 'pass', details: `Canonical: ${primary.canonicalUrl || 'set'}`, priority: 'low' });
+    const verdict = evaluateCanonical(primary.canonicalUrl, primary.pageUrl);
+    if (verdict.ok) {
+      checks.push({ id: 'canonical_ok', category: 'technical', label: 'Canonical URL', status: 'pass', details: `Self-referential canonical: ${primary.canonicalUrl}`, priority: 'low' });
+    } else {
+      checks.push({ id: 'canonical_mismatch', category: 'technical', label: 'Canonical URL', status: 'warning', details: verdict.detail, recommendation: 'Point the canonical at this page\'s own absolute URL unless you intentionally canonicalize elsewhere — a wrong canonical can de-index the page', priority: 'medium' });
+    }
+  }
+
+  // HTTP status / redirect (#5)
+  if (primary.httpStatus >= 200 && primary.httpStatus < 300) {
+    if (primary.redirected) {
+      checks.push({ id: 'http_redirect', category: 'technical', label: 'HTTP status', status: 'info', details: `Loads via redirect to ${primary.finalUrl} (final 200)`, recommendation: 'Link to the final URL directly to avoid redirect latency and consolidate ranking signals', priority: 'low' });
+    } else {
+      checks.push({ id: 'http_ok', category: 'technical', label: 'HTTP status', status: 'pass', details: 'Returns HTTP 200 OK directly', priority: 'low' });
+    }
+  } else if (primary.httpStatus > 0) {
+    checks.push({ id: 'http_error', category: 'technical', label: 'HTTP status', status: 'fail', details: `Page returned HTTP ${primary.httpStatus}`, recommendation: 'Search engines won\'t index non-200 pages. Return a 200 status for indexable URLs', priority: 'high' });
   }
 
   // --- CONTENT ---
@@ -497,6 +620,15 @@ function buildChecklist(
     checks.push({ id: 'internal_links_ok', category: 'content', label: 'Internal linking', status: 'pass', details: `${primary.internalLinks.length} internal links found`, priority: 'low' });
   }
 
+  // Image alt text (#9)
+  if (primary.images.total > 0) {
+    if (primary.images.missingAlt > 0) {
+      checks.push({ id: 'img_alt_missing', category: 'content', label: 'Image alt text', status: 'warning', details: `${primary.images.missingAlt} of ${primary.images.total} images missing alt text`, recommendation: 'Add descriptive alt attributes to images for accessibility and image search visibility', priority: 'medium' });
+    } else {
+      checks.push({ id: 'img_alt_ok', category: 'content', label: 'Image alt text', status: 'pass', details: `All ${primary.images.total} images have alt text`, priority: 'low' });
+    }
+  }
+
   // --- CRAWLABILITY ---
 
   // Sitemap
@@ -504,6 +636,27 @@ function buildChecklist(
     checks.push({ id: 'sitemap_missing', category: 'crawlability', label: 'XML Sitemap', status: 'warning', details: 'No sitemap.xml found at the site root', recommendation: 'Add a sitemap.xml listing all important pages. Submit it to Google Search Console', priority: 'medium' });
   } else {
     checks.push({ id: 'sitemap_ok', category: 'crawlability', label: 'XML Sitemap', status: 'pass', details: `Sitemap found with ${structure.sitemapUrls.length} URLs`, priority: 'low' });
+  }
+
+  // Sitemap referenced in robots.txt (#1) + sitemap format/validity (#2)
+  if (structure.sitemapExists) {
+    if (structure.robotsTxt) {
+      if (structure.sitemapReferencedInRobots) {
+        checks.push({ id: 'sitemap_in_robots', category: 'crawlability', label: 'Sitemap in robots.txt', status: 'pass', details: 'Sitemap is referenced in robots.txt', priority: 'low' });
+      } else {
+        checks.push({ id: 'sitemap_not_in_robots', category: 'crawlability', label: 'Sitemap in robots.txt', status: 'warning', details: 'Sitemap exists but is not referenced in robots.txt', recommendation: 'Add a "Sitemap: https://…/sitemap.xml" line to robots.txt so crawlers discover it', priority: 'medium' });
+      }
+    }
+    const fmtIssues: string[] = [];
+    if (structure.sitemapContentType && !/xml/i.test(structure.sitemapContentType)) {
+      fmtIssues.push(`served as "${structure.sitemapContentType}" (expected application/xml)`);
+    }
+    if (!structure.sitemapHasLastmod) fmtIssues.push('no <lastmod> dates');
+    if (fmtIssues.length > 0) {
+      checks.push({ id: 'sitemap_format', category: 'crawlability', label: 'Sitemap format', status: 'warning', details: fmtIssues.join('; '), recommendation: 'Serve sitemap.xml with an application/xml content-type and include <lastmod> dates to help crawl prioritization', priority: 'medium' });
+    } else {
+      checks.push({ id: 'sitemap_format_ok', category: 'crawlability', label: 'Sitemap format', status: 'pass', details: 'Valid XML, correct content-type, includes <lastmod>', priority: 'low' });
+    }
   }
 
   // Robots.txt
@@ -515,9 +668,14 @@ function buildChecklist(
     checks.push({ id: 'robots_ok', category: 'crawlability', label: 'robots.txt', status: 'pass', details: 'robots.txt is present and allows crawling', priority: 'low' });
   }
 
-  // Noindex
+  // Noindex (meta tag)
   if (primary.hasRobotsMetaNoindex) {
     checks.push({ id: 'noindex', category: 'crawlability', label: 'Meta robots noindex', status: 'fail', details: 'Page has a noindex meta robots tag — it will not appear in search results', recommendation: 'Remove the noindex tag if you want this page to be indexed by search engines', priority: 'high' });
+  }
+
+  // Noindex (X-Robots-Tag HTTP header, #4)
+  if (primary.hasXRobotsNoindex) {
+    checks.push({ id: 'x_robots_noindex', category: 'crawlability', label: 'X-Robots-Tag noindex', status: 'fail', details: 'The page sends an X-Robots-Tag: noindex HTTP header — it will be excluded from search results', recommendation: 'Remove the noindex directive from the X-Robots-Tag response header', priority: 'high' });
   }
 
   // SPA detection — warning only when content is essentially empty (Wix/Squarespace
@@ -535,6 +693,24 @@ function buildChecklist(
       recommendation: 'Implement server-side rendering (SSR) or pre-rendering so search engines see ranking signals (title, meta, content) without executing JavaScript',
       priority: isSevere ? 'high' : 'low',
     });
+  }
+
+  // --- AI SEARCH READINESS ---
+
+  // AI crawler access (#6)
+  if (!structure.robotsTxt) {
+    checks.push({ id: 'ai_crawlers_default', category: 'ai_readiness', label: 'AI crawler access', status: 'info', details: 'No robots.txt — AI crawlers are allowed by default', priority: 'low' });
+  } else if (structure.aiCrawlerBlocks.length > 0) {
+    checks.push({ id: 'ai_crawlers_blocked', category: 'ai_readiness', label: 'AI crawler access', status: 'warning', details: `robots.txt blocks: ${structure.aiCrawlerBlocks.join(', ')}`, recommendation: 'To be cited in ChatGPT, Perplexity, and Google AI answers, allow these crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot) in robots.txt', priority: 'medium' });
+  } else {
+    checks.push({ id: 'ai_crawlers_ok', category: 'ai_readiness', label: 'AI crawler access', status: 'pass', details: 'AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot) are allowed', priority: 'low' });
+  }
+
+  // llms.txt (#7)
+  if (structure.llmsTxtExists) {
+    checks.push({ id: 'llms_txt_ok', category: 'ai_readiness', label: 'llms.txt', status: 'pass', details: 'llms.txt found — a curated content index for AI answer engines', priority: 'low' });
+  } else {
+    checks.push({ id: 'llms_txt_missing', category: 'ai_readiness', label: 'llms.txt', status: 'info', details: 'No llms.txt found', recommendation: 'Add /llms.txt — an emerging standard that exposes your key content to LLM-based search', priority: 'low' });
   }
 
   // --- STRUCTURED DATA ---
@@ -706,6 +882,78 @@ RULES:
 }
 
 // ---------------------------------------------------------------------------
+// Canonical correctness (#3) + Performance checks (#8)
+// ---------------------------------------------------------------------------
+
+function evaluateCanonical(canonical: string | undefined, pageUrl: string): { ok: boolean; detail: string } {
+  if (!canonical) return { ok: false, detail: 'Canonical tag is empty' };
+  let canon: URL;
+  try {
+    canon = new URL(canonical, pageUrl);
+  } catch {
+    return { ok: false, detail: `Canonical is not a valid URL: "${canonical}"` };
+  }
+  let page: URL;
+  try {
+    page = new URL(pageUrl);
+  } catch {
+    return { ok: true, detail: '' };
+  }
+  const norm = (u: URL) => (u.origin + u.pathname.replace(/\/$/, '')).toLowerCase();
+  if (canon.origin !== page.origin) {
+    return { ok: false, detail: `Canonical points to a different domain (${canon.origin})` };
+  }
+  if (norm(canon) !== norm(page)) {
+    return { ok: false, detail: `Canonical points to a different URL (${canon.pathname}) than this page (${page.pathname})` };
+  }
+  return { ok: true, detail: '' };
+}
+
+function buildPerformanceChecks(ps: PageSpeedResult | null): SeoAuditCheckItem[] {
+  if (!ps || ps.score === null) return [];
+  const checks: SeoAuditCheckItem[] = [];
+
+  const scoreStatus: SeoAuditCheckItem['status'] = ps.score >= 90 ? 'pass' : ps.score >= 50 ? 'warning' : 'fail';
+  checks.push({
+    id: 'perf_score',
+    category: 'performance',
+    label: 'Performance score',
+    status: scoreStatus,
+    details: `Lighthouse performance score: ${ps.score}/100`,
+    recommendation: scoreStatus === 'pass' ? undefined : 'Improve page speed — optimize/lazy-load images, defer non-critical JS, and reduce render-blocking CSS',
+    priority: scoreStatus === 'fail' ? 'high' : scoreStatus === 'warning' ? 'medium' : 'low',
+  });
+
+  if (typeof ps.lcpMs === 'number') {
+    const status: SeoAuditCheckItem['status'] = ps.lcpMs <= 2500 ? 'pass' : ps.lcpMs <= 4000 ? 'warning' : 'fail';
+    checks.push({
+      id: 'perf_lcp',
+      category: 'performance',
+      label: 'Largest Contentful Paint (LCP)',
+      status,
+      details: `LCP: ${ps.lcp ?? (ps.lcpMs / 1000).toFixed(1) + ' s'}`,
+      recommendation: status === 'pass' ? undefined : 'Target LCP under 2.5s — optimize the hero/largest element, compress images, and reduce server + render time',
+      priority: status === 'fail' ? 'high' : status === 'warning' ? 'medium' : 'low',
+    });
+  }
+
+  if (typeof ps.clsValue === 'number') {
+    const status: SeoAuditCheckItem['status'] = ps.clsValue <= 0.1 ? 'pass' : ps.clsValue <= 0.25 ? 'warning' : 'fail';
+    checks.push({
+      id: 'perf_cls',
+      category: 'performance',
+      label: 'Cumulative Layout Shift (CLS)',
+      status,
+      details: `CLS: ${ps.cls ?? ps.clsValue.toFixed(3)}`,
+      recommendation: status === 'pass' ? undefined : 'Target CLS under 0.1 — set explicit width/height on images and reserve space for dynamic content',
+      priority: status === 'fail' ? 'high' : status === 'warning' ? 'medium' : 'low',
+    });
+  }
+
+  return checks;
+}
+
+// ---------------------------------------------------------------------------
 // Scoring
 // ---------------------------------------------------------------------------
 
@@ -718,7 +966,7 @@ function calculateCategoryScores(
   checks: SeoAuditCheckItem[],
 ): Record<SeoAuditCategory, { score: number | null; passed: number; total: number }> {
   const categories: SeoAuditCategory[] = [
-    'technical', 'content', 'local_geo', 'structured_data', 'crawlability', 'social_sharing',
+    'technical', 'content', 'local_geo', 'structured_data', 'crawlability', 'performance', 'ai_readiness', 'social_sharing',
   ];
 
   const scores = {} as Record<SeoAuditCategory, { score: number | null; passed: number; total: number }>;

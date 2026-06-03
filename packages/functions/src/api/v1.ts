@@ -30,6 +30,7 @@ import {
   deductBalance,
   refundBalance,
   recordApiCallResult,
+  recordX402Call,
   isAdminApiCustomer,
   isBillingExemptApiCustomer,
   AEO_SCAN_COST_CENTS,
@@ -50,6 +51,18 @@ import { runAeoScanFull } from '../services/aeoScan';
 import { extractProductContext } from '../services/gemini';
 import { runRecommendPipeline } from '../services/recommendPipeline';
 import { runSeoAudit } from '../services/seoAudit';
+import {
+  isX402Enabled,
+  getX402PriceCents,
+  createCryptoPaymentIntent,
+  buildChallengeBody,
+  extractPaymentProof,
+  verifyPayment,
+  refundPayment,
+  claimFulfillment,
+  markFulfillment,
+  x402IpRateLimit,
+} from '../services/x402';
 
 const router = Router();
 
@@ -566,6 +579,129 @@ router.post('/recommend-deep', apiKeyAuth, apiRateLimit, async (req: ApiKeyReque
     res.status(500).json({
       error: 'recommend_deep_failed',
       message: 'Deep keyword recommendation failed. Your balance has been refunded.',
+    });
+  }
+});
+
+/**
+ * POST /api/v1/x402/recommend  — x402 agent-payments pilot (X402-1a spike)
+ *
+ * Pay-per-call variant of /v1/recommend-deep for autonomous agents: no API key,
+ * no prepaid balance, no human checkout. Gated by HTTP 402 + USDC-on-Base
+ * settled through Stripe's crypto PaymentIntent. Flag-gated (JK_X402_ENABLED) —
+ * 404s when off, so prod is unaffected until deliberately enabled in a sandbox
+ * with the "Stablecoins and Crypto" payment method approved.
+ *
+ * Two-call protocol:
+ *   1. no X-PAYMENT  → 402 + payment-requirements challenge (a fresh deposit address)
+ *   2. with X-PAYMENT → verify the payment settled, run recommend-deep, refund on failure
+ *
+ * Deliberately NOT behind apiKeyAuth/apiRateLimit (it gates on payment, not
+ * identity); uses an IP-keyed limiter instead. See services/x402.ts for the
+ * spike's honest limitations (SDK-cast preview surface + simplified proof format).
+ */
+router.post('/x402/recommend', x402IpRateLimit, async (req, res) => {
+  if (!isX402Enabled()) {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+
+  const { description, url, budget, location, limit: rawLimit } = req.body || {};
+
+  // Validate input BEFORE issuing a challenge, so a bad request never results
+  // in the agent paying for a call we'd reject (the deposit model is funds-first).
+  if ((!description || !description.toString().trim()) && (!url || !url.toString().trim())) {
+    res.status(400).json({ error: 'missing_input', message: 'Provide a "description" or "url" (or both).' });
+    return;
+  }
+  const limit = Math.max(1, Math.min(200, parseInt(rawLimit, 10) || 50));
+  const priceCents = getX402PriceCents();
+
+  const proof = extractPaymentProof(req);
+
+  // ── Step 1: unpaid request → issue the 402 challenge ──────────────────────
+  if (!proof) {
+    try {
+      const challenge = await createCryptoPaymentIntent(priceCents);
+      const resourceUrl = `${req.baseUrl}${req.path}`;
+      res.status(402).set('Accept-Payment', 'x402').json(buildChallengeBody(challenge, resourceUrl));
+    } catch (err: any) {
+      functions.logger.error('v1/x402/recommend challenge error:', err.message);
+      res.status(500).json({ error: 'challenge_failed', message: 'Could not create a payment challenge.' });
+    }
+    return;
+  }
+
+  // ── Step 2: paid retry → verify, then run ────────────────────────────────
+  const verdict = await verifyPayment(proof, priceCents);
+  if (!verdict.ok) {
+    res.status(402).json({ error: 'payment_unverified', message: `Payment not verified: ${verdict.reason}.` });
+    return;
+  }
+
+  // Idempotency: never run a paid pipeline twice for one settlement.
+  const claim = await claimFulfillment(proof.paymentIntentId);
+  if (!claim.ok) {
+    const status = claim.status === 'refunded' ? 402 : 409;
+    res.status(status).json({
+      error: claim.status === 'refunded' ? 'payment_already_refunded' : 'already_fulfilled',
+      message:
+        claim.status === 'refunded'
+          ? 'This payment was refunded after a failed run. Submit a new payment to retry.'
+          : 'This payment has already been used.',
+    });
+    return;
+  }
+
+  let callId: string;
+  try {
+    ({ callId } = await recordX402Call({
+      endpoint: '/v1/x402/recommend',
+      costCents: priceCents,
+      settlementRef: proof.paymentIntentId,
+    }));
+  } catch (err: any) {
+    functions.logger.error('v1/x402/recommend ledger error:', err.message);
+    callId = '';
+  }
+
+  const startTime = Date.now();
+  try {
+    const result = await runRecommendPipeline({ description, url, budget, location, limit }, { deep: true });
+    const latencyMs = Date.now() - startTime;
+    await markFulfillment(proof.paymentIntentId, 'fulfilled');
+    res.set('X-Payment-Response', `settled paymentIntent=${proof.paymentIntentId}`).json({
+      productName: result.productName,
+      query: result.query,
+      url: result.url,
+      recommendations: result.recommendations,
+      clusters: result.clusters,
+      categories: result.categories,
+      competitors: result.competitors,
+      totalCandidates: result.totalCandidates,
+      returned: result.returned,
+      paidCents: priceCents,
+      executionTimeMs: latencyMs,
+    });
+    if (callId) void recordApiCallResult(callId, { ok: true, latencyMs, resultCount: result.returned });
+  } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
+    functions.logger.error('v1/x402/recommend pipeline error:', err.stack || err.message);
+    const refunded = await refundPayment(proof.paymentIntentId, `recommend failed: ${err.message}`);
+    await markFulfillment(proof.paymentIntentId, 'refunded');
+    if (callId) {
+      void recordApiCallResult(callId, {
+        ok: false,
+        latencyMs,
+        errCode: errCodeFromMessage(err.message),
+        refunded,
+      });
+    }
+    res.status(500).json({
+      error: 'recommend_failed',
+      message: refunded
+        ? 'Keyword recommendation failed. Your payment has been refunded.'
+        : 'Keyword recommendation failed. Refund could not be issued automatically — contact support.',
     });
   }
 });

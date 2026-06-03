@@ -4,6 +4,8 @@ export type SeoAuditCategory =
   | 'local_geo'
   | 'structured_data'
   | 'crawlability'
+  | 'performance'
+  | 'ai_readiness'
   | 'social_sharing';
 
 export const SEO_AUDIT_CATEGORY_LABELS: Record<SeoAuditCategory, string> = {
@@ -11,24 +13,30 @@ export const SEO_AUDIT_CATEGORY_LABELS: Record<SeoAuditCategory, string> = {
   content: 'Content Structure',
   local_geo: 'Local & Geo SEO',
   structured_data: 'Structured Data',
-  crawlability: 'Crawlability & Bot Access',
+  crawlability: 'Crawlability & Indexing',
+  performance: 'Performance & Core Web Vitals',
+  ai_readiness: 'AI Search Readiness',
   social_sharing: 'Social & Sharing',
 };
 
 export const SEO_AUDIT_CATEGORY_WEIGHTS: Record<SeoAuditCategory, number> = {
-  technical: 25,
-  content: 20,
+  technical: 20,
+  content: 15,
   crawlability: 20,
-  structured_data: 15,
-  local_geo: 10,
-  social_sharing: 10,
+  structured_data: 10,
+  performance: 15,
+  ai_readiness: 10,
+  local_geo: 5,
+  social_sharing: 5,
 };
 
 export const SEO_AUDIT_CATEGORY_DESCRIPTIONS: Record<SeoAuditCategory, string> = {
   technical: 'Core HTML elements that help search engines understand your pages',
   content: 'How well your site\'s pages cover topics with enough depth',
-  crawlability: 'Whether search engines like Google can find and read your pages',
+  crawlability: 'Whether search engines can find, read, and index your pages',
   structured_data: 'Special code that helps Google show rich results like ratings and FAQs',
+  performance: 'Page speed and Core Web Vitals (LCP, CLS) — a Google ranking factor',
+  ai_readiness: 'Whether AI answer engines (ChatGPT, Perplexity, Gemini) can access and cite your site',
   local_geo: 'Signals that help your site appear in local map and city-based searches',
   social_sharing: 'How your pages look when shared on Facebook, Twitter, and other platforms',
 };
@@ -113,6 +121,12 @@ export interface SeoAuditResult {
   recommendations: SeoAuditRecommendation[];
   keywordPreview?: MiniKeywordResult[] | null;
   aeoResult?: AeoResult | null;
+  performanceMetrics?: {
+    score: number | null;
+    lcp?: string;
+    cls?: string;
+    tbt?: string;
+  } | null;
   metadata: {
     pagesAnalyzed: number;
     executionTimeMs: number;
