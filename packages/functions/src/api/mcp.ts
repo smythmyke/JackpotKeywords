@@ -31,9 +31,15 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import {
+  verifyAccessToken,
+  fetchWorkOsEmail,
+  protectedResourceMetadata,
+  protectedResourceMetadataUrl,
+} from '../services/mcpOAuth';
 
 const SERVER_NAME = 'jackpotkeywords';
-const SERVER_VERSION = '0.1.0';
+const SERVER_VERSION = '0.2.0';
 
 // Protocol versions we know how to speak. We echo the client's requested
 // version when it's one of these; otherwise we answer with our latest.
@@ -126,6 +132,13 @@ const TOOLS = [
       },
       additionalProperties: false,
     },
+    annotations: {
+      title: 'Keyword research (free monthly report)',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
   },
   {
     name: 'jackpotkeywords_usage_status',
@@ -137,30 +150,71 @@ const TOOLS = [
       properties: {},
       additionalProperties: false,
     },
+    annotations: {
+      title: 'Free usage status',
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
   },
 ] as const;
 
-// ---- Auth (dev bypass until Phase 4) ---------------------------------------
+// ---- Auth — WorkOS AuthKit OAuth 2.1 (dev bypass for local testing) ---------
 
-/** The authenticated ChatGPT user, resolved to a JK customer. */
+/** The authenticated user (ChatGPT/Claude), resolved to a JK customer. */
 interface McpAuth {
   customerId: string;
   email?: string;
 }
 
+type AuthOutcome =
+  | { status: 'ok'; auth: McpAuth }
+  | { status: 'anonymous' } // no credentials presented
+  | { status: 'invalid'; reason: string }; // bad / expired / unresolvable token
+
 /**
- * Resolve the caller to a JK customer. Phase 3: a dev bypass gated behind
- * JK_MCP_DEV_AUTH so we can exercise tools locally without OAuth. Phase 4
- * replaces the body with Stytch OAuth 2.1 bearer-token verification + the
- * email→apiCustomers mapping. Returns null when unauthenticated.
+ * Resolve the caller to a JK customer.
+ *  - Dev bypass (JK_MCP_DEV_AUTH=1 + x-dev-customer-id) for local testing.
+ *  - Otherwise verify the AuthKit OAuth 2.1 bearer JWT (jose-free, node:crypto
+ *    against AuthKit's JWKS), resolve the verified email, and map it to an
+ *    apiCustomer (no jk_live_ key needed).
  */
-function resolveCustomer(req: Request): McpAuth | null {
+async function resolveAuth(req: Request): Promise<AuthOutcome> {
   if (process.env.JK_MCP_DEV_AUTH === '1') {
     const id = req.header('x-dev-customer-id');
-    if (id) return { customerId: id };
+    if (id) return { status: 'ok', auth: { customerId: id } };
   }
-  // Phase 4: verify `Authorization: Bearer <stytch jwt>` here.
-  return null;
+
+  const authz = req.header('authorization') || '';
+  const m = /^Bearer\s+(.+)$/i.exec(authz.trim());
+  if (!m) return { status: 'anonymous' };
+
+  const verified = await verifyAccessToken(m[1].trim());
+  if ('error' in verified) return { status: 'invalid', reason: verified.error };
+
+  const email = verified.email || (await fetchWorkOsEmail(verified.sub));
+  if (!email) return { status: 'invalid', reason: 'email_unavailable' };
+
+  const { getOrCreateCustomerByEmail } = await import('../services/apiCredits');
+  const customer = await getOrCreateCustomerByEmail(email, 'mcp');
+  return { status: 'ok', auth: { customerId: customer.id, email } };
+}
+
+/** True if the JSON-RPC body (single or batch) invokes a tool. */
+function bodyNeedsAuth(body: unknown): boolean {
+  const isCall = (msg: unknown): boolean =>
+    !!msg && typeof msg === 'object' && (msg as { method?: unknown }).method === 'tools/call';
+  return Array.isArray(body) ? body.some(isCall) : isCall(body);
+}
+
+/** 401 + RFC 9728 discovery hint so MCP clients begin the OAuth flow. */
+function send401(res: Response, reason: string): void {
+  res
+    .status(401)
+    .set(
+      'WWW-Authenticate',
+      `Bearer resource_metadata="${protectedResourceMetadataUrl()}", error="invalid_token"`,
+    )
+    .json({ error: 'unauthorized', reason });
 }
 
 function toolError(text: string): ToolResult {
@@ -372,7 +426,20 @@ const router = Router();
  */
 router.post('/', async (req: Request, res: Response) => {
   const body = req.body;
-  const auth = resolveCustomer(req);
+
+  const outcome = await resolveAuth(req);
+  if (outcome.status === 'invalid') {
+    send401(res, outcome.reason);
+    return;
+  }
+  const auth = outcome.status === 'ok' ? outcome.auth : null;
+
+  // Tool invocations require a verified identity; 401 with a resource_metadata
+  // hint triggers the client's OAuth flow.
+  if (!auth && bodyNeedsAuth(body)) {
+    send401(res, 'authentication_required');
+    return;
+  }
 
   if (Array.isArray(body)) {
     if (body.length === 0) {
@@ -403,6 +470,12 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
   res.json(response);
+});
+
+// RFC 9728 Protected Resource Metadata — lets MCP clients discover the
+// authorization server (AuthKit) + JWKS. Advertised via WWW-Authenticate on 401.
+router.get('/.well-known/oauth-protected-resource', (_req: Request, res: Response) => {
+  res.json(protectedResourceMetadata());
 });
 
 // Some MCP clients probe with GET (expecting an SSE stream). We're stateless /

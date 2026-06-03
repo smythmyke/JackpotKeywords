@@ -65,12 +65,13 @@ const server = app.listen(0, async () => {
     `got [${names.join(', ')}]`);
   check('does NOT expose premium tools', !names.some((n) => /deep|aeo|audit/.test(n)));
 
-  // No auth header → tools/call must be rejected BEFORE touching Firestore.
+  // No auth header → tools/call must be rejected with 401 (triggers OAuth
+  // discovery via WWW-Authenticate), BEFORE touching Firestore.
   const noAuth = await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/call',
     params: { name: 'jackpotkeywords_recommend', arguments: { description: 'test' } } });
-  check('tools/call unauthenticated → auth-required isError',
-    noAuth.body?.result?.isError === true && /authentication/i.test(noAuth.body?.result?.content?.[0]?.text || ''),
-    JSON.stringify(noAuth.body?.result?.content?.[0]?.text));
+  check('tools/call unauthenticated → 401 unauthorized',
+    noAuth.status === 401 && noAuth.body?.error === 'unauthorized',
+    `status ${noAuth.status}`);
 
   // Authed (dev bypass) but unknown tool → not-found, also Firestore-free.
   const unknown = await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope' } },

@@ -262,6 +262,61 @@ export async function createApiCustomer(
 }
 
 /**
+ * Get or create an apiCustomer by verified email WITHOUT minting a jk_live_ key.
+ * For OAuth-authenticated surfaces (remote MCP / ChatGPT / Claude) where the
+ * verified email IS the identity and no API key is needed. Idempotent;
+ * first-touch signupSource wins.
+ */
+export async function getOrCreateCustomerByEmail(
+  email: string,
+  signupSource?: ApiSource,
+): Promise<ApiCustomer> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = await db.collection('apiCustomers')
+    .where('email', '==', normalizedEmail)
+    .limit(1)
+    .get();
+
+  if (!existing.empty) {
+    const doc = existing.docs[0];
+    const customer: ApiCustomer = { id: doc.id, ...(doc.data() as Omit<ApiCustomer, 'id'>) };
+    if (signupSource && !customer.signupSource) {
+      await db.doc(`apiCustomers/${doc.id}`).update({ signupSource });
+      customer.signupSource = signupSource;
+    }
+    return customer;
+  }
+
+  const customerId = db.collection('apiCustomers').doc().id;
+  const customer: ApiCustomer = {
+    id: customerId,
+    email: normalizedEmail,
+    balanceCents: SIGNUP_CREDIT_CENTS,
+    lifetimeDepositedCents: 0,
+    createdAt: new Date().toISOString(),
+    ...(signupSource ? { signupSource } : {}),
+  };
+  await db.doc(`apiCustomers/${customerId}`).set({
+    email: customer.email,
+    balanceCents: customer.balanceCents,
+    lifetimeDepositedCents: 0,
+    createdAt: customer.createdAt,
+    ...(signupSource ? { signupSource } : {}),
+  });
+  if (SIGNUP_CREDIT_CENTS > 0) {
+    await db.collection('apiTransactions').add({
+      customerId,
+      type: 'signup_credit',
+      amountCents: SIGNUP_CREDIT_CENTS,
+      description: `Welcome credit — $${(SIGNUP_CREDIT_CENTS / 100).toFixed(2)}`,
+      ...(signupSource ? { source: signupSource } : {}),
+      timestamp: FieldValue.serverTimestamp(),
+    });
+  }
+  return customer;
+}
+
+/**
  * Create a new API key for an existing customer. Returns the raw key once —
  * caller must show it to the user immediately; we never store the raw value.
  */
