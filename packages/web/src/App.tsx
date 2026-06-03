@@ -26,6 +26,7 @@ const SeoAuditResults = lazy(() => import('./pages/SeoAuditResults'));
 const AeoScanResults = lazy(() => import('./pages/AeoScanResults'));
 const IdeaBoard = lazy(() => import('./pages/IdeaBoard'));
 const MyIdeas = lazy(() => import('./pages/MyIdeas'));
+const CompareAhrefsSemrush = lazy(() => import('./pages/CompareAhrefsSemrush'));
 
 export default function App() {
   const location = useLocation();
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/aeo-scan/:scanId" element={<AeoScanResults />} />
           <Route path="/results/:searchId/ideas" element={<IdeaBoard />} />
           <Route path="/my-ideas" element={<MyIdeas />} />
+          <Route path="/compare/ahrefs-vs-semrush" element={<CompareAhrefsSemrush />} />
         </Route>
       </Routes>
     </Suspense>

@@ -264,6 +264,84 @@ const pages = [
 <p>Enter your website URL and we'll analyze 20+ SEO factors across your site. Free audit with preview, full report from $1.99.</p>`,
   },
 
+  // Comparison landing page (JK vs Ahrefs vs SEMrush)
+  {
+    path: '/compare/ahrefs-vs-semrush',
+    title: 'JackpotKeywords vs Ahrefs vs SEMrush: The Affordable AI Alternative',
+    description: 'JackpotKeywords vs Ahrefs vs SEMrush compared (2026): pricing, data source, AI features, and what each does best. Real Google Ads data and AI-visibility scans from $9.99/mo — about 1/14th the price.',
+    extraHead: `<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'JackpotKeywords',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      description: 'Affordable AI keyword research with real Google Ads data, a lightweight SEO audit, and AI-visibility (AEO) scanning — an alternative to Ahrefs and SEMrush for indie makers and small businesses.',
+      url: 'https://jackpotkeywords.web.app',
+      offers: [
+        { '@type': 'Offer', price: '0', priceCurrency: 'USD', description: 'Free — 3 searches, no card' },
+        { '@type': 'Offer', price: '9.99', priceCurrency: 'USD', description: 'Pro — unlimited searches/month' },
+      ],
+    })}</script>
+<script type="application/ld+json">${JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: [
+        { '@type': 'Question', name: 'Is JackpotKeywords a replacement for Ahrefs or SEMrush?', acceptedAnswer: { '@type': 'Answer', text: 'No. Ahrefs and SEMrush are full SEO suites with backlink analysis, rank tracking, and large-scale site audits. JackpotKeywords does keyword research with real Google Ads data, a lightweight SEO audit, and AI-visibility (AEO) scanning. If you need backlinks or rank tracking, choose Ahrefs or SEMrush. If you mainly need to find the right keywords and check your AI visibility without enterprise pricing, JackpotKeywords is built for you.' } },
+        { '@type': 'Question', name: 'How is JackpotKeywords so much cheaper?', acceptedAnswer: { '@type': 'Answer', text: 'JackpotKeywords focuses on finding goldmine keywords with real data instead of bundling backlinks, rank tracking, and competitive analytics. That focus is why it is about 1/14th the price of SEMrush Pro: $9.99/month for unlimited searches, or $1.99 for a single search, versus $129 to $140/month.' } },
+        { '@type': 'Question', name: 'Where does the keyword data come from?', acceptedAnswer: { '@type': 'Answer', text: 'JackpotKeywords pulls volume, CPC, and competition directly from the Google Ads Keyword Planner. Ahrefs and SEMrush use their own clickstream-based models. Ubersuggest also uses Google data, similar to JackpotKeywords.' } },
+        { '@type': 'Question', name: 'What can JackpotKeywords do that Ahrefs and SEMrush cannot?', acceptedAnswer: { '@type': 'Answer', text: 'It generates keywords from a plain-English product description with no seed keyword or domain required, and it runs an AI-visibility (AEO) scan that checks whether ChatGPT, Gemini, and other AI answer engines cite your site. Neither Ahrefs nor SEMrush offers AEO scanning today.' } },
+      ],
+    })}</script>`,
+    body: `<h1>JackpotKeywords vs Ahrefs vs SEMrush: The Affordable AI Alternative</h1>
+<p>An honest 2026 comparison. JackpotKeywords is the affordable, AI-first alternative — real Google Ads keyword data and AI-visibility scans from $9.99/mo, about 1/14th the price of SEMrush Pro. It is not a full SEO suite, and below we are upfront about exactly where Ahrefs and SEMrush are the better choice.</p>
+<h2>The short version</h2>
+<ul>
+<li><strong>Choose JackpotKeywords</strong> if you want real Google keyword data, AI keyword ideas from a plain description, and an AI-visibility check — cheaply, without a contract.</li>
+<li><strong>Choose Ahrefs</strong> if backlink analysis and competitive depth are your priority.</li>
+<li><strong>Choose SEMrush</strong> if you want one all-in-one suite covering SEO, ads, content, and social.</li>
+</ul>
+<h2>Side-by-side comparison</h2>
+<table>
+<thead><tr><th></th><th>JackpotKeywords</th><th>Ahrefs</th><th>SEMrush</th><th>Ubersuggest</th><th>SE Ranking</th></tr></thead>
+<tbody>
+<tr><td>Entry price (monthly)</td><td>$9.99/mo (or $1.99/search)</td><td>$129/mo (Lite)</td><td>~$139.95/mo (Pro)</td><td>$29/mo</td><td>~$52/mo</td></tr>
+<tr><td>Free tier</td><td>3 free searches/audits, no card</td><td>Free data on your own site only</td><td>Limited free + 7-day trial</td><td>7-day trial</td><td>14-day trial</td></tr>
+<tr><td>Keyword data source</td><td>Google Ads Keyword Planner</td><td>Own clickstream model</td><td>Own database/model</td><td>Google Keyword Planner</td><td>Google Ads + own</td></tr>
+<tr><td>AI keyword generation from a plain-English description</td><td>Yes</td><td>No (needs seed/domain)</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>AI-visibility / AEO scan (cited by ChatGPT &amp; Gemini?)</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Backlink analysis</td><td>No</td><td>Yes (core)</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Rank / position tracking</td><td>No</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Site audit</td><td>Lightweight (~10 pages)</td><td>Full (1000s of pages)</td><td>Full</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Best for</td><td>Indie / SMB: real keyword data + AI visibility, cheap</td><td>Agencies: backlinks + competitive depth</td><td>Agencies: all-in-one suite</td><td>Budget all-rounder</td><td>Budget all-in-one</td></tr>
+</tbody>
+</table>
+<p>Pricing as of June 2026; verify on each vendor's site at <a href="https://ahrefs.com/pricing">ahrefs.com/pricing</a> and <a href="https://www.semrush.com/pricing/">semrush.com/pricing</a>. Ahrefs also offers a limited Starter plan at $29/mo and free data for your own verified site; Lite ($129/mo) is the practical professional entry. SE Ranking uses keyword-volume-based tiers; ~$52/mo is the annual entry.</p>
+<h2>Where JackpotKeywords wins</h2>
+<p><strong>Real Google Ads data.</strong> Search volume, CPC, and competition come straight from the Google Ads Keyword Planner — the same source Google shows advertisers. Ahrefs and SEMrush use their own clickstream models.</p>
+<p><strong>Keywords from a plain description.</strong> Describe your product in plain English and AI generates keywords across 12 intent categories — no seed keyword or competitor domain required. The big suites need you to start with one.</p>
+<p><strong>AI-visibility (AEO) scanning.</strong> Check whether ChatGPT, Gemini, and other AI answer engines cite your site for buyer questions — the visibility metric the legacy suites do not measure yet.</p>
+<p><strong>Price and no contract.</strong> $9.99/mo unlimited, or $1.99 for a single search, with 3 free searches and no credit card. Roughly 1/14th the cost of SEMrush Pro and no annual lock-in.</p>
+<h2>Where Ahrefs &amp; SEMrush win — and when to pick them</h2>
+<p>JackpotKeywords is <strong>not a full SEO suite</strong>. If any of these are core to your work, Ahrefs or SEMrush is the right tool:</p>
+<ul>
+<li><strong>Backlink analysis</strong> — Ahrefs and SEMrush maintain massive backlink indexes. JackpotKeywords does not analyze backlinks at all.</li>
+<li><strong>Rank / position tracking</strong> — both track your keyword rankings over time across locations. JackpotKeywords does not.</li>
+<li><strong>Large-scale site audits</strong> — Ahrefs and SEMrush crawl thousands of pages. JackpotKeywords runs a lightweight audit (about 10 pages) plus an AI-visibility scan.</li>
+<li><strong>Competitive traffic &amp; content intelligence</strong> — the suites estimate competitor traffic and content gaps at scale. That is their domain, not ours.</li>
+</ul>
+<p>Plenty of teams run JackpotKeywords alongside a suite — using it for fast, real-data keyword discovery and AI-visibility checks while keeping Ahrefs or SEMrush for backlinks and rank tracking.</p>
+<h2>Frequently Asked Questions</h2>
+<h3>Is JackpotKeywords a replacement for Ahrefs or SEMrush?</h3>
+<p>No. Ahrefs and SEMrush are full SEO suites with backlink analysis, rank tracking, and large-scale site audits. JackpotKeywords does keyword research with real Google Ads data, a lightweight SEO audit, and AI-visibility (AEO) scanning. If you need backlinks or rank tracking, choose Ahrefs or SEMrush. If you mainly need to find the right keywords and check your AI visibility without enterprise pricing, JackpotKeywords is built for you.</p>
+<h3>How is JackpotKeywords so much cheaper?</h3>
+<p>It focuses on finding goldmine keywords with real data instead of bundling backlinks, rank tracking, and competitive analytics. That focus is why it is about 1/14th the price of SEMrush Pro: $9.99/month for unlimited searches, or $1.99 for a single search, versus $129 to $140/month.</p>
+<h3>Where does the keyword data come from?</h3>
+<p>JackpotKeywords pulls volume, CPC, and competition directly from the Google Ads Keyword Planner. Ahrefs and SEMrush use their own clickstream-based models. Ubersuggest also uses Google data, similar to JackpotKeywords.</p>
+<h3>What can JackpotKeywords do that Ahrefs and SEMrush cannot?</h3>
+<p>It generates keywords from a plain-English product description with no seed keyword or domain required, and it runs an AI-visibility (AEO) scan that checks whether ChatGPT, Gemini, and other AI answer engines cite your site. Neither Ahrefs nor SEMrush offers AEO scanning today.</p>
+<p><a href="${BASE_URL}/">Start your free search</a> — 3 free searches with real Google Ads data, no credit card. See also our <a href="${BASE_URL}/blog/best-keyword-research-tool-2026">2026 keyword tool comparison</a> and <a href="${BASE_URL}/pricing">pricing</a>.</p>`,
+  },
+
   // Developers (API docs)
   {
     path: '/developers',
