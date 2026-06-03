@@ -3,6 +3,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { authMiddleware, type AuthRequest } from '../middleware/auth';
 import { getSearchAnalytics } from '../services/searchConsole';
+import { API_SOURCES, type ApiSource } from '../services/apiCredits';
 
 const router = Router();
 const db = admin.firestore();
@@ -93,21 +94,20 @@ router.get('/stats', async (req, res) => {
     }
 
     // --- API customer system attribution rollups (separate from consumer app) ---
-    // JackpotKeywords has two revenue surfaces in the API system: "mcp" (calls
-    // through the published MCP server) and "api" (direct REST). "unknown" is
-    // a bucket for pre-attribution legacy rows.
-    const SOURCES = ['mcp', 'api', 'unknown'] as const;
-    type Bucket = typeof SOURCES[number];
+    // Attribution buckets mirror ApiSource (mcp/api/rapidapi/x402) so each
+    // surface is visible to the seller dashboard; "unknown" catches legacy
+    // pre-attribution rows (no source field). Driven by API_SOURCES from
+    // apiCredits so the bucket list never drifts when a new source is added.
+    type Bucket = ApiSource | 'unknown';
+    const BUCKETS: Bucket[] = [...API_SOURCES, 'unknown'];
     const bucket = (v: unknown): Bucket =>
-      v === 'mcp' || v === 'api' ? v : 'unknown';
+      typeof v === 'string' && API_SOURCES.has(v as ApiSource) ? (v as ApiSource) : 'unknown';
 
-    const usageBySource: Record<Bucket, number> = { mcp: 0, api: 0, unknown: 0 };
-    const revenueBySource: Record<Bucket, { topup: number; subscription: number; total: number }> = {
-      mcp:     { topup: 0, subscription: 0, total: 0 },
-      api:     { topup: 0, subscription: 0, total: 0 },
-      unknown: { topup: 0, subscription: 0, total: 0 },
-    };
-    const usersBySignupSource: Record<Bucket, number> = { mcp: 0, api: 0, unknown: 0 };
+    const usageBySource = Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
+    const revenueBySource = Object.fromEntries(
+      BUCKETS.map((b) => [b, { topup: 0, subscription: 0, total: 0 }]),
+    ) as Record<Bucket, { topup: number; subscription: number; total: number }>;
+    const usersBySignupSource = Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
 
     try {
       // First pass: load customers and build the set of excluded customerIds

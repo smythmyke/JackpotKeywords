@@ -94,7 +94,7 @@ export const TOPUP_PACKS = [
  */
 export type ApiSource = 'mcp' | 'api' | 'rapidapi' | 'x402';
 
-const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api', 'rapidapi', 'x402']);
+export const API_SOURCES: ReadonlySet<ApiSource> = new Set(['mcp', 'api', 'rapidapi', 'x402']);
 
 /** Validate an arbitrary value against ApiSource, defaulting to "api". */
 export function coerceApiSource(value: unknown): ApiSource {
