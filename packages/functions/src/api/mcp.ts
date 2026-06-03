@@ -31,6 +31,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import * as functions from 'firebase-functions';
 import {
   verifyAccessToken,
   fetchWorkOsEmail,
@@ -197,13 +198,6 @@ async function resolveAuth(req: Request): Promise<AuthOutcome> {
   const { getOrCreateCustomerByEmail } = await import('../services/apiCredits');
   const customer = await getOrCreateCustomerByEmail(email, 'mcp');
   return { status: 'ok', auth: { customerId: customer.id, email } };
-}
-
-/** True if the JSON-RPC body (single or batch) invokes a tool. */
-function bodyNeedsAuth(body: unknown): boolean {
-  const isCall = (msg: unknown): boolean =>
-    !!msg && typeof msg === 'object' && (msg as { method?: unknown }).method === 'tools/call';
-  return Array.isArray(body) ? body.some(isCall) : isCall(body);
 }
 
 /** 401 + RFC 9728 discovery hint so MCP clients begin the OAuth flow. */
@@ -428,18 +422,29 @@ router.post('/', async (req: Request, res: Response) => {
   const body = req.body;
 
   const outcome = await resolveAuth(req);
-  if (outcome.status === 'invalid') {
-    send401(res, outcome.reason);
-    return;
-  }
-  const auth = outcome.status === 'ok' ? outcome.auth : null;
+  // Diagnostics — trace which methods clients call and the auth result.
+  const methods = Array.isArray(body)
+    ? body.map((m) => (m && typeof m === 'object' ? (m as { method?: string }).method : '?')).join(',')
+    : body && typeof body === 'object'
+      ? (body as { method?: string }).method
+      : '?';
+  const hasBearer = /^Bearer\s+/i.test(req.header('authorization') || '');
+  functions.logger.info(
+    `MCP POST methods=[${methods}] bearer=${hasBearer} auth=${outcome.status}` +
+      (outcome.status === 'invalid' ? `(${outcome.reason})` : ''),
+  );
 
-  // Tool invocations require a verified identity; 401 with a resource_metadata
-  // hint triggers the client's OAuth flow.
-  if (!auth && bodyNeedsAuth(body)) {
-    send401(res, 'authentication_required');
+  // Protected resource — every JSON-RPC call requires a verified identity.
+  // Returning 401 + WWW-Authenticate (RFC 9728) on unauthenticated requests is
+  // what makes the client run OAuth at CONNECT time. (A deferred 401 on
+  // tools/call alone did not reliably trigger Claude's OAuth flow — the client
+  // connected anonymously off the public initialize/tools-list and never
+  // authenticated.)
+  if (outcome.status !== 'ok') {
+    send401(res, outcome.status === 'invalid' ? outcome.reason : 'authentication_required');
     return;
   }
+  const auth = outcome.auth;
 
   if (Array.isArray(body)) {
     if (body.length === 0) {
@@ -475,6 +480,7 @@ router.post('/', async (req: Request, res: Response) => {
 // RFC 9728 Protected Resource Metadata — lets MCP clients discover the
 // authorization server (AuthKit) + JWKS. Advertised via WWW-Authenticate on 401.
 router.get('/.well-known/oauth-protected-resource', (_req: Request, res: Response) => {
+  functions.logger.info('MCP PRM fetched (.well-known/oauth-protected-resource)');
   res.json(protectedResourceMetadata());
 });
 

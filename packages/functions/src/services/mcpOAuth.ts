@@ -42,8 +42,10 @@ const JWKS_TTL_MS = 60 * 60 * 1000; // 1h
 async function getSigningKey(kid: string): Promise<crypto.KeyObject | null> {
   const fresh = jwksCache && Date.now() - jwksCache.fetchedAt < JWKS_TTL_MS;
   if (fresh && jwksCache!.keys[kid]) return jwksCache!.keys[kid];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(oauthJwksUri());
+    const res = await fetch(oauthJwksUri(), { signal: controller.signal });
     if (!res.ok) throw new Error(`JWKS ${res.status}`);
     const json: any = await res.json();
     const keys: Record<string, crypto.KeyObject> = {};
@@ -60,6 +62,8 @@ async function getSigningKey(kid: string): Promise<crypto.KeyObject | null> {
   } catch (err) {
     functions.logger.warn('MCP OAuth: JWKS fetch failed:', (err as Error).message);
     return jwksCache?.keys[kid] || null; // stale fallback if present
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -132,10 +136,12 @@ export async function verifyAccessToken(
 export async function fetchWorkOsEmail(userId: string): Promise<string | null> {
   const key = process.env.WORKOS_API_KEY;
   if (!key) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
     const res = await fetch(
       `https://api.workos.com/user_management/users/${encodeURIComponent(userId)}`,
-      { headers: { Authorization: `Bearer ${key}` } },
+      { headers: { Authorization: `Bearer ${key}` }, signal: controller.signal },
     );
     if (!res.ok) {
       functions.logger.warn(`MCP OAuth: WorkOS user lookup ${res.status}`);
@@ -146,6 +152,8 @@ export async function fetchWorkOsEmail(userId: string): Promise<string | null> {
   } catch (err) {
     functions.logger.warn('MCP OAuth: WorkOS user lookup failed:', (err as Error).message);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

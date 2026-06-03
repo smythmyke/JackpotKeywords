@@ -23,12 +23,15 @@ const server = app.listen(0, async () => {
   const port = server.address().port;
   let failures = 0;
 
-  function rpc(payload, headers = {}) {
+  // Dev-auth (JK_MCP_DEV_AUTH=1) is sent by default so protocol calls pass the
+  // now-required auth gate; pass { noauth: true } to exercise the 401 path.
+  function rpc(payload, { noauth = false } = {}) {
     return new Promise((resolve) => {
       const data = JSON.stringify(payload);
+      const headers = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) };
+      if (!noauth) headers['x-dev-customer-id'] = 'test-customer';
       const req = http.request(
-        { host: '127.0.0.1', port, path: '/api/mcp', method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data), ...headers } },
+        { host: '127.0.0.1', port, path: '/api/mcp', method: 'POST', headers },
         (res) => {
           let buf = '';
           res.on('data', (c) => (buf += c));
@@ -59,23 +62,25 @@ const server = app.listen(0, async () => {
 
   const list = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const names = (list.body?.result?.tools || []).map((t) => t.name);
-  check('tools/list → 200 (no auth needed for discovery)', list.status === 200);
+  check('tools/list → 200 (dev-authed)', list.status === 200);
   check('exposes exactly recommend + usage_status', names.length === 2
     && names.includes('jackpotkeywords_recommend') && names.includes('jackpotkeywords_usage_status'),
     `got [${names.join(', ')}]`);
   check('does NOT expose premium tools', !names.some((n) => /deep|aeo|audit/.test(n)));
 
-  // No auth header → tools/call must be rejected with 401 (triggers OAuth
-  // discovery via WWW-Authenticate), BEFORE touching Firestore.
+  // No auth → any MCP call is rejected with 401 (triggers OAuth at connect via
+  // WWW-Authenticate), BEFORE touching Firestore.
   const noAuth = await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/call',
-    params: { name: 'jackpotkeywords_recommend', arguments: { description: 'test' } } });
+    params: { name: 'jackpotkeywords_recommend', arguments: { description: 'test' } } }, { noauth: true });
   check('tools/call unauthenticated → 401 unauthorized',
     noAuth.status === 401 && noAuth.body?.error === 'unauthorized',
     `status ${noAuth.status}`);
 
+  const noAuthInit = await rpc({ jsonrpc: '2.0', id: 7, method: 'initialize' }, { noauth: true });
+  check('initialize unauthenticated → 401 (OAuth at connect)', noAuthInit.status === 401, `status ${noAuthInit.status}`);
+
   // Authed (dev bypass) but unknown tool → not-found, also Firestore-free.
-  const unknown = await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope' } },
-    { 'x-dev-customer-id': 'test-customer' });
+  const unknown = await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nope' } });
   check('tools/call unknown tool → "Unknown tool" isError',
     unknown.body?.result?.isError === true && /unknown tool/i.test(unknown.body?.result?.content?.[0]?.text || ''),
     JSON.stringify(unknown.body?.result?.content?.[0]?.text));
