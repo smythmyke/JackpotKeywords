@@ -535,7 +535,7 @@ async function runGetReportTool(args: Record<string, unknown>, auth: McpAuth): P
   // success — always render a human-readable text summary. Some MCP clients
   // (claude.ai chat) don't reliably surface large structuredContent payloads
   // to the model, so a structured-data-only response reads as "undefined".
-  const result = (job.result ?? {}) as Record<string, unknown>;
+  const result = trimResultForMcp((job.result ?? {}) as Record<string, unknown>);
   let text: string;
   if (job.operation === 'audit') {
     text = formatAuditText(result);
@@ -554,6 +554,28 @@ async function runGetReportTool(args: Record<string, unknown>, auth: McpAuth): P
 
 function isRecommendResult(result: Record<string, unknown>): result is Parameters<typeof formatRecommendText>[0] {
   return Array.isArray((result as { recommendations?: unknown }).recommendations);
+}
+
+// MCP tool results are capped at ~25k tokens by Claude. Deep-report clusters
+// carry full keywordKeys arrays (a single cluster can list 1,900+ keywords →
+// 150KB+ of JSON), which blows that cap. Cap the per-cluster keyword list for
+// MCP transport and expose the true size as keywordCount; REST /v1 callers
+// (Zapier, RapidAPI) still receive the full payload from their own endpoints.
+const MCP_MAX_CLUSTER_KEYWORDS = 25;
+
+function trimResultForMcp(result: Record<string, unknown>): Record<string, unknown> {
+  const clusters = (result as { clusters?: unknown }).clusters;
+  if (!Array.isArray(clusters)) return result;
+  return {
+    ...result,
+    clusters: clusters.map((c) => {
+      if (!c || !Array.isArray(c.keywordKeys)) return c;
+      const keywordCount = c.keywordKeys.length;
+      return keywordCount > MCP_MAX_CLUSTER_KEYWORDS
+        ? { ...c, keywordCount, keywordKeys: c.keywordKeys.slice(0, MCP_MAX_CLUSTER_KEYWORDS) }
+        : { ...c, keywordCount };
+    }),
+  };
 }
 
 async function runCreditBalanceTool(auth: McpAuth): Promise<ToolResult> {
@@ -638,7 +660,8 @@ function formatRecommendText(
       (a, b) => ((b?.totalVolume as number) ?? 0) - ((a?.totalVolume as number) ?? 0),
     );
     for (const c of byVolume.slice(0, 15)) {
-      const count = Array.isArray(c?.keywordKeys) ? c.keywordKeys.length : '?';
+      // keywordCount = true size when keywordKeys was capped for MCP transport
+      const count = c?.keywordCount ?? (Array.isArray(c?.keywordKeys) ? c.keywordKeys.length : '?');
       lines.push(
         `  "${c?.name}" · ${count} keywords · vol ${(c?.totalVolume as number)?.toLocaleString?.() ?? '?'}/mo`,
       );
