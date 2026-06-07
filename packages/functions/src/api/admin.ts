@@ -109,6 +109,19 @@ router.get('/stats', async (req, res) => {
     ) as Record<Bucket, { topup: number; subscription: number; total: number }>;
     const usersBySignupSource = Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
 
+    // Itemized payment feed for the dashboard's Revenue pane (read-only). One
+    // entry per mcp/api top-up; tagged with the same source as revenueBySource
+    // above so the lines reconcile with the displayed totals.
+    const payments: Array<{
+      source: string;
+      type: string;
+      amount_cents: number;
+      currency: string;
+      email: string | null;
+      created_at: string | null;
+      stripe_session_id: string | null;
+    }> = [];
+
     try {
       // First pass: load customers and build the set of excluded customerIds
       // (admin + smoke-test accounts) so we can filter their calls and
@@ -116,12 +129,14 @@ router.get('/stats', async (req, res) => {
       // apiCalls / apiTransactions so the filter applies uniformly.
       const apiCustomersSnap = await db.collection('apiCustomers').get();
       const excludedCustomerIds = new Set<string>();
+      const customerEmail = new Map<string, string>();
       apiCustomersSnap.forEach(doc => {
         const d = doc.data();
         if (isExcludedEmail(d.email as string | undefined)) {
           excludedCustomerIds.add(doc.id);
           return;
         }
+        if (d.email) customerEmail.set(doc.id, d.email as string);
         usersBySignupSource[bucket(d.signupSource)] += 1;
       });
 
@@ -148,7 +163,25 @@ router.get('/stats', async (req, res) => {
         const amount = Number(d.amountCents || 0);
         revenueBySource[b].topup += amount;
         revenueBySource[b].total += amount;
+        // Only mcp/api appear on the MCP/API page (matches what the dashboard
+        // displays); rapidapi/x402/unknown are summed in revenueBySource but not
+        // surfaced as payment lines.
+        if (b === 'mcp' || b === 'api') {
+          const ts = d.timestamp && typeof d.timestamp.toDate === 'function'
+            ? d.timestamp.toDate().toISOString()
+            : (typeof d.timestamp === 'string' ? d.timestamp : null);
+          payments.push({
+            source: b,
+            type: 'topup',
+            amount_cents: amount,
+            currency: (d.currency as string) || 'usd',
+            email: customerEmail.get(d.customerId) || null,
+            created_at: ts,
+            stripe_session_id: (d.stripeSessionId as string) || null,
+          });
+        }
       });
+      payments.sort((a, b2) => String(b2.created_at || '').localeCompare(String(a.created_at || '')));
     } catch (err: any) {
       functions.logger.warn('Admin stats: API attribution rollups failed:', err.message);
     }
@@ -165,6 +198,7 @@ router.get('/stats', async (req, res) => {
       usageBySource,
       revenueBySource,
       usersBySignupSource,
+      payments,
       fetched_at: new Date().toISOString(),
     });
   } catch (err: any) {
