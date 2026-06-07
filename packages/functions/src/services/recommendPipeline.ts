@@ -17,6 +17,7 @@ import {
   extractProductContext,
   generateSeeds,
   scoreAndClassify,
+  nameClustersBatch,
 } from './gemini';
 import {
   expandAutocomplete,
@@ -201,7 +202,19 @@ export async function runRecommendPipeline(
     returned: recommendations.length,
   };
   if (deep) {
-    result.clusters = scored.clusters;
+    // scoreAndClassify returns placeholder cluster names ("Cluster N") — the web
+    // app names them async via /api/search/name-clusters, but deep surfaces
+    // return everything in one shot, so name them inline. Best-effort: on
+    // failure keep the placeholders rather than failing a finished pipeline.
+    try {
+      result.clusters = await nameClustersBatch(scored.clusters);
+    } catch (err) {
+      functions.logger.warn(
+        'Recommend: cluster naming failed, returning placeholder names:',
+        err instanceof Error ? err.message : String(err),
+      );
+      result.clusters = scored.clusters;
+    }
     result.categories = scored.categories;
     result.competitors = context.competitors;
   }
