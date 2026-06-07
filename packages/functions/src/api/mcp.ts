@@ -532,11 +532,20 @@ async function runGetReportTool(args: Record<string, unknown>, auth: McpAuth): P
     return toolError(`Job ${jobId} (${job.operation}) failed: ${job.error || 'unknown error'}.`);
   }
 
-  // success
+  // success — always render a human-readable text summary. Some MCP clients
+  // (claude.ai chat) don't reliably surface large structuredContent payloads
+  // to the model, so a structured-data-only response reads as "undefined".
   const result = (job.result ?? {}) as Record<string, unknown>;
-  const text = isRecommendResult(result)
-    ? formatRecommendText(result, '')
-    : `Job ${jobId} (${job.operation}) completed. Full results are in the structured data.`;
+  let text: string;
+  if (job.operation === 'audit') {
+    text = formatAuditText(result);
+  } else if (job.operation === 'aeo-scan') {
+    text = formatAeoText(result);
+  } else if (isRecommendResult(result)) {
+    text = formatRecommendText(result, '');
+  } else {
+    text = `Job ${jobId} (${job.operation}) completed. Full results are in the structured data.`;
+  }
   return {
     content: [{ type: 'text', text }],
     structuredContent: { jobId, operation: job.operation, status: 'success', result },
@@ -617,6 +626,123 @@ function formatRecommendText(
   if (footer) {
     lines.push('');
     lines.push(footer);
+  }
+
+  // Deep results carry cluster/competitor aggregates — surface them in the
+  // text, since structured data may not reach the model on every client.
+  const clusters = (result as { clusters?: unknown }).clusters;
+  if (Array.isArray(clusters) && clusters.length > 0) {
+    lines.push('');
+    lines.push(`Keyword clusters (${clusters.length}, by volume):`);
+    const byVolume = [...clusters].sort(
+      (a, b) => ((b?.totalVolume as number) ?? 0) - ((a?.totalVolume as number) ?? 0),
+    );
+    for (const c of byVolume.slice(0, 15)) {
+      const count = Array.isArray(c?.keywordKeys) ? c.keywordKeys.length : '?';
+      lines.push(
+        `  "${c?.name}" · ${count} keywords · vol ${(c?.totalVolume as number)?.toLocaleString?.() ?? '?'}/mo`,
+      );
+    }
+    if (byVolume.length > 15) lines.push(`  … and ${byVolume.length - 15} more (see structured data).`);
+  }
+  const competitors = (result as { competitors?: unknown }).competitors;
+  if (Array.isArray(competitors) && competitors.length > 0) {
+    lines.push('');
+    lines.push(`Competitors discovered: ${competitors.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+/** Human-readable summary of an SEO audit result for the chat transcript. */
+function formatAuditText(result: Record<string, unknown>): string {
+  const lines: string[] = [];
+  lines.push(`SEO audit of ${result.url ?? 'site'} — overall score ${result.overallScore ?? '?'}/100.`);
+
+  const categoryScores = result.categoryScores as
+    | Record<string, { score: number | null; passed: number; total: number }>
+    | undefined;
+  if (categoryScores) {
+    const parts = Object.entries(categoryScores)
+      .filter(([, v]) => v && v.total > 0)
+      .map(([k, v]) => `${k.replace(/_/g, ' ')} ${v.score ?? '–'} (${v.passed}/${v.total})`);
+    if (parts.length) {
+      lines.push(`Category scores: ${parts.join(', ')}.`);
+    }
+  }
+
+  const checks = result.checks as
+    | Array<{ label?: string; status?: string; details?: string; recommendation?: string; priority?: string }>
+    | undefined;
+  const issues = (checks ?? []).filter((c) => c.status === 'fail' || c.status === 'warning');
+  if (issues.length) {
+    lines.push('');
+    lines.push(`Issues found (${issues.length}):`);
+    for (const c of issues) {
+      lines.push(`  [${c.priority ?? c.status}] ${c.label}: ${c.details ?? ''}`);
+      if (c.recommendation) lines.push(`    Fix: ${c.recommendation}`);
+    }
+  } else {
+    lines.push('');
+    lines.push('No failed or warning checks.');
+  }
+
+  const recommendations = result.recommendations as
+    | Array<{ title?: string; description?: string; impact?: string; effort?: string }>
+    | undefined;
+  if (recommendations?.length) {
+    lines.push('');
+    lines.push('Top recommendations:');
+    recommendations.slice(0, 8).forEach((r, i) => {
+      lines.push(`  ${i + 1}. [${r.impact ?? '?'} impact, ${r.effort ?? '?'} effort] ${r.title}: ${r.description ?? ''}`);
+    });
+  }
+
+  const gaps = result.keywordGaps as Array<{ keyword?: string; difficulty?: string }> | undefined;
+  if (gaps?.length) {
+    lines.push('');
+    lines.push(
+      `Keyword gap themes: ${gaps.map((g) => `${g.keyword} (${g.difficulty ?? '?'})`).join(', ')}.`,
+    );
+  }
+  return lines.join('\n');
+}
+
+/** Human-readable summary of an AEO (AI-visibility) scan for the chat transcript. */
+function formatAeoText(result: Record<string, unknown>): string {
+  const lines: string[] = [];
+  lines.push(
+    `AI-visibility (AEO) scan of ${result.url ?? 'site'} — visibility score ${result.visibilityScore ?? '?'}/100.`,
+  );
+  lines.push(
+    `Across ${result.queriesChecked ?? '?'} buyer-intent queries: cited as a source in ${result.queriesCited ?? 0}, mentioned in the answer in ${result.queriesMentioned ?? 0}.`,
+  );
+
+  const compFreq = result.competitorFrequency as Record<string, number> | undefined;
+  if (compFreq && Object.keys(compFreq).length) {
+    const ranked = Object.entries(compFreq)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, n]) => `${name} (${n})`);
+    lines.push(`Competitors cited instead: ${ranked.join(', ')}.`);
+  }
+
+  const queries = result.queries as
+    | Array<{ query?: string; productCited?: boolean; productMentionedInAnswer?: boolean; competitorsCited?: string[] }>
+    | undefined;
+  if (queries?.length) {
+    lines.push('');
+    lines.push('Per query:');
+    for (const q of queries) {
+      const mark = q.productCited ? 'CITED' : q.productMentionedInAnswer ? 'mentioned' : 'absent';
+      const comps = q.competitorsCited?.length ? ` — competitors cited: ${q.competitorsCited.join(', ')}` : '';
+      lines.push(`  [${mark}] "${q.query}"${comps}`);
+    }
+  }
+
+  const actionItems = result.actionItems as string[] | undefined;
+  if (actionItems?.length) {
+    lines.push('');
+    lines.push('Action items:');
+    actionItems.forEach((a, i) => lines.push(`  ${i + 1}. ${a}`));
   }
   return lines.join('\n');
 }
