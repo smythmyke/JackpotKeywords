@@ -1,0 +1,6 @@
+node_modules/
+.zcacherc
+build/
+*.zip
+.env
+package-lock.json
