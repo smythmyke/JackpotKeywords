@@ -17,6 +17,7 @@ const About = lazy(() => import('./pages/About'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Developers = lazy(() => import('./pages/Developers'));
+const Connector = lazy(() => import('./pages/Connector'));
 const CompetitorKeywordResearch = lazy(() => import('./pages/features/CompetitorKeywordResearch'));
 const LongTailKeywordGenerator = lazy(() => import('./pages/features/LongTailKeywordGenerator'));
 const KeywordCompetitionChecker = lazy(() => import('./pages/features/KeywordCompetitionChecker'));
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/developers" element={<Developers />} />
+          <Route path="/connector" element={<Connector />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/admin" element={<Admin />} />

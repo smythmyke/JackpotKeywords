@@ -376,6 +376,24 @@ const pages = [
 <p>Self-serve. Visit <a href="https://jackpotkeywords.web.app/developers#signup">jackpotkeywords.web.app/developers</a>, enter your email, get a key and a $5 starter credit. No card required.</p>`,
   },
 
+  // Claude Connector docs
+  {
+    path: '/connector',
+    title: 'Claude Connector — JackpotKeywords',
+    description: 'Use JackpotKeywords inside Claude: AI keyword research from a plain-English description, SEO audits, and AI-visibility scans. Setup guide, tool reference, and troubleshooting.',
+    body: `<h1>JackpotKeywords for Claude</h1>
+<p>Run real keyword research without leaving your Claude conversation: describe a product in plain English (or give a URL) and get ranked keyword opportunities backed by Google Ads Keyword Planner data — plus SEO audits and AI-visibility scans.</p>
+
+<h2>Setup</h2>
+<p>In Claude (web, desktop, or mobile), open Settings → Connectors → Add custom connector and enter <code>https://jackpotkeywords.web.app/api/mcp</code>. Sign in with your email (one-time code, no password). Your account is created on first sign-in with a free monthly keyword report and $2.00 of starter credit. In a chat, toggle JackpotKeywords on in the tools menu.</p>
+
+<h2>Tools</h2>
+<p>jackpotkeywords_recommend (free, 1 report/month): full keyword-research pipeline ranked by composite Jackpot Score, backed by real Google Ads Keyword Planner data. jackpotkeywords_recommend_deep ($0.30): adds competitor discovery, clusters, and category aggregates. jackpotkeywords_audit ($0.50): SEO audit of up to 10 pages with prioritized fixes. jackpotkeywords_aeo_scan ($1.00): checks whether AI assistants mention your product. jackpotkeywords_get_report: fetches results of the 1–3 minute background research jobs. jackpotkeywords_usage_status and jackpotkeywords_credit_balance: account status.</p>
+
+<h2>Troubleshooting</h2>
+<p>Tools not appearing: toggle the connector on per-conversation in the chat tools menu. Sign-in trouble: remove and re-add the connector with the exact URL above. Research returned a job id: that's expected — ask Claude to check the report after a minute or two; failed jobs are refunded automatically. Support: <a href="mailto:smythmyke@gmail.com">smythmyke@gmail.com</a>.</p>`,
+  },
+
   // About
   {
     path: '/about',
