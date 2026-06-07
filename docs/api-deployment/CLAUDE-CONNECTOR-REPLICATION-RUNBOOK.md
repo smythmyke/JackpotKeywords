@@ -28,6 +28,28 @@ Reference implementation (copy these two files almost verbatim): `packages/funct
 
 10. **Claude calls your server from Anthropic's cloud**, not the user's device → the endpoint must be public over the internet. Add **request diagnostics** (`log(methods, bearer?, auth-outcome)` + a PRM-fetch log) — they turn "it spun silently" into a one-glance diagnosis.
 
+## +6 more, learned shipping JK to submission (2026-06-07)
+
+11. **Serve BOTH RFC 9728 PRM forms.** Besides the suffix form (`<mcp>/.well-known/oauth-protected-resource`), some clients probe the standard **path-insert** form (`https://host/.well-known/oauth-protected-resource/<mcp-path>`) — on SPA hosting that falls through to `index.html` (HTML, not JSON) unless you add hosting rewrites + routes. JK commit `46edd42`; GovToolsPro got the same fix.
+
+12. **The connector URL users add MUST equal the PRM `resource` URL.** Clients reject the mismatch and OAuth fails with no useful error (JK: connector pointed at `cloudfunctions.net` while PRM advertised the `web.app` URL → endless "needs authentication"). One canonical URL everywhere.
+
+13. **Every tool result needs a COMPLETE text rendering.** claude.ai chat does not reliably surface large `structuredContent` to the model — structured-only results read as "undefined" fields in chat (JK audit/AEO reports, commit `fc1b3e0`; GovToolsPro's capped-JSON fallback truncated mid-array). Per-tool text formatters; keep structuredContent as a bonus, never the carrier. Never write "see structured data" in the text.
+
+14. **MCP tool results are capped ~25k tokens.** Big arrays (JK's cluster keyword lists: 160KB+ JSON) must be trimmed at the MCP transport layer — cap lists, expose true sizes as counts (`keywordCount`), leave REST surfaces full-fat. JK commit `aa1b10b` (`trimResultForMcp`).
+
+15. **Tools slower than ~60s need the async-job pattern** when served through a Firebase Hosting rewrite (60s edge timeout): tool returns a `job_id` immediately, a `get_report` tool polls. Meter at job start, refund on failure. Skip this entirely if all tools are fast (GovToolsPro's are; JK's research tools aren't).
+
+16. **One WorkOS ENVIRONMENT per product** (Workspace → Environments → Applications). "Applications" within an env share its user pool + AuthKit domain — adding product B as an "application" in product A's env signs B's users in through A's domain. Create a fresh environment per product; enable Magic Auth + DCR + CIMD + Resource Indicator in EACH.
+
+## Submission-day checklist (from JK's 2026-06-07 submission)
+- **Fix the favicon a WEEK early** — Anthropic fetches the logo from `google.com/s2/favicons?domain=<mcp-domain>&sz=64`, whose cache lags days and can't be forced. JK submitted with the stale globe + a disclosure note.
+- **Verbatim form question bank** (every page, every field, with JK's answers): `docs/api-deployment/MCP-DIRECTORY-FORM-QUESTIONS-2026-06-07.md` — prep all answers before opening the form.
+- Screenshots: 3–5 PNGs **≥1000px wide**, cropped to the **response only** (no prompt in image; prompt text provided separately). Claude.ai's column is ~800px at 100% zoom → capture at 125–150% zoom or HighQualityBicubic-upscale.
+- Seed the reviewer (`mcp-review@anthropic.com`) with credits via a **create-if-missing** grant BEFORE they first sign in; AuthKit email self-signup must be ON (Magic Auth, no password/2FA).
+- Submit a **SKILL.md alongside** (free Skills-directory cross-promo): `skills/<name>/SKILL.md` in the public stdio repo, GitHub URL on the form's Skills page. JK: `keyword-research-workflow`; GovToolsPro: `federal-opportunity-triage`.
+- Post-submit freeze ≥30 days: reviewer login keeps working, no WorkOS config changes, prod stable.
+
 ---
 
 ## WorkOS Phase 0 (per project, ~15 min, USER)
