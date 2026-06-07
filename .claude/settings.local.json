@@ -188,7 +188,10 @@
       "Read(//c/Projects/Bull-Generator/planning/**)",
       "Read(//c/Projects/Bull-Generator/functions/**)",
       "Read(//c/c/Projects/Bull-Generator/**)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "PowerShell(npm run *)",
+      "PowerShell(Get-Content .env | ForEach-Object { \\($_ -split '='\\)[0] } | Where-Object { $_ -and $_ -notmatch '^#' })",
+      "PowerShell(node scripts/debug-contamination.mjs)"
     ]
   }
 }

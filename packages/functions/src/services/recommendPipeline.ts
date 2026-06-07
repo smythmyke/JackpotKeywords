@@ -26,6 +26,10 @@ import { enrichKeywords } from './keywordPlanner';
 import { fetchAndParse } from './htmlParser';
 import { overlayTrends } from './googleTrends';
 import { inferCategory } from './categoryInference';
+import * as functions from 'firebase-functions';
+
+/** aiRelevance at or below this is "not relevant" per the scoring rubric. */
+const RELEVANCE_CUTOFF = 3;
 
 export interface RecommendPipelineInput {
   description?: string;
@@ -150,8 +154,28 @@ export async function runRecommendPipeline(
   // Step 5: Google Trends overlay
   const withTrends = await overlayTrends(enriched);
 
-  // Step 6: AI scoring + classification (writes jackpotScore + jackpotScore_v2)
-  const scored = await scoreAndClassify(withTrends, context, budget, { sourceCounts, maxPlatforms });
+  // Step 6: AI scoring + classification (writes jackpotScore + jackpotScore_v2).
+  // inlineRelevance: this surface returns final ranked results in one shot, so
+  // the Gemini relevance pass must run server-side (the web app runs it async
+  // client-side). Without it, off-topic keywords are never demoted.
+  const scored = await scoreAndClassify(withTrends, context, budget, {
+    sourceCounts,
+    maxPlatforms,
+    inlineRelevance: true,
+  });
+
+  // Drop keywords Gemini judged not relevant (1-3 = different product category,
+  // navigational competitor queries). Unscored keywords (beyond the inline top-N
+  // or on relevance failure) are kept — absence of a score is not a verdict.
+  const beforeFilter = scored.keywords.length;
+  scored.keywords = scored.keywords.filter(
+    (kw) => kw.aiRelevance === undefined || kw.aiRelevance > RELEVANCE_CUTOFF,
+  );
+  if (scored.keywords.length < beforeFilter) {
+    functions.logger.info(
+      `Recommend: dropped ${beforeFilter - scored.keywords.length} keywords with aiRelevance <= ${RELEVANCE_CUTOFF}`,
+    );
+  }
 
   // Sort by v2 (composite) score descending and trim to limit
   scored.keywords.sort((a, b) => (b.jackpotScore_v2 ?? b.jackpotScore) - (a.jackpotScore_v2 ?? a.jackpotScore));

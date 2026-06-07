@@ -15,3 +15,6 @@ hero-mockup-*.html
 # Sibling repo — jackpotkeywords-mcp-server is published separately at
 # github.com/smythmyke/jackpotkeywords-mcp-server. Lives here for dev convenience.
 mcp-server/
+
+# Regenerable pipeline debug dumps (scripts/debug-contamination.mjs)
+research/contamination-debug/

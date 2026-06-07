@@ -64,12 +64,19 @@ export async function enrichKeywords(
     batches.push(allKeywords.slice(i, i + BATCH_SIZE));
   }
 
-  // Build seed lookup and meaningful word set
+  // Build seed lookup and meaningful word set.
+  // Word pool comes from AI-generated seeds ONLY (when present): autocomplete
+  // suggestions can be off-topic fallbacks, and letting their words into the
+  // pool admits whole KP-related junk families (one stray "grain" suggestion
+  // -> "refined grain", "quinoa grain", ...). AI seeds are grounded in the
+  // product context, so KP-related keywords must connect to THOSE words.
   const seedLookup = new Map<string, { category: string; source: string }>();
   const meaningfulSeedWords = new Set<string>();
+  const hasAiSeeds = masterList.some((s) => s.source === 'ai');
   for (const seed of masterList) {
     const key = seed.keyword.toLowerCase().trim();
     seedLookup.set(key, { category: seed.category, source: seed.source });
+    if (hasAiSeeds && seed.source !== 'ai') continue;
     for (const word of key.split(/\s+/)) {
       if (word.length > 2 && !GENERIC_WORDS.has(word)) {
         meaningfulSeedWords.add(word);

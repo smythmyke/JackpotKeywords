@@ -22,7 +22,9 @@ import {
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-const GEMINI_MAX_RETRIES = 2;
+// Exponential backoff: 3s, 6s, 12s, 24s (~45s worst case). Sustained 503
+// storms outlive the old 2x3s schedule and hard-failed whole pipeline runs.
+const GEMINI_MAX_RETRIES = 4;
 const GEMINI_RETRY_DELAY = 3000;
 
 /**
@@ -132,8 +134,9 @@ export async function geminiGenerate(prompt: string, config?: Record<string, any
       const msg = err.message || '';
       const isOverloaded = msg.includes('503') || msg.includes('high demand') || msg.includes('Service Unavailable') || msg.includes('RESOURCE_EXHAUSTED');
       if (isOverloaded && attempt < GEMINI_MAX_RETRIES) {
-        functions.logger.info(`Gemini overloaded, retrying in ${GEMINI_RETRY_DELAY / 1000}s (attempt ${attempt + 1}/${GEMINI_MAX_RETRIES})`);
-        await new Promise((r) => setTimeout(r, GEMINI_RETRY_DELAY));
+        const delay = GEMINI_RETRY_DELAY * Math.pow(2, attempt);
+        functions.logger.info(`Gemini overloaded, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${GEMINI_MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
       if (isOverloaded) {
@@ -441,6 +444,11 @@ Return ONLY valid JSON, no markdown:
 /**
  * Step 6: Score and classify all enriched keywords
  */
+// Inline relevance pass (v2 pass 3): how many top-by-v2 keywords get Gemini
+// relevance scoring, and the per-call batch size (mirrors /score-relevance).
+const INLINE_RELEVANCE_MAX = 300;
+const INLINE_RELEVANCE_BATCH = 100;
+
 export async function scoreAndClassify(
   keywords: KeywordResult[],
   context: ProductContext,
@@ -448,6 +456,13 @@ export async function scoreAndClassify(
   scoringInputs?: {
     sourceCounts?: Map<string, Set<string>>;
     maxPlatforms?: number;
+    /**
+     * Run the Gemini relevance pass inline (pass 3) instead of leaving it to
+     * an async client-side endpoint. Used by surfaces that return final ranked
+     * results in one shot (REST /v1/recommend, MCP) — without it, aiRelevance
+     * stays neutral (50) and off-topic keywords are never demoted.
+     */
+    inlineRelevance?: boolean;
   },
 ): Promise<{
   keywords: KeywordResult[];
@@ -570,6 +585,52 @@ export async function scoreAndClassify(
     });
   }
 
+  // v2 pass 3 (opt-in): inline Gemini relevance on the top candidates, then
+  // recompute v2 so off-topic keywords are demoted before results leave the
+  // server. The web app does this pass async/client-side instead.
+  if (scoringInputs?.inlineRelevance) {
+    try {
+      const topByV2 = [...scored]
+        .sort((a, b) => (b.jackpotScore_v2 ?? 0) - (a.jackpotScore_v2 ?? 0))
+        .slice(0, INLINE_RELEVANCE_MAX);
+      const batches: string[][] = [];
+      const kwStrings = topByV2.map((k) => k.keyword);
+      for (let i = 0; i < kwStrings.length; i += INLINE_RELEVANCE_BATCH) {
+        batches.push(kwStrings.slice(i, i + INLINE_RELEVANCE_BATCH));
+      }
+      const maps = await Promise.all(
+        batches.map((batch) => scoreRelevance(batch, context).catch(() => new Map<string, number>())),
+      );
+      const relevanceByKey = new Map<string, number>();
+      for (const m of maps) {
+        for (const [k, v] of m) relevanceByKey.set(k.toLowerCase().trim(), v);
+      }
+      let applied = 0;
+      for (const kw of topByV2) {
+        const r = relevanceByKey.get(kw.keyword.toLowerCase().trim());
+        if (r === undefined) continue;
+        kw.aiRelevance = r;
+        const cluster = clusterByKeyword.get(kw.keyword.toLowerCase().trim());
+        kw.jackpotScore_v2 = calculateJackpotScoreV2({
+          volume: kw.avgMonthlySearches,
+          lowCpc: kw.lowCpc,
+          highCpc: kw.highCpc,
+          competition: kw.competition,
+          trend: kw.trendDirection,
+          suggestHits: kw.suggestHits,
+          maxPlatforms,
+          cluster,
+          clusterVolumeP90,
+          aiRelevance: r,
+        });
+        applied++;
+      }
+      functions.logger.info(`Inline relevance: scored ${applied}/${topByV2.length} top keywords`);
+    } catch (err: any) {
+      functions.logger.warn(`Inline relevance pass failed (non-fatal): ${err.message}`);
+    }
+  }
+
   // Return unnamed clusters — naming happens async via /api/search/name-clusters
   return { keywords: scored, categories, clusters };
 }
@@ -593,9 +654,11 @@ Competitors: ${context.competitors.join(', ')}
 Rate each keyword's relevance to THIS SPECIFIC product on a scale of 1-10:
 - 10: Directly describes what this product does or a core feature
 - 8-9: Highly relevant — someone searching this would want this product
-- 6-7: Moderately relevant — related to the product's space
+- 6-7: Moderately relevant — related to the product's space. Competitor comparison/alternative/pricing queries belong here — those searchers are open to switching.
 - 4-5: Tangentially related — same industry but not a direct match
 - 1-3: Not relevant — different product category or unrelated
+
+IMPORTANT: NAVIGATIONAL queries score 1-3 even when they mention a competitor or related brand — "[brand] login", "[brand] sign in", "[brand] download", "[brand] logo", "[brand] app store", "[brand] careers", company-info lookups. These searchers want THAT brand's own site and will not consider an alternative. Do not confuse brand familiarity with relevance.
 
 Keywords:
 ${keywordList}

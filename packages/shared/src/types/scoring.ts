@@ -125,9 +125,13 @@ export function gkpCompositeScore(
   avgCpc: number,
   competition: CompetitionLevel,
 ): number {
+  // $0 CPC means Keyword Planner returned no bid data — treat as UNKNOWN
+  // (neutral 50), not as "free clicks". cpcInverseScore(0) = 100 let
+  // zero-CPC rows (often low-quality/off-topic) flood the top of results.
+  const cpcComponent = avgCpc > 0 ? cpcInverseScore(avgCpc) : 50;
   const score =
     volumeScore(volume) * 0.50 +
-    cpcInverseScore(avgCpc) * 0.30 +
+    cpcComponent * 0.30 +
     competitionScore(competition) * 0.20;
   return Math.round(Math.min(100, Math.max(0, score)));
 }
