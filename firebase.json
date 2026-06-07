@@ -35,6 +35,14 @@
         "function": "api"
       },
       {
+        "source": "/.well-known/oauth-protected-resource",
+        "function": "api"
+      },
+      {
+        "source": "/.well-known/oauth-protected-resource/**",
+        "function": "api"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -25,6 +25,7 @@ import aeoScanRouter from './api/aeoScan';
 import ideasRouter from './api/ideas';
 import v1Router from './api/v1';
 import mcpRouter from './api/mcp';
+import { protectedResourceMetadata } from './services/mcpOAuth';
 
 // Mount routes
 app.use('/api/auth', authRouter);
@@ -40,6 +41,17 @@ app.use('/api/v1', v1Router);
 // HTTP. Direct URL: https://us-central1-even-plate-378520.cloudfunctions.net/api/api/mcp
 // NOTE: no auth yet (Phase 1 skeleton) — not a connectable app until Phase 4.
 app.use('/api/mcp', mcpRouter);
+
+// RFC 9728 path-insert PRM form: /.well-known/oauth-protected-resource/api/mcp.
+// The mcp router already serves the suffix form (/api/mcp/.well-known/...) that
+// our WWW-Authenticate header advertises; some MCP clients probe this standard
+// location instead. Hosting rewrites /.well-known/oauth-protected-resource/** here.
+app.get(
+  ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/api/mcp'],
+  (_req, res) => {
+    res.json(protectedResourceMetadata());
+  },
+);
 
 // Health check
 app.get('/api/health', (_req, res) => {
