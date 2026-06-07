@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Jackpot header mockup</title>
+<style>
+  body {
+    background: #0b0f19;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 40px;
+  }
+  h1 { font-size: 16px; font-weight: 500; color: #9ca3af; margin-bottom: 24px; }
+  .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 32px 0 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { border-bottom: 1px solid #1f2937; }
+  tbody tr { border-bottom: 1px solid #111827; }
+  tbody tr:hover { background: #111827; }
+
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 500;
+    color: #9ca3af;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  th.center { text-align: center; }
+  th.right { text-align: right; }
+  th:hover { color: #fff; }
+  th .arrow { color: #f59e0b; font-size: 10px; margin-left: 4px; }
+
+  td {
+    padding: 12px 16px;
+    color: #d1d5db;
+  }
+  td.center { text-align: center; }
+  td.right { text-align: right; }
+
+  .rel-high { color: #10b981; font-weight: 600; }
+  .rel-mid  { color: #f59e0b; font-weight: 600; }
+  .rel-low  { color: #ef4444; font-weight: 600; }
+
+  .score {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    background: #1f2937;
+    color: #fbbf24;
+  }
+
+  /* Jackpot logo in header */
+  .jackpot-logo {
+    height: 22px;
+    width: auto;
+    vertical-align: middle;
+    display: inline-block;
+  }
+
+  .w-rel    { width: 60px; }
+  .w-vol    { width: 100px; }
+  .w-cpc    { width: 120px; }
+  .w-comp   { width: 80px; }
+  .w-score  { width: 110px; }
+</style>
+</head>
+<body>
+
+<h1>Column header swap — "Ad Score" → Jackpot logo</h1>
+
+<div class="label">Before (current)</div>
+<table>
+  <thead>
+    <tr>
+      <th>Keyword</th>
+      <th class="center w-rel">Rel <span class="arrow">▼</span></th>
+      <th class="right w-vol">Volume</th>
+      <th class="right w-cpc">CPC Range</th>
+      <th class="center w-comp">Comp</th>
+      <th class="center w-score">Ad Score</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>patent ai automation</td>
+      <td class="center"><span class="rel-high">10</span></td>
+      <td class="right">0</td>
+      <td class="right">$0.00 – $0.00</td>
+      <td class="center">—</td>
+      <td class="center"><span class="score">52</span></td>
+    </tr>
+    <tr>
+      <td>legal document assembly</td>
+      <td class="center"><span class="rel-high">9</span></td>
+      <td class="right">170</td>
+      <td class="right">$16.84 – $65.00</td>
+      <td class="center">LOW</td>
+      <td class="center"><span class="score">54</span></td>
+    </tr>
+    <tr>
+      <td>ip workflow automation</td>
+      <td class="center"><span class="rel-high">9</span></td>
+      <td class="right">0</td>
+      <td class="right">$0.00 – $0.00</td>
+      <td class="center">—</td>
+      <td class="center"><span class="score">52</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="label">After (mockup) — logo replaces "Ad Score"</div>
+<table>
+  <thead>
+    <tr>
+      <th>Keyword</th>
+      <th class="center w-rel">Rel <span class="arrow">▼</span></th>
+      <th class="right w-vol">Volume</th>
+      <th class="right w-cpc">CPC Range</th>
+      <th class="center w-comp">Comp</th>
+      <th class="center w-score">
+        <img src="file:///C:/Users/smyth/Downloads/background-removed%20(7).png"
+             alt="Jackpot Score" class="jackpot-logo">
+        <span class="arrow">▼</span>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>patent ai automation</td>
+      <td class="center"><span class="rel-high">10</span></td>
+      <td class="right">0</td>
+      <td class="right">$0.00 – $0.00</td>
+      <td class="center">—</td>
+      <td class="center"><span class="score">52</span></td>
+    </tr>
+    <tr>
+      <td>legal document assembly</td>
+      <td class="center"><span class="rel-high">9</span></td>
+      <td class="right">170</td>
+      <td class="right">$16.84 – $65.00</td>
+      <td class="center">LOW</td>
+      <td class="center"><span class="score">54</span></td>
+    </tr>
+    <tr>
+      <td>ip workflow automation</td>
+      <td class="center"><span class="rel-high">9</span></td>
+      <td class="right">0</td>
+      <td class="right">$0.00 – $0.00</td>
+      <td class="center">—</td>
+      <td class="center"><span class="score">52</span></td>
+    </tr>
+    <tr>
+      <td>seasonal vegetables (was top)</td>
+      <td class="center"><span class="rel-low">1</span></td>
+      <td class="right">6,600</td>
+      <td class="right">$0.03 – $1.24</td>
+      <td class="center">LOW</td>
+      <td class="center"><span class="score" style="color:#9ca3af;">8</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="label">What changes in code</div>
+<ul style="color:#9ca3af; font-size: 13px; line-height: 1.6;">
+  <li><code>Results.tsx:1445</code> — replace <code>{scoreView === 'ad' ? 'Ad Score' : 'SEO Score'}</code> with the logo (in ad view; SEO view left as-is for now)</li>
+  <li><code>Results.tsx:707</code> — sort <code>case 'score'</code> switches from <code>a.adScore</code> → <code>a.jackpotScore</code> so the penalty is visible</li>
+  <li>Logo file: copied to <code>packages/web/public/jackpot-logo.png</code></li>
+  <li>Column width may bump from <code>w-24</code> → <code>w-28</code> if the sort arrow looks cramped</li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ConversionModal Pricing Tiles — Unlock Search as Center Hero</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            jackpot: {
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+            },
+            'score-green': '#10b981',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { background: #0a0a0f; color: #e5e7eb; font-family: system-ui, -apple-system, sans-serif; }
+    .label { font-size: 11px; color: #9ca3af; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; margin-bottom: 16px; text-align: center; }
+    .modal-preview {
+      max-width: 520px;
+      background: #111115;
+      border: 1px solid #1f2937;
+      border-radius: 20px;
+      padding: 24px 28px 20px;
+      margin: 0 auto;
+    }
+    .cm-eyebrow { text-align: center; font-size: 10px; letter-spacing: 0.15em; color: #fbbf24; text-transform: uppercase; font-weight: 700; margin-bottom: 10px; }
+    .cm-headline { text-align: center; font-size: 17px; color: #e5e7eb; margin-bottom: 14px; }
+    .cm-bonus-hint { margin-top: 10px; text-align: center; color: #10b981; font-size: 12px; font-weight: 500; }
+  </style>
+</head>
+<body class="min-h-screen py-12">
+
+  <div class="max-w-6xl mx-auto px-4">
+    <h1 class="text-3xl font-bold text-white text-center mb-2">ConversionModal — $1.99 as Center Hero</h1>
+    <p class="text-gray-500 text-center mb-12 text-sm">Pro | Unlock Search (center hero) | 3-Pack — mirrors /pricing hierarchy</p>
+
+    <!-- ============================================================ -->
+    <!-- V1 — Asymmetric flex, center slightly wider                  -->
+    <!-- ============================================================ -->
+    <div class="mb-20">
+      <div class="label text-score-green">V1 — asymmetric width: center 1.3× side tiles</div>
+      <div class="modal-preview">
+        <div class="cm-eyebrow">Search Complete</div>
+        <div class="cm-headline">This search found <span class="text-jackpot-400 font-bold">328</span> keywords</div>
+
+        <div class="grid grid-cols-[1fr_1.3fr_1fr] gap-2 items-stretch pt-4 max-w-md mx-auto">
+          <!-- Pro -->
+          <button class="bg-gray-800 border-2 border-jackpot-500 rounded-xl p-3 text-center cursor-pointer relative flex flex-col justify-center">
+            <span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-jackpot-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Best Value</span>
+            <div class="text-lg font-extrabold text-white">$9.99</div>
+            <div class="text-[10px] text-gray-500">/month</div>
+            <div class="text-[10px] text-jackpot-400 mt-0.5">Unlimited</div>
+          </button>
+          <!-- Unlock Search (CENTER HERO) -->
+          <button class="bg-gradient-to-b from-score-green/15 to-gray-800 border-2 border-score-green ring-2 ring-score-green/20 rounded-xl p-4 text-center cursor-pointer relative flex flex-col justify-center shadow-lg shadow-score-green/10">
+            <span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-score-green text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Recommended</span>
+            <div class="text-2xl font-extrabold text-white">$1.99</div>
+            <div class="text-xs text-gray-200 font-semibold mt-0.5">Unlock Search</div>
+            <div class="text-[10px] text-score-green mt-1">+1 bonus credit</div>
+          </button>
+          <!-- 3-Pack -->
+          <button class="bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-center cursor-pointer flex flex-col justify-center">
+            <div class="text-lg font-extrabold text-white">$4.99</div>
+            <div class="text-[10px] text-gray-500">3-pack</div>
+            <div class="text-[10px] text-gray-600 mt-0.5">$1.66 each</div>
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 text-center mt-4 max-w-md mx-auto">
+        Grid <code class="bg-gray-800 px-1 rounded">1fr_1.3fr_1fr</code> — center tile is 30% wider. Bigger price (<code class="bg-gray-800 px-1 rounded">text-2xl</code>), bold label, green border + ring + subtle glow. Pro and 3-Pack side tiles shrink slightly to compensate.
+      </p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- V2 — Wider center, more dramatic                             -->
+    <!-- ============================================================ -->
+    <div class="mb-20">
+      <div class="label text-score-green">V2 — 1.6× wider center, maximum visual dominance</div>
+      <div class="modal-preview">
+        <div class="cm-eyebrow">Search Complete</div>
+        <div class="cm-headline">This search found <span class="text-jackpot-400 font-bold">328</span> keywords</div>
+
+        <div class="grid grid-cols-[1fr_1.6fr_1fr] gap-2 items-stretch pt-4 max-w-md mx-auto">
+          <!-- Pro -->
+          <button class="bg-gray-800 border-2 border-jackpot-500 rounded-xl p-3 text-center cursor-pointer relative flex flex-col justify-center">
+            <span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-jackpot-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Best Value</span>
+            <div class="text-base font-extrabold text-white">$9.99</div>
+            <div class="text-[10px] text-gray-500">/month</div>
+            <div class="text-[10px] text-jackpot-400 mt-0.5">Unlimited</div>
+          </button>
+          <!-- Unlock Search -->
+          <button class="bg-gradient-to-b from-score-green/15 to-gray-800 border-2 border-score-green ring-2 ring-score-green/20 rounded-xl p-4 text-center cursor-pointer relative flex flex-col justify-center shadow-lg shadow-score-green/20">
+            <span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-score-green text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Recommended</span>
+            <div class="text-3xl font-extrabold text-white">$1.99</div>
+            <div class="text-sm text-gray-200 font-semibold mt-0.5">Unlock Search</div>
+            <div class="text-[11px] text-score-green mt-1">+ 1 bonus credit for next search</div>
+          </button>
+          <!-- 3-Pack -->
+          <button class="bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-center cursor-pointer flex flex-col justify-center">
+            <div class="text-base font-extrabold text-white">$4.99</div>
+            <div class="text-[10px] text-gray-500">3-pack</div>
+            <div class="text-[10px] text-gray-600 mt-0.5">$1.66 each</div>
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 text-center mt-4 max-w-md mx-auto">
+        Center is <code class="bg-gray-800 px-1 rounded">1.6fr</code> — significantly wider. Price jumps to <code class="bg-gray-800 px-1 rounded">text-3xl</code>, full bonus-credit sentence fits inline. Side tiles drop to <code class="bg-gray-800 px-1 rounded">text-base</code> prices to maintain balance.
+      </p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- V3 — V1 + scale-up pop                                       -->
+    <!-- ============================================================ -->
+    <div class="mb-20">
+      <div class="label text-score-green">V3 — V1 + center tile "popped" up (scale 1.05, -my-1)</div>
+      <div class="modal-preview">
+        <div class="cm-eyebrow">Search Complete</div>
+        <div class="cm-headline">This search found <span class="text-jackpot-400 font-bold">328</span> keywords</div>
+
+        <div class="grid grid-cols-[1fr_1.3fr_1fr] gap-2 items-stretch pt-5 pb-2 max-w-md mx-auto">
+          <!-- Pro -->
+          <button class="bg-gray-800 border-2 border-jackpot-500 rounded-xl p-3 text-center cursor-pointer relative flex flex-col justify-center">
+            <span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-jackpot-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Best Value</span>
+            <div class="text-lg font-extrabold text-white">$9.99</div>
+            <div class="text-[10px] text-gray-500">/month</div>
+            <div class="text-[10px] text-jackpot-400 mt-0.5">Unlimited</div>
+          </button>
+          <!-- Unlock Search (popped) -->
+          <button class="bg-gradient-to-b from-score-green/15 to-gray-800 border-2 border-score-green ring-2 ring-score-green/20 rounded-xl p-4 text-center cursor-pointer relative flex flex-col justify-center shadow-xl shadow-score-green/20 scale-[1.05]">
+            <span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-score-green text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase shadow-md whitespace-nowrap">Recommended</span>
+            <div class="text-2xl font-extrabold text-white">$1.99</div>
+            <div class="text-xs text-gray-200 font-semibold mt-0.5">Unlock Search</div>
+            <div class="text-[10px] text-score-green mt-1">+1 bonus credit</div>
+          </button>
+          <!-- 3-Pack -->
+          <button class="bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-center cursor-pointer flex flex-col justify-center">
+            <div class="text-lg font-extrabold text-white">$4.99</div>
+            <div class="text-[10px] text-gray-500">3-pack</div>
+            <div class="text-[10px] text-gray-600 mt-0.5">$1.66 each</div>
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 text-center mt-4 max-w-md mx-auto">
+        Same as V1 but center tile scaled to <code class="bg-gray-800 px-1 rounded">1.05</code>. Small depth effect — feels elevated without dramatic width change. Wrapper gets <code class="bg-gray-800 px-1 rounded">pt-5 pb-2</code> so the scaled tile doesn't clip.
+      </p>
+    </div>
+
+    <!-- Notes -->
+    <div class="max-w-3xl mx-auto text-sm text-gray-400 leading-relaxed mt-16 bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+      <div class="font-bold text-white mb-3">Changes summarized</div>
+      <ul class="space-y-2 list-disc list-inside">
+        <li><strong class="text-gray-200">Order</strong> — Pro | $1.99 Unlock | 3-Pack. Mirrors /pricing hierarchy (amber | green hero | neutral).</li>
+        <li><strong class="text-gray-200">Asymmetric grid</strong> — flex → <code class="bg-gray-800 px-1 rounded">grid-cols-[1fr_1.3fr_1fr]</code> (or 1.6fr) so the center is physically wider.</li>
+        <li><strong class="text-gray-200">Accent green</strong> — border + ring + glow + gradient background on the $1.99 tile. "Recommended" badge in green (matches /pricing).</li>
+        <li><strong class="text-gray-200">Badge fix</strong> — all three badges at <code class="bg-gray-800 px-1 rounded">-top-3.5</code> with <code class="bg-gray-800 px-1 rounded">shadow-md</code>. No overlap with prices. <code class="bg-gray-800 px-1 rounded">pt-4</code> on the grid container so badges aren't clipped.</li>
+        <li><strong class="text-gray-200">Copy</strong> — $1.99 tile: "Unlock Search / +1 bonus credit".</li>
+      </ul>
+      <div class="font-bold text-white mt-5 mb-2">Comparison</div>
+      <ul class="space-y-1.5 list-disc list-inside">
+        <li><strong>V1</strong> — clean asymmetric (1.3×). Most balanced, still feels like three peers.</li>
+        <li><strong>V2</strong> — more dramatic (1.6×). Center dominates. Full bonus-credit sentence fits inline.</li>
+        <li><strong>V3</strong> — V1 + scale 1.05. Subtle "pop" effect, minimal width impact, preserves visual rhythm of V1.</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

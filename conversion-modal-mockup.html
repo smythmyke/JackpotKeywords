@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Conversion Modal Mockup — JackpotKeywords</title>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+  :root {
+    --gray-900: #0b1220;
+    --gray-850: #111827;
+    --gray-800: #1f2937;
+    --gray-750: #243044;
+    --gray-700: #374151;
+    --gray-600: #4b5563;
+    --gray-500: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-300: #d1d5db;
+    --gray-200: #e5e7eb;
+    --jackpot-400: #fbbf24;
+    --jackpot-500: #f59e0b;
+    --green: #22c55e;
+    --blue: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--gray-900); color: var(--gray-200); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+  /* Page underneath the modal */
+  .page { min-height: 100vh; padding: 40px 24px; max-width: 1100px; margin: 0 auto; }
+  .page h1 { color: var(--gray-300); font-size: 22px; margin: 0 0 4px; }
+  .page p.sub { color: var(--gray-500); font-size: 14px; margin: 0 0 24px; max-width: 680px; }
+  .replay-row { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
+  .replay-btn { background: var(--jackpot-500); color: #111; border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
+  .replay-btn:hover { background: var(--jackpot-400); }
+  .replay-btn.ghost { background: transparent; color: var(--gray-300); box-shadow: none; border: 1px solid var(--gray-700); }
+  .fake-results { background: var(--gray-850); border: 1px solid var(--gray-800); border-radius: 14px; padding: 18px; filter: blur(1px) opacity(0.5); pointer-events: none; }
+  .fake-row { display: flex; justify-content: space-between; padding: 10px 6px; border-bottom: 1px dashed var(--gray-800); font-size: 13px; color: var(--gray-400); }
+  .fake-row:last-child { border: 0; }
+
+  /* Backdrop */
+  .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 220ms ease; z-index: 50; }
+  .backdrop.show { opacity: 1; pointer-events: auto; }
+
+  /* Modal */
+  .modal { width: 100%; max-width: 560px; background: linear-gradient(180deg, #151d2e 0%, #0e1524 100%); border: 1px solid var(--gray-750); border-radius: 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(251,191,36,0.08) inset; padding: 28px 28px 22px; transform: translateY(12px) scale(0.97); opacity: 0; transition: transform 320ms cubic-bezier(.2,.9,.25,1.2), opacity 220ms ease; position: relative; overflow: hidden; }
+  .backdrop.show .modal { transform: translateY(0) scale(1); opacity: 1; }
+  .modal::before { content: ""; position: absolute; inset: -1px; background: radial-gradient(600px 200px at 50% -20%, rgba(251,191,36,0.14), transparent 60%); pointer-events: none; }
+
+  .close { position: absolute; top: 12px; right: 14px; background: transparent; border: 0; color: var(--gray-500); font-size: 20px; cursor: pointer; line-height: 1; z-index: 5; }
+  .close:hover { color: var(--gray-300); }
+
+  .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--jackpot-400); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 18px; }
+  .eyebrow::before, .eyebrow::after { content: ""; flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--gray-750), transparent); }
+
+  /* Stage — holds the spotlight and the 2x2 grid in the same area */
+  .stage { position: relative; min-height: 300px; margin-bottom: 18px; }
+
+  /* Spotlight — big, centered */
+  .spotlight-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 3; }
+  .spotlight { display: inline-flex; flex-direction: column; align-items: center; opacity: 0; transform-origin: center center; will-change: transform, opacity; max-width: 420px; }
+  .spotlight .value { font-size: 76px; font-weight: 900; line-height: 0.95; font-variant-numeric: tabular-nums; color: var(--jackpot-400); text-shadow: 0 4px 24px rgba(251,191,36,0.35); }
+  .spotlight .label { font-size: 14px; color: #fff; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 16px; font-weight: 800; }
+  .spotlight .sub { font-size: 12px; color: var(--gray-400); margin-top: 8px; text-align: center; line-height: 1.5; max-width: 320px; }
+
+  /* Grid — hidden until first tile lands */
+  .grid { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; opacity: 0; transition: opacity 400ms ease; z-index: 1; }
+  .grid.show { opacity: 1; }
+  .tile { background: rgba(31,41,55,0.35); border: 1px dashed rgba(55,65,81,0.6); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 10px; transition: background 260ms ease, border-color 260ms ease, border-style 0s linear 260ms; }
+  .tile.filled { background: rgba(31,41,55,0.55); border: 1px solid var(--gray-800); border-style: solid; }
+  .tile .value-row { display: flex; align-items: center; gap: 8px; }
+  .tile .n { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; opacity: 0; transform: translateY(4px); transition: opacity 260ms ease, transform 260ms ease; }
+  .tile.filled .n { opacity: 1; transform: translateY(0); }
+  .tile .jackpot-icon { width: 26px; height: 26px; flex-shrink: 0; opacity: 0; transform: translateY(4px) rotate(-8deg); transition: opacity 260ms ease 40ms, transform 320ms cubic-bezier(.3,.9,.4,1.3) 40ms; filter: drop-shadow(0 2px 6px rgba(251,191,36,0.35)); }
+  .tile.filled .jackpot-icon { opacity: 1; transform: translateY(0) rotate(0); }
+  .tile .lbl { font-size: 12px; color: #fff; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 10px; font-weight: 800; opacity: 0; transition: opacity 260ms ease 80ms; }
+  .tile.filled .lbl { opacity: 1; }
+  .tile .sub { font-size: 10px; color: var(--gray-500); margin-top: 5px; text-align: center; line-height: 1.35; opacity: 0; transition: opacity 260ms ease 140ms; max-width: 100%; }
+  .tile.filled .sub { opacity: 1; }
+  .tile .n.jackpot { color: var(--jackpot-400); }
+  .tile .n.green { color: var(--green); }
+  .tile .n.white { color: #fff; }
+  .tile .n.blue { color: var(--blue); }
+
+  /* Late-reveal content: headline, top-find, CTA */
+  .late { opacity: 0; transform: translateY(8px); transition: opacity 360ms ease, transform 360ms ease; }
+  .late.show { opacity: 1; transform: translateY(0); }
+
+  .headline { text-align: center; font-size: 22px; font-weight: 800; color: #fff; line-height: 1.3; margin: 0 0 18px; }
+  .headline .hl-count { color: #fff; font-variant-numeric: tabular-nums; }
+
+  .top-finds { background: linear-gradient(90deg, rgba(251,191,36,0.08), rgba(251,191,36,0.02)); border: 1px solid rgba(251,191,36,0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 18px; }
+  .top-finds-title { font-size: 10px; color: var(--jackpot-400); letter-spacing: 0.16em; text-transform: uppercase; font-weight: 800; margin-bottom: 8px; }
+  .top-head, .top-row { display: grid; grid-template-columns: 36px 1fr 1fr 1fr; gap: 10px; align-items: center; }
+  .top-head { padding: 4px 4px 6px; border-bottom: 1px dashed rgba(75, 85, 99, 0.35); }
+  .top-head span { font-size: 9px; color: var(--gray-500); letter-spacing: 0.14em; text-transform: uppercase; text-align: right; font-weight: 700; }
+  .top-head span:first-child { text-align: left; }
+  .top-row { padding: 7px 4px; font-size: 13px; }
+  .top-row + .top-row { border-top: 1px dashed rgba(75, 85, 99, 0.22); }
+  .top-row .rank { color: var(--jackpot-400); font-weight: 800; letter-spacing: 0.04em; }
+  .top-row .val { text-align: right; color: var(--gray-200); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .cta-btn { display: block; width: 100%; background: linear-gradient(180deg, var(--jackpot-400), var(--jackpot-500)); color: #111; font-weight: 800; font-size: 15px; border: 0; border-radius: 12px; padding: 14px 18px; cursor: pointer; box-shadow: 0 10px 24px rgba(245,158,11,0.3), 0 0 0 1px rgba(0,0,0,0.2) inset; }
+  .cta-btn:hover { filter: brightness(1.05); }
+  .cta-btn .price { font-weight: 900; }
+  .cta-sub { text-align: center; color: var(--gray-500); font-size: 12px; margin-top: 10px; }
+  .cta-sub a { color: var(--gray-300); text-decoration: none; border-bottom: 1px dashed var(--gray-600); }
+  .dismiss { display: block; text-align: center; width: 100%; background: transparent; border: 0; color: var(--gray-500); font-size: 12px; margin-top: 8px; cursor: pointer; padding: 6px; }
+  .dismiss:hover { color: var(--gray-300); }
+
+  .skip-hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; color: var(--gray-600); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; pointer-events: none; opacity: 0; transition: opacity 220ms ease; }
+  .skip-hint.visible { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>Conversion Modal — Staged Reveal</h1>
+    <p class="sub">Each metric gets a spotlight moment (odometer count-up), then shrinks into its grid tile with a small confetti burst. Headline + top-find + CTA build in after all four are seated. Click anywhere inside the modal during the sequence to skip.</p>
+    <div class="replay-row">
+      <button class="replay-btn" id="openBtn">Open modal</button>
+      <button class="replay-btn ghost" id="replayBtn">Replay sequence</button>
+    </div>
+    <div class="fake-results">
+      <div class="fake-row"><span>••• •••••• ••••••</span><span>Score 95 · $0.14 CPC · 2,400/mo</span></div>
+      <div class="fake-row"><span>••• •••• ••••</span><span>Score 91 · $0.22 CPC · 1,900/mo</span></div>
+      <div class="fake-row"><span>•••• ••••••• ••</span><span>Score 88 · $0.31 CPC · 1,600/mo</span></div>
+      <div class="fake-row"><span>••• ••••••• ••••••</span><span>Score 86 · $0.44 CPC · 1,300/mo</span></div>
+      <div class="fake-row"><span>•••••• ••••</span><span>Score 84 · $0.18 CPC · 1,100/mo</span></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="backdrop" id="backdrop">
+    <div class="modal" id="modal" role="dialog" aria-modal="true">
+      <button class="close" id="closeBtn" aria-label="Close">×</button>
+
+      <div class="eyebrow"><span>Search Complete</span></div>
+
+      <div class="stage" id="stage">
+        <!-- Grid (2x2 tiles) - hidden until first spotlight lands -->
+        <div class="grid" id="grid">
+          <div class="tile" data-slot="0">
+            <div class="value-row">
+              <svg class="jackpot-icon" viewBox="0 0 24 24" fill="none">
+                <ellipse cx="12" cy="18" rx="8" ry="4" fill="#d97706"/>
+                <ellipse cx="12" cy="16" rx="8" ry="4" fill="#f59e0b"/>
+                <ellipse cx="12" cy="14" rx="6" ry="3" fill="#fbbf24"/>
+                <circle cx="10" cy="12" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/>
+                <circle cx="14" cy="11" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/>
+                <circle cx="12" cy="9" r="2" fill="#fbbf24" stroke="#d97706" stroke-width="0.5"/>
+              </svg>
+              <div class="n jackpot" data-key="jackpots">0</div>
+            </div>
+            <div class="lbl">Jackpots</div>
+            <div class="sub">Score 75+ · low cost, low competition</div>
+          </div>
+          <div class="tile" data-slot="1">
+            <div class="n green" data-key="goldmines">0</div>
+            <div class="lbl">Goldmines</div>
+            <div class="sub">Under $1 CPC · 100+ searches/mo</div>
+          </div>
+          <div class="tile" data-slot="2">
+            <div class="n white" data-key="volume">0</div>
+            <div class="lbl">Total Volume</div>
+            <div class="sub">Monthly searches combined</div>
+          </div>
+          <div class="tile" data-slot="3">
+            <div class="n blue" data-key="cpc">$0.00</div>
+            <div class="lbl">Avg CPC</div>
+            <div class="sub">Cost per click if running ads</div>
+          </div>
+        </div>
+
+        <!-- Spotlight overlay -->
+        <div class="spotlight-wrap">
+          <div class="spotlight" id="spotlight">
+            <div class="value" id="spotlightValue">0</div>
+            <div class="label" id="spotlightLabel">Jackpots</div>
+            <div class="sub" id="spotlightSub">Score 75+ — high volume, low cost, low competition</div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="headline late" id="headline">
+        This search found
+        <span class="hl-count">312</span>
+        keywords
+      </h2>
+
+      <div class="top-finds late" id="topKw">
+        <div class="top-finds-title">Top 3 Jackpot Keywords</div>
+        <div class="top-head">
+          <span></span>
+          <span>Score</span>
+          <span>CPC</span>
+          <span>Volume</span>
+        </div>
+        <div class="top-row">
+          <span class="rank">#1</span>
+          <span class="val">95</span>
+          <span class="val">$0.14</span>
+          <span class="val">2,400</span>
+        </div>
+        <div class="top-row">
+          <span class="rank">#2</span>
+          <span class="val">91</span>
+          <span class="val">$0.22</span>
+          <span class="val">1,900</span>
+        </div>
+        <div class="top-row">
+          <span class="rank">#3</span>
+          <span class="val">88</span>
+          <span class="val">$0.31</span>
+          <span class="val">1,600</span>
+        </div>
+      </div>
+
+      <div class="cta-block late" id="ctaBlock">
+        <button class="cta-btn" id="ctaBtn">Unlock all <span>312</span> keywords — <span class="price">$1.99</span></button>
+        <p class="cta-sub">Or <a href="#">go Pro for unlimited searches</a></p>
+        <button class="dismiss" id="dismissBtn">Maybe later</button>
+      </div>
+
+      <div class="skip-hint" id="skipHint">Click anywhere to skip</div>
+    </div>
+  </div>
+
+<script>
+  // ---- DOM refs ----
+  const backdrop = document.getElementById('backdrop');
+  const modal = document.getElementById('modal');
+  const openBtn = document.getElementById('openBtn');
+  const replayBtn = document.getElementById('replayBtn');
+  const closeBtn = document.getElementById('closeBtn');
+  const dismissBtn = document.getElementById('dismissBtn');
+  const ctaBtn = document.getElementById('ctaBtn');
+  const spotlight = document.getElementById('spotlight');
+  const spotlightValue = document.getElementById('spotlightValue');
+  const spotlightLabel = document.getElementById('spotlightLabel');
+  const spotlightSub = document.getElementById('spotlightSub');
+  const grid = document.getElementById('grid');
+  const headline = document.getElementById('headline');
+  const topKw = document.getElementById('topKw');
+  const ctaBlock = document.getElementById('ctaBlock');
+  const skipHint = document.getElementById('skipHint');
+  const tiles = [0, 1, 2, 3].map((i) => document.querySelector(`.tile[data-slot="${i}"]`));
+  const tileNumbers = tiles.map((t) => t.querySelector('.n'));
+
+  // ---- Metrics config ----
+  // target = raw value (currency is stored as cents, so 42 = $0.42)
+  const metrics = [
+    { key: 'jackpots',  label: 'Jackpots',     target: 47,     format: 'int',      color: '#fbbf24',
+      sub: 'Score 75+ — high volume, low cost, low competition',
+      confetti: ['#fbbf24', '#fcd34d', '#f59e0b', '#ffffff'] },
+    { key: 'goldmines', label: 'Goldmines',    target: 23,     format: 'int',      color: '#22c55e',
+      sub: 'Under $1 CPC with 100+ searches per month',
+      confetti: ['#22c55e', '#86efac', '#16a34a', '#ffffff'] },
+    { key: 'volume',    label: 'Total Volume', target: 847000, format: 'compact',  color: '#ffffff',
+      sub: 'Combined monthly searches across all keywords',
+      confetti: ['#ffffff', '#e5e7eb', '#d1d5db', '#fbbf24'] },
+    { key: 'cpc',       label: 'Avg CPC',      target: 42,     format: 'currency', color: '#60a5fa',
+      sub: 'Average cost per click if you ran paid ads',
+      confetti: ['#60a5fa', '#93c5fd', '#3b82f6', '#ffffff'] },
+  ];
+
+  // ---- Formatting ----
+  function formatNumber(value, format) {
+    if (format === 'currency') return '$' + (value / 100).toFixed(2);
+    if (format === 'compact') {
+      if (value >= 1_000_000) return (value / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (value >= 1_000) return Math.round(value / 1000) + 'K';
+      return String(Math.round(value));
+    }
+    return String(Math.round(value));
+  }
+  function formatZero(format) {
+    return format === 'currency' ? '$0.00' : '0';
+  }
+
+  // ---- Skip / cancellation plumbing ----
+  let skipped = false;
+  let sequenceDone = false;
+  const pendingWaits = [];
+  let rafActive = false;
+
+  function wait(ms) {
+    return new Promise((resolve) => {
+      if (skipped) return resolve();
+      const entry = { resolve, done: false };
+      entry.id = setTimeout(() => { entry.done = true; resolve(); }, ms);
+      pendingWaits.push(entry);
+    });
+  }
+  function cancelAllWaits() {
+    while (pendingWaits.length) {
+      const e = pendingWaits.shift();
+      if (!e.done) { clearTimeout(e.id); e.resolve(); }
+    }
+  }
+
+  // Ease-out cubic: fast start, gentle settle — slot-reel feel
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function animateCount(el, target, format, duration = 1000) {
+    return new Promise((resolve) => {
+      const start = performance.now();
+      rafActive = true;
+      function frame(now) {
+        if (skipped) {
+          el.textContent = formatNumber(target, format);
+          rafActive = false;
+          return resolve();
+        }
+        const elapsed = now - start;
+        const progress = Math.min(1, elapsed / duration);
+        const eased = easeOutCubic(progress);
+        el.textContent = formatNumber(target * eased, format);
+        if (progress < 1) requestAnimationFrame(frame);
+        else { el.textContent = formatNumber(target, format); rafActive = false; resolve(); }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  // ---- Confetti ----
+  function fireConfettiAt(el, colors) {
+    if (!window.confetti) return;
+    const rect = el.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height / 2) / window.innerHeight;
+    confetti({
+      particleCount: 35,
+      spread: 60,
+      startVelocity: 22,
+      gravity: 0.9,
+      ticks: 120,
+      origin: { x, y },
+      colors,
+      zIndex: 100,
+      disableForReducedMotion: true,
+    });
+  }
+
+  // ---- Spotlight staging helpers ----
+  function resetSpotlight() {
+    spotlight.style.transition = 'none';
+    spotlight.style.transform = 'none';
+    spotlight.style.opacity = '0';
+    // Force reflow so next transition starts clean
+    void spotlight.offsetWidth;
+  }
+
+  function configureSpotlightFor(m) {
+    spotlightValue.style.color = m.color;
+    spotlightValue.textContent = formatZero(m.format);
+    spotlightLabel.textContent = m.label;
+    spotlightSub.textContent = m.sub;
+  }
+
+  function populateTile(slot, m) {
+    tileNumbers[slot].textContent = formatNumber(m.target, m.format);
+    tiles[slot].classList.add('filled');
+  }
+
+  // ---- Per-metric sequence ----
+  async function playMetric(idx) {
+    if (skipped) return;
+    const m = metrics[idx];
+
+    // 1. Configure + fade in spotlight
+    resetSpotlight();
+    configureSpotlightFor(m);
+    spotlight.style.transition = 'opacity 260ms ease';
+    spotlight.style.opacity = '1';
+    await wait(260);
+    if (skipped) return;
+
+    // 2. Odometer count-up
+    await animateCount(spotlightValue, m.target, m.format, 1000);
+    if (skipped) return;
+
+    // 3. Short hold so the landed value registers
+    await wait(160);
+    if (skipped) return;
+
+    // 4. Fade in grid on first metric so tile 1's position is measurable visually
+    if (idx === 0) grid.classList.add('show');
+
+    // 5. Measure FLIP: shrink spotlight toward target tile center
+    const sRect = spotlight.getBoundingClientRect();
+    const tile = tiles[idx];
+    const tRect = tile.getBoundingClientRect();
+    const dx = (tRect.left + tRect.width / 2) - (sRect.left + sRect.width / 2);
+    const dy = (tRect.top + tRect.height / 2) - (sRect.top + sRect.height / 2);
+    // Shrink so spotlight visually ends ~tile size
+    const scale = Math.min(tRect.height / sRect.height, tRect.width / sRect.width) * 0.72;
+
+    spotlight.style.transition = 'transform 520ms cubic-bezier(.25,.75,.3,1), opacity 260ms ease 260ms';
+    spotlight.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+    spotlight.style.opacity = '0';
+
+    // 6. Midway through the flip, populate + reveal the tile so there's a handoff
+    await wait(300);
+    if (skipped) return;
+    populateTile(idx, m);
+    fireConfettiAt(tile, m.confetti);
+
+    // 7. Wait for flip tail
+    await wait(240);
+  }
+
+  async function revealEnd() {
+    if (skipped) return;
+    headline.classList.add('show');
+    await wait(260);
+    if (skipped) return;
+    topKw.classList.add('show');
+    await wait(200);
+    if (skipped) return;
+    ctaBlock.classList.add('show');
+  }
+
+  async function runSequence() {
+    for (let i = 0; i < metrics.length; i++) {
+      if (skipped) break;
+      await playMetric(i);
+    }
+    if (!skipped) await revealEnd();
+    sequenceDone = true;
+    skipHint.classList.remove('visible');
+  }
+
+  // ---- Skip ----
+  function skipSequence() {
+    if (sequenceDone || skipped) return;
+    skipped = true;
+    cancelAllWaits();
+    // Snap everything to final state
+    resetSpotlight();
+    grid.classList.add('show');
+    metrics.forEach((m, i) => populateTile(i, m));
+    headline.classList.add('show');
+    topKw.classList.add('show');
+    ctaBlock.classList.add('show');
+    skipHint.classList.remove('visible');
+    sequenceDone = true;
+  }
+
+  // ---- Reset for replay ----
+  function resetState() {
+    skipped = false;
+    sequenceDone = false;
+    cancelAllWaits();
+    grid.classList.remove('show');
+    tiles.forEach((t) => t.classList.remove('filled'));
+    metrics.forEach((m, i) => { tileNumbers[i].textContent = formatZero(m.format); });
+    headline.classList.remove('show');
+    topKw.classList.remove('show');
+    ctaBlock.classList.remove('show');
+    resetSpotlight();
+  }
+
+  // ---- Open / close ----
+  function openModal() {
+    resetState();
+    backdrop.classList.add('show');
+    // Let the modal transition in, then start the sequence
+    setTimeout(() => {
+      skipHint.classList.add('visible');
+      runSequence();
+    }, 360);
+  }
+  function closeModal() {
+    backdrop.classList.remove('show');
+  }
+
+  // ---- Event wiring ----
+  openBtn.addEventListener('click', openModal);
+  replayBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  dismissBtn.addEventListener('click', closeModal);
+  ctaBtn.addEventListener('click', (e) => { e.stopPropagation(); alert('CTA clicked (mockup only)'); });
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+    else if (!sequenceDone && backdrop.classList.contains('show')) skipSequence();
+  });
+
+  // Click inside the modal (but not on buttons/links) to skip the sequence
+  modal.addEventListener('click', (e) => {
+    if (sequenceDone) return;
+    if (e.target.closest('button, a')) return;
+    skipSequence();
+  });
+
+  // Auto-open once on load so there's something to see
+  window.addEventListener('load', () => setTimeout(openModal, 300));
+</script>
+</body>
+</html>

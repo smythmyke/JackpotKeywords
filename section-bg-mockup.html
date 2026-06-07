@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Section Background Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #030712; color: white; }
+
+  section { padding: 5rem 2rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h2 { font-size: 2rem; font-weight: 800; text-align: center; margin-bottom: 0.5rem; }
+  h2 span { color: #fbbf24; }
+  .sub { color: #9ca3af; text-align: center; margin-bottom: 2.5rem; }
+  .label { text-align: center; color: #f59e0b; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2rem; padding-top: 1rem; }
+
+  /* Plain sections */
+  .plain { border-top: 1px solid #1f2937; }
+  .plain-alt { border-top: 1px solid #1f2937; background: rgba(17, 24, 39, 0.5); }
+
+  /* Coins background section */
+  .coins-bg {
+    position: relative;
+    overflow: hidden;
+    border-top: 1px solid #1f2937;
+  }
+  .coins-bg .bg {
+    position: absolute;
+    inset: 0;
+    background: url('packages/web/public/bg-coins.png') center center / cover no-repeat;
+    pointer-events: none;
+  }
+  .coins-bg .content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Cards */
+  .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .card { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(4px); border: 1px solid #1f2937; border-radius: 1rem; padding: 1.5rem; text-align: center; }
+  .card .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+  .card h3 { font-weight: 700; margin-bottom: 0.5rem; }
+  .card p { color: #9ca3af; font-size: 0.875rem; line-height: 1.6; }
+  .step-label { font-size: 0.6875rem; color: #fbbf24; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.25rem; }
+
+  /* Comparison table */
+  .table-wrap { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(4px); border: 1px solid #1f2937; border-radius: 0.75rem; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { text-align: left; padding: 0.75rem 1rem; color: #9ca3af; font-weight: 500; border-bottom: 1px solid #1f2937; }
+  th.us { color: #fbbf24; background: rgba(245, 158, 11, 0.05); }
+  td { padding: 0.75rem 1rem; border-bottom: 1px solid rgba(31, 41, 55, 0.5); }
+  td.us { background: rgba(245, 158, 11, 0.03); }
+  .check { color: #22c55e; }
+  .cross { color: #4b5563; }
+  .gold { color: #fbbf24; font-weight: 700; }
+  .strike { color: #6b7280; text-decoration: line-through; }
+
+  /* CTA */
+  .cta-btn {
+    display: inline-block;
+    background: #f59e0b;
+    color: black;
+    font-weight: 700;
+    font-size: 1.15rem;
+    padding: 0.875rem 2.5rem;
+    border-radius: 0.75rem;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+  }
+  .cta-btn:hover { background: #d97706; }
+
+  /* Pill badges */
+  .pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+  .pill { background: #1f2937; border: 1px solid #374151; color: #d1d5db; padding: 0.5rem 1rem; border-radius: 999px; font-size: 0.875rem; }
+
+  /* Divider label */
+  .section-divider { text-align: center; padding: 0.75rem 0; color: #374151; font-size: 0.6875rem; letter-spacing: 0.15em; text-transform: uppercase; border-top: 1px solid #1f2937; }
+</style>
+</head>
+<body>
+
+<!-- HOW IT WORKS — plain -->
+<div class="label">How It Works — plain dark</div>
+<section class="plain">
+  <div class="container">
+    <h2>How It Works</h2>
+    <p class="sub">No keyword expertise required. Just describe what you sell.</p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="icon">✏️</div>
+        <div class="step-label">Step 1</div>
+        <h3>Describe Your Product</h3>
+        <p>Tell us what you sell in plain English. No keyword knowledge needed.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔍</div>
+        <div class="step-label">Step 2</div>
+        <h3>AI Finds Opportunities</h3>
+        <p>4 data sources. 10 intent categories. 1,000+ keywords analyzed in seconds.</p>
+      </div>
+      <div class="card">
+        <div class="icon">💰</div>
+        <div class="step-label">Step 3</div>
+        <h3>Get Your Goldmine</h3>
+        <p>Ranked keywords with real volume, CPC, and Jackpot Scores. Export and act.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 CATEGORIES — plain alt -->
+<div class="label">10 Intent Categories — plain dark alt</div>
+<section class="plain-alt">
+  <div class="container" style="text-align:center;">
+    <h2>10 Intent Categories</h2>
+    <p class="sub">We don't just find keywords — we organize them by how people search.</p>
+    <div class="pills">
+      <span class="pill">Direct Intent</span>
+      <span class="pill">Feature-Based</span>
+      <span class="pill">Problem-Based</span>
+      <span class="pill">Competitor Alternatives</span>
+      <span class="pill">Long-Tail</span>
+      <span class="pill">Use Case</span>
+      <span class="pill">Audience</span>
+      <span class="pill">Seasonal</span>
+      <span class="pill">Local</span>
+      <span class="pill">Adjacent</span>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON — coins background at 10% -->
+<div class="label">Comparison — coins background at 10% opacity</div>
+<section class="coins-bg">
+  <div class="bg" style="opacity: 0.10;"></div>
+  <div class="content container">
+    <h2>Stop Overpaying for Keywords</h2>
+    <p class="sub">Real data. AI scoring. A fraction of the price.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="us">JackpotKeywords</th>
+            <th>SEMrush</th>
+            <th>Ahrefs</th>
+            <th>Ubersuggest</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Price</td><td class="us gold">$9.99/mo</td><td class="strike">$140/mo</td><td class="strike">$99/mo</td><td class="strike">$29/mo</td></tr>
+          <tr><td>Real search volume</td><td class="us check">✓</td><td>Estimated</td><td>Estimated</td><td>Limited</td></tr>
+          <tr><td>AI opportunity scoring</td><td class="us check">✓</td><td>Basic</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>10 intent categories</td><td class="us check">✓</td><td>Manual</td><td>Manual</td><td class="cross">✗</td></tr>
+          <tr><td>No keyword expertise needed</td><td class="us check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON — coins at 15% -->
+<div class="label">Same section — coins at 15% opacity</div>
+<section class="coins-bg">
+  <div class="bg" style="opacity: 0.15;"></div>
+  <div class="content container">
+    <h2>Stop Overpaying for Keywords</h2>
+    <p class="sub">Real data. AI scoring. A fraction of the price.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="us">JackpotKeywords</th>
+            <th>SEMrush</th>
+            <th>Ahrefs</th>
+            <th>Ubersuggest</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Price</td><td class="us gold">$9.99/mo</td><td class="strike">$140/mo</td><td class="strike">$99/mo</td><td class="strike">$29/mo</td></tr>
+          <tr><td>Real search volume</td><td class="us check">✓</td><td>Estimated</td><td>Estimated</td><td>Limited</td></tr>
+          <tr><td>AI opportunity scoring</td><td class="us check">✓</td><td>Basic</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>10 intent categories</td><td class="us check">✓</td><td>Manual</td><td>Manual</td><td class="cross">✗</td></tr>
+          <tr><td>No keyword expertise needed</td><td class="us check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON — coins at 20% -->
+<div class="label">Same section — coins at 20% opacity</div>
+<section class="coins-bg">
+  <div class="bg" style="opacity: 0.20;"></div>
+  <div class="content container">
+    <h2>Stop Overpaying for Keywords</h2>
+    <p class="sub">Real data. AI scoring. A fraction of the price.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="us">JackpotKeywords</th>
+            <th>SEMrush</th>
+            <th>Ahrefs</th>
+            <th>Ubersuggest</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Price</td><td class="us gold">$9.99/mo</td><td class="strike">$140/mo</td><td class="strike">$99/mo</td><td class="strike">$29/mo</td></tr>
+          <tr><td>Real search volume</td><td class="us check">✓</td><td>Estimated</td><td>Estimated</td><td>Limited</td></tr>
+          <tr><td>AI opportunity scoring</td><td class="us check">✓</td><td>Basic</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>10 intent categories</td><td class="us check">✓</td><td>Manual</td><td>Manual</td><td class="cross">✗</td></tr>
+          <tr><td>No keyword expertise needed</td><td class="us check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA — coins background -->
+<div class="label">Final CTA — coins at 12% opacity</div>
+<section class="coins-bg" style="text-align: center;">
+  <div class="bg" style="opacity: 0.12;"></div>
+  <div class="content container">
+    <h2>Ready to find your <span>goldmine keywords</span>?</h2>
+    <p class="sub" style="max-width: 450px; margin: 0 auto 2rem;">3 free searches. No credit card required. Results in under 30 seconds.</p>
+    <button class="cta-btn">Start Your Free Search</button>
+  </div>
+</section>
+
+<!-- FINAL CTA — coins at 18% -->
+<div class="label">Final CTA — coins at 18% opacity</div>
+<section class="coins-bg" style="text-align: center;">
+  <div class="bg" style="opacity: 0.18;"></div>
+  <div class="content container">
+    <h2>Ready to find your <span>goldmine keywords</span>?</h2>
+    <p class="sub" style="max-width: 450px; margin: 0 auto 2rem;">3 free searches. No credit card required. Results in under 30 seconds.</p>
+    <button class="cta-btn">Start Your Free Search</button>
+  </div>
+</section>
+
+</body>
+</html>

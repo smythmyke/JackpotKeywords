@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Input Quality Nudge Mockup — JackpotKeywords</title>
+<style>
+  :root {
+    --gray-950: #030712;
+    --gray-900: #111827;
+    --gray-850: #1a2030;
+    --gray-800: #1f2937;
+    --gray-700: #374151;
+    --gray-600: #4b5563;
+    --gray-500: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-300: #d1d5db;
+    --gray-200: #e5e7eb;
+    --gray-100: #f3f4f6;
+    --white: #ffffff;
+    --jackpot-300: #fcd34d;
+    --jackpot-400: #fbbf24;
+    --jackpot-500: #f59e0b;
+    --jackpot-600: #d97706;
+    --green-400: #4ade80;
+    --green-500: #22c55e;
+    --score-green: #10b981;
+    --yellow-400: #facc15;
+    --yellow-500: #eab308;
+    --orange-500: #f97316;
+    --red-400: #f87171;
+    --red-500: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #030712;
+    color: var(--gray-200);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Demo controls (not part of real page) */
+  .demo-bar {
+    background: var(--gray-900);
+    border-bottom: 1px solid var(--gray-800);
+    padding: 10px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .demo-bar .label { color: var(--gray-500); margin-right: 6px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .demo-btn { background: var(--gray-800); color: var(--gray-300); border: 1px solid var(--gray-700); border-radius: 6px; padding: 6px 12px; font-weight: 500; font-size: 12px; cursor: pointer; }
+  .demo-btn:hover { background: var(--gray-850); color: var(--gray-100); border-color: var(--gray-600); }
+
+  /* Fake top nav to match landing */
+  .topnav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--gray-800);
+    background: rgba(3,7,18,0.7);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--white); letter-spacing: -0.01em; }
+  .brand-dot { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--jackpot-400), var(--jackpot-600)); display: inline-flex; align-items: center; justify-content: center; color: #111; font-weight: 900; font-size: 15px; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; color: var(--gray-400); }
+  .nav-links a { color: inherit; text-decoration: none; }
+  .nav-links a:hover { color: var(--white); }
+
+  /* Hero / page */
+  .hero {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(560px 360px at 50% 50%, rgba(251,191,36,0.10), transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-text { position: relative; z-index: 2; text-align: center; margin-bottom: 32px; max-width: 720px; }
+  .hero-text h1 {
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 1.05;
+    margin: 24px 0 20px;
+    color: var(--white);
+    letter-spacing: -0.02em;
+  }
+  .hero-text h1 .gold { color: var(--jackpot-400); }
+  .hero-text p.sub {
+    color: var(--gray-400);
+    font-size: 17px;
+    line-height: 1.6;
+    max-width: 620px;
+    margin: 0 auto;
+  }
+  .hero-text p.sub .status { color: var(--white); font-weight: 500; }
+
+  /* Search form */
+  .search-form {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 672px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .field-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--white);
+    margin: 0 0 8px;
+    display: block;
+  }
+
+  textarea.desc, input.url {
+    width: 100%;
+    background: var(--gray-900);
+    border: 1px solid var(--gray-700);
+    border-radius: 12px;
+    color: var(--white);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  }
+  textarea.desc { min-height: 88px; resize: none; }
+  textarea.desc::placeholder, input.url::placeholder { color: var(--gray-500); }
+  textarea.desc:focus, input.url:focus {
+    border-color: var(--jackpot-500);
+    box-shadow: 0 0 0 1px var(--jackpot-500);
+  }
+
+  .desc-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--gray-600);
+    gap: 16px;
+  }
+  .char-count.over { color: var(--yellow-500); }
+
+  /* Strength meter */
+  .strength {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+  .strength-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--gray-800);
+    overflow: hidden;
+    position: relative;
+  }
+  .strength-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--red-500) 0%, var(--red-500) 22%, var(--orange-500) 40%, var(--yellow-500) 60%, var(--green-500) 85%);
+    background-size: 260px 100%;
+    transition: width 90ms linear;
+    position: relative;
+  }
+  .strength-fill::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.14) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2.4s linear infinite;
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+  .strength-fill.typing::after { opacity: 1; }
+  @keyframes shimmer {
+    0% { background-position-x: 200%; }
+    100% { background-position-x: -100%; }
+  }
+  .strength-label { font-weight: 600; min-width: 100px; text-align: right; letter-spacing: 0.02em; transition: color 250ms ease; font-size: 12px; }
+  .strength-label.zone-empty { color: var(--gray-500); }
+  .strength-label.zone-weak { color: var(--red-400); }
+  .strength-label.zone-moderate { color: var(--yellow-400); }
+  .strength-label.zone-strong { color: var(--green-400); }
+
+  /* URL field + pulse nudge */
+  .url-wrap { position: relative; }
+  .url-wrap.nudge input.url {
+    border-color: var(--jackpot-400);
+    background-color: rgba(251,191,36,0.04);
+    box-shadow: 0 0 0 3px rgba(251,191,36,0.22), 0 0 26px rgba(251,191,36,0.28);
+    animation: urlPulse 1.4s ease-in-out 2;
+  }
+  @keyframes urlPulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(251,191,36,0.22), 0 0 26px rgba(251,191,36,0.28); }
+    50%      { box-shadow: 0 0 0 5px rgba(251,191,36,0.34), 0 0 36px rgba(251,191,36,0.48); }
+  }
+
+  .nudge-tip {
+    position: absolute;
+    left: 0; right: 0;
+    top: -46px;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 260ms ease, transform 260ms ease;
+    z-index: 3;
+  }
+  .url-wrap.nudge .nudge-tip { opacity: 1; transform: translateY(0); }
+  .nudge-pill {
+    background: linear-gradient(180deg, #2a1f0a 0%, #1f170b 100%);
+    border: 1px solid rgba(251,191,36,0.5);
+    color: var(--jackpot-400);
+    padding: 8px 14px 8px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(251,191,36,0.16) inset;
+    white-space: nowrap;
+  }
+  .nudge-pill .bolt { font-size: 13px; }
+  .nudge-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--jackpot-400);
+    box-shadow: 0 0 8px var(--jackpot-400);
+  }
+  .nudge-arrow {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 260ms ease;
+    z-index: 3;
+  }
+  .url-wrap.nudge .nudge-arrow { opacity: 1; }
+
+  /* Submit button */
+  .submit-wrap { position: relative; margin-top: 4px; }
+  .submit-btn {
+    width: 100%;
+    background: var(--jackpot-500);
+    color: #111;
+    border: 0;
+    border-radius: 12px;
+    padding: 14px 20px;
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 120ms ease;
+  }
+  .submit-btn:hover:not(:disabled) { background: var(--jackpot-600); }
+  .submit-btn:disabled {
+    background: var(--gray-700);
+    color: var(--gray-500);
+    cursor: not-allowed;
+  }
+  .submit-btn.shake { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97); }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
+  }
+
+  .submit-hint {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--red-400);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity 200ms ease, transform 200ms ease;
+    min-height: 18px;
+  }
+  .submit-hint.show { opacity: 1; transform: translateY(0); }
+  .submit-hint .warn-icon { font-size: 14px; }
+
+  /* Pricing strip */
+  .pricing-strip {
+    margin-top: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    position: relative;
+    z-index: 2;
+    flex-wrap: wrap;
+  }
+  .ps-col { text-align: center; }
+  .ps-price { font-weight: 700; font-size: 26px; color: var(--white); }
+  .ps-price .unit { font-size: 14px; font-weight: 400; color: var(--gray-400); }
+  .ps-price.gold { color: var(--jackpot-400); }
+  .ps-price.green { color: var(--score-green); font-size: 30px; font-weight: 800; }
+  .ps-label { color: var(--gray-500); font-size: 13px; margin-top: 2px; line-height: 1.35; }
+  .ps-divider { width: 1px; height: 40px; background: var(--gray-800); }
+  .ps-link { color: var(--jackpot-400); font-size: 14px; font-weight: 500; text-decoration: none; }
+  .ps-link:hover { color: var(--jackpot-300); }
+
+  @media (max-width: 640px) {
+    .hero-text h1 { font-size: 40px; }
+    .pricing-strip { gap: 16px; }
+    .ps-divider { display: none; }
+  }
+</style>
+</head>
+<body>
+  <!-- Demo controls -->
+  <div class="demo-bar">
+    <span class="label">Demo</span>
+    <button class="demo-btn" id="clearAll">Clear fields</button>
+    <button class="demo-btn" id="replayNudge">Replay URL nudge</button>
+    <button class="demo-btn" id="prefillWeak">Prefill weak ("Palo Santo")</button>
+    <button class="demo-btn" id="prefillGood">Prefill strong</button>
+  </div>
+
+  <!-- Fake nav -->
+  <div class="topnav">
+    <div class="brand">
+      <span class="brand-dot">J</span>
+      JackpotKeywords
+    </div>
+    <div class="nav-links">
+      <a href="#">Pricing</a>
+      <a href="#">Features</a>
+      <a href="#">Blog</a>
+      <a href="#">Sign In</a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-text">
+      <h1>
+        Describe your product.<br>
+        <span class="gold">Find your goldmine.</span>
+      </h1>
+      <p class="sub">
+        AI-powered keyword research with real Google Ads data. 1,000+ keywords across 12 intent categories — scored and ranked.<br>
+        <span class="status">Try it free — no credit card needed.</span>
+      </p>
+    </div>
+
+    <form class="search-form" id="searchForm">
+      <div>
+        <label class="field-label" for="descInput">Describe your product, service, or idea</label>
+        <textarea
+          class="desc"
+          id="descInput"
+          rows="3"
+          placeholder="e.g., OBServe is a free desktop companion for OBS Studio that auto-detects audio devices, configures settings, and monitors stream performance. Built with Tauri/Rust, targets streamers, YouTubers, and podcasters."
+        ></textarea>
+        <div class="strength">
+          <div class="strength-bar"><div class="strength-fill" id="liveFill"></div></div>
+          <div class="strength-label zone-empty" id="liveLabel">Empty</div>
+        </div>
+        <div class="desc-footer">
+          <span>Describe what it does, who it's for, and what makes it different</span>
+          <span class="char-count" id="charCount">0 / 500</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="field-label" for="urlInput">OR enter a URL</label>
+        <div class="url-wrap" id="urlWrap">
+          <div class="nudge-tip">
+            <div class="nudge-pill">
+              <span class="bolt">⚡</span>
+              <span class="dot"></span>
+              Get more accurate keywords using your URL
+            </div>
+          </div>
+          <div class="nudge-arrow">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1v10m0 0L2 7m5 4l5-4" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <input class="url" id="urlInput" type="text" placeholder="e.g., markitup.app or https://markitup.app" />
+        </div>
+      </div>
+
+      <div class="submit-wrap">
+        <button type="submit" class="submit-btn" id="submitBtn" disabled>Find Goldmine Keywords</button>
+        <div class="submit-hint" id="submitHint">
+          <span class="warn-icon">⚠</span>
+          <span id="submitHintText">Add more detail or paste a URL to begin.</span>
+        </div>
+      </div>
+    </form>
+
+    <!-- Pricing strip -->
+    <div class="pricing-strip">
+      <div class="ps-col">
+        <div class="ps-price gold">$9.99<span class="unit">/mo</span></div>
+        <div class="ps-label">Pro<br>Unlimited</div>
+      </div>
+      <div class="ps-divider"></div>
+      <div class="ps-col">
+        <div class="ps-price green">$1.99</div>
+        <div class="ps-label">Single Search<br>One credit</div>
+      </div>
+      <div class="ps-divider"></div>
+      <div class="ps-col">
+        <div class="ps-price">$4.99</div>
+        <div class="ps-label">3-Pack<br>$1.66 each</div>
+      </div>
+      <div class="ps-divider"></div>
+      <a href="#" class="ps-link">See all plans →</a>
+    </div>
+  </section>
+
+<script>
+  const PLATFORMS = /\b(amazon|shopify|etsy|ebay|youtube|instagram|tiktok|reddit|pinterest|chrome web store|app store|google play|woocommerce|wordpress|gumroad|substack|obs studio)\b/i;
+  const AUDIENCE  = /\b(for|who|customers?|users?|audience|target(ed|s)?|gen[-\s]?z|millennials?|seniors|parents?|kids|teens|moms|dads|students|professionals|developers|designers|streamers|youtubers|podcasters)\b/i;
+  const PURPOSE   = /\b(sell|sells?|selling|sold|buy|buyers?|monetize|monetized?|revenue|business|brand|offer(ing|s)?|service)\b/i;
+
+  // Granular score 0..100. Every keystroke moves it.
+  //   chars  → up to 40 pts, smooth 0..100 chars
+  //   words  → up to 30 pts, smooth 0..12 words
+  //   context→ 10 pts per matched signal, up to 30
+  function score(text) {
+    const t = (text || '');
+    const trimmed = t.trim();
+    const chars = trimmed.length;
+    const words = trimmed ? trimmed.split(/\s+/).length : 0;
+    const ctx = (PLATFORMS.test(t) ? 1 : 0) + (AUDIENCE.test(t) ? 1 : 0) + (PURPOSE.test(t) ? 1 : 0);
+
+    const charsPts = Math.min(chars / 100, 1) * 40;
+    const wordsPts = Math.min(words / 12, 1) * 30;
+    const ctxPts   = Math.min(ctx, 3) * 10;
+    const total = Math.round(charsPts + wordsPts + ctxPts);
+
+    let zone = 'empty', label = 'Empty';
+    if (total === 0)        { zone = 'empty';    label = 'Empty'; }
+    else if (total < 35)    { zone = 'weak';     label = 'Weak'; }
+    else if (total < 70)    { zone = 'moderate'; label = 'Getting there'; }
+    else                    { zone = 'strong';   label = 'Strong'; }
+
+    return { total, chars, words, ctx, zone, label };
+  }
+
+  // URL validity — same pattern as SearchForm.isValidUrl
+  function isValidUrl(val) {
+    const trimmed = (val || '').trim();
+    if (!trimmed) return false;
+    return /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(trimmed);
+  }
+
+  // Hard floor for Option A:
+  //   Submission allowed when EITHER
+  //     - description has at least 10 chars of actual content, OR
+  //     - URL field parses as a valid URL
+  function canSubmit(desc, url) {
+    const descOk = desc.trim().length >= 10;
+    const urlOk = isValidUrl(url);
+    return descOk || urlOk;
+  }
+
+  const descInput = document.getElementById('descInput');
+  const urlInput = document.getElementById('urlInput');
+  const urlWrap = document.getElementById('urlWrap');
+  const liveFill = document.getElementById('liveFill');
+  const liveLabel = document.getElementById('liveLabel');
+  const charCount = document.getElementById('charCount');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitHint = document.getElementById('submitHint');
+  const submitHintText = document.getElementById('submitHintText');
+  const form = document.getElementById('searchForm');
+
+  let typingTimer = null;
+  function markTyping() {
+    liveFill.classList.add('typing');
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => liveFill.classList.remove('typing'), 700);
+  }
+
+  function update() {
+    const s = score(descInput.value);
+    liveFill.style.width = s.total + '%';
+    liveLabel.className = 'strength-label zone-' + s.zone;
+    liveLabel.textContent = s.label;
+
+    charCount.textContent = `${descInput.value.length} / 500`;
+    charCount.classList.toggle('over', descInput.value.length > 500);
+
+    // Enable/disable submit per Option A floor
+    const allowed = canSubmit(descInput.value, urlInput.value);
+    submitBtn.disabled = !allowed;
+
+    // Hide the error hint as soon as they meet the floor
+    if (allowed && submitHint.classList.contains('show')) {
+      submitHint.classList.remove('show');
+    }
+  }
+
+  // URL nudge — once per session, fires when user starts typing a description
+  let nudgeShown = false;
+  let nudgeTimer = null;
+  function triggerNudge() {
+    if (nudgeShown) return;
+    if (urlInput.value.trim().length > 0) return;
+    nudgeShown = true;
+    urlWrap.classList.add('nudge');
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => urlWrap.classList.remove('nudge'), 4000);
+  }
+
+  descInput.addEventListener('input', () => {
+    markTyping();
+    update();
+    if (descInput.value.trim().length >= 2) triggerNudge();
+  });
+  urlInput.addEventListener('input', () => {
+    urlWrap.classList.remove('nudge');
+    clearTimeout(nudgeTimer);
+    update();
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const s = score(descInput.value);
+    const allowed = canSubmit(descInput.value, urlInput.value);
+    if (!allowed) {
+      // Shouldn't reach here since button is disabled, but keep parity with real form submit.
+      submitBtn.classList.add('shake');
+      setTimeout(() => submitBtn.classList.remove('shake'), 500);
+      submitHint.classList.add('show');
+      return;
+    }
+    alert(`Pretend we searched.\n\nstrength=${s.zone} (${s.total}/100)\nurl=${urlInput.value || '(none)'}`);
+  });
+
+  // Show hint immediately if they try to click the disabled button (pointer events get through via parent)
+  submitBtn.parentElement.addEventListener('click', (e) => {
+    if (submitBtn.disabled) {
+      submitBtn.classList.add('shake');
+      setTimeout(() => submitBtn.classList.remove('shake'), 500);
+      submitHint.classList.add('show');
+      // Auto-hide hint after a bit if they don't start typing
+      setTimeout(() => {
+        if (!canSubmit(descInput.value, urlInput.value)) return; // stay visible until they fix it
+        submitHint.classList.remove('show');
+      }, 4000);
+    }
+  });
+
+  // Demo controls
+  document.getElementById('clearAll').addEventListener('click', () => {
+    descInput.value = '';
+    urlInput.value = '';
+    urlWrap.classList.remove('nudge');
+    submitHint.classList.remove('show');
+    nudgeShown = false;
+    update();
+  });
+  document.getElementById('replayNudge').addEventListener('click', () => {
+    nudgeShown = false;
+    clearTimeout(nudgeTimer);
+    triggerNudge();
+  });
+  document.getElementById('prefillWeak').addEventListener('click', () => {
+    descInput.value = 'Palo Santo';
+    urlInput.value = '';
+    nudgeShown = true; // don't re-fire nudge on prefill
+    update();
+  });
+  document.getElementById('prefillGood').addEventListener('click', () => {
+    descInput.value = 'Ergonomic bamboo wrist rest for developers and designers who spend 8+ hours typing. Sold on Amazon and Shopify, targeted at customers with RSI concerns.';
+    urlInput.value = '';
+    nudgeShown = true;
+    update();
+  });
+
+  update();
+</script>
+</body>
+</html>

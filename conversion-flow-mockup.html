@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JackpotKeywords — Conversion Flow Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+  h1 { color: #eab308; font-size: 1.5rem; margin-bottom: 8px; }
+  h2 { color: #fff; font-size: 1.2rem; margin: 40px 0 16px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+  h3 { color: #999; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+  .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 30px; }
+
+  .demo-section { background: #111118; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .label { color: #eab308; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+  /* Simulated blurred content */
+  .blurred-content { position: relative; }
+  .blurred-rows { filter: blur(6px); pointer-events: none; user-select: none; }
+
+  /* Keyword table simulation */
+  .kw-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .kw-table th { text-align: left; padding: 10px 12px; color: #888; font-weight: 500; border-bottom: 1px solid #222; }
+  .kw-table td { padding: 10px 12px; border-bottom: 1px solid #1a1a22; }
+  .kw-table .score { color: #22c55e; font-weight: 700; }
+  .kw-table .locked { color: #555; }
+  .kw-table .comp-low { color: #22c55e; }
+  .kw-table .volume { color: #e5e5e5; }
+  .kw-table .cpc { color: #999; }
+
+  /* Overlay */
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(10,10,15,0) 0%, rgba(10,10,15,0.85) 30%, rgba(10,10,15,0.98) 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 0 0 12px 12px; padding: 24px;
+  }
+  .overlay h3 { color: #fff; font-size: 1.3rem; margin-bottom: 6px; text-transform: none; letter-spacing: 0; }
+  .overlay p { color: #999; font-size: 0.9rem; margin-bottom: 20px; text-align: center; max-width: 400px; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+
+  .btn-primary {
+    background: #eab308; color: #000; font-weight: 700; font-size: 0.95rem;
+    padding: 12px 28px; border-radius: 10px; border: none; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-primary:hover { background: #d4a006; }
+
+  .btn-secondary {
+    background: transparent; color: #eab308; font-weight: 600; font-size: 0.95rem;
+    padding: 12px 28px; border-radius: 10px; border: 2px solid #eab308; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: #eab30815; }
+
+  .btn-ghost {
+    background: none; border: none; color: #666; font-size: 0.8rem; cursor: pointer;
+    padding: 8px 0; text-decoration: underline;
+  }
+  .btn-ghost:hover { color: #999; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal {
+    background: #111118; border: 1px solid #333; border-radius: 16px; padding: 32px;
+    max-width: 440px; width: 90%; text-align: center;
+  }
+  .modal h3 { color: #fff; font-size: 1.4rem; margin-bottom: 8px; text-transform: none; letter-spacing: 0; }
+  .modal p { color: #888; font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5; }
+  .modal .price-cards { display: flex; gap: 12px; margin-bottom: 16px; }
+  .price-card {
+    flex: 1; background: #1a1a22; border: 2px solid #333; border-radius: 12px;
+    padding: 16px 12px; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .price-card:hover { border-color: #eab308; background: #eab30808; }
+  .price-card.popular { border-color: #eab308; position: relative; }
+  .price-card .badge {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: #eab308; color: #000; font-size: 0.65rem; font-weight: 700;
+    padding: 2px 10px; border-radius: 8px; text-transform: uppercase;
+  }
+  .price-card .amount { font-size: 1.6rem; font-weight: 800; color: #fff; }
+  .price-card .period { font-size: 0.75rem; color: #888; }
+  .price-card .desc { font-size: 0.75rem; color: #666; margin-top: 6px; }
+
+  .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #555; font-size: 0.8rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #333; }
+
+  /* Audit section simulation */
+  .audit-check { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #1a1a22; }
+  .check-pass { color: #22c55e; font-weight: 700; }
+  .check-warn { color: #eab308; font-weight: 700; }
+  .check-label { color: #e5e5e5; font-size: 0.85rem; }
+  .check-detail { color: #888; font-size: 0.75rem; }
+
+  /* Sticky bar */
+  .sticky-bar {
+    position: sticky; top: 0; z-index: 50; background: #111118; border-bottom: 1px solid #eab30840;
+    padding: 10px 20px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .sticky-bar p { color: #ccc; font-size: 0.85rem; }
+  .sticky-bar .btn-primary { padding: 8px 20px; font-size: 0.85rem; }
+
+  /* Tab buttons for demo */
+  .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+  .tab {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #333; background: #1a1a22;
+    color: #888; font-size: 0.8rem; cursor: pointer;
+  }
+  .tab.active { border-color: #eab308; color: #eab308; background: #eab30810; }
+
+  .note { background: #1a1a22; border-left: 3px solid #eab308; padding: 12px 16px; margin: 16px 0; font-size: 0.8rem; color: #999; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Conversion Flow Mockup</h1>
+  <p class="subtitle">Option C: Pricing-first CTAs with background auth. Click elements to see interactions.</p>
+
+  <!-- ============================================================ -->
+  <h2>1. Keyword Results — Blurred Table Overlay</h2>
+  <p class="subtitle">What anonymous/free users see when scrolling keyword results</p>
+
+  <div class="demo-section">
+    <div class="label">Before (current) — just says "Sign In"</div>
+    <div class="blurred-content" style="margin-bottom: 32px;">
+      <table class="kw-table">
+        <tr><td class="locked">seo keyword analysis tool</td><td class="volume">8,100/mo</td><td class="cpc">$5.25</td><td class="comp-low">LOW</td><td class="score">91</td></tr>
+        <tr class="blurred-rows"><td class="locked">••• locked 1</td><td>2,900/mo</td><td>$3.48</td><td>LOW</td><td>89</td></tr>
+        <tr class="blurred-rows"><td class="locked">••• locked 2</td><td>1,900/mo</td><td>$8.03</td><td>LOW</td><td>87</td></tr>
+        <tr class="blurred-rows"><td class="locked">••• locked 3</td><td>1,600/mo</td><td>$2.31</td><td>LOW</td><td>85</td></tr>
+      </table>
+      <div class="overlay">
+        <h3>Sign In to See All Keywords</h3>
+        <p>No credit card required</p>
+        <button class="btn-primary" style="background:#4285f4;color:#fff;">Sign In with Google</button>
+      </div>
+    </div>
+
+    <div class="label">After (new) — shows pricing + optional free sign-in</div>
+    <div class="blurred-content">
+      <table class="kw-table">
+        <tr><td class="locked">seo keyword analysis tool</td><td class="volume">8,100/mo</td><td class="cpc">$5.25</td><td class="comp-low">LOW</td><td class="score">91</td></tr>
+        <tr class="blurred-rows"><td class="locked">••• locked 1</td><td>2,900/mo</td><td>$3.48</td><td>LOW</td><td>89</td></tr>
+        <tr class="blurred-rows"><td class="locked">••• locked 2</td><td>1,900/mo</td><td>$8.03</td><td>LOW</td><td>87</td></tr>
+        <tr class="blurred-rows"><td class="locked">••• locked 3</td><td>1,600/mo</td><td>$2.31</td><td>LOW</td><td>85</td></tr>
+      </table>
+      <div class="overlay">
+        <h3>Unlock all 847 keywords</h3>
+        <p>Real Google Ads data — volume, CPC, competition, and Jackpot Scores for every keyword.</p>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="showModal('credit')">$1.99 — This Search</button>
+          <button class="btn-primary" onclick="showModal('pro')">$9.99/mo — Unlimited</button>
+        </div>
+        <button class="btn-ghost" onclick="showModal('free')">or sign in for 3 free preview searches</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>2. Sticky Upgrade Bar (Top of Results)</h2>
+  <p class="subtitle">Persistent bar while scrolling results</p>
+
+  <div class="demo-section" style="padding: 0;">
+    <div class="label" style="padding: 12px 20px 0;">Before</div>
+    <div class="sticky-bar" style="position: relative; margin-bottom: 16px;">
+      <p>Sign in to unlock all keywords and save your results</p>
+      <button class="btn-primary" style="background:#4285f4;color:#fff;padding:8px 20px;font-size:0.85rem;">Sign In Free</button>
+    </div>
+
+    <div class="label" style="padding: 0 20px;">After</div>
+    <div class="sticky-bar" style="position: relative;">
+      <p>Unlock all <strong style="color:#fff;">847 keywords</strong> — including top jackpot-tier picks</p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" style="padding:8px 16px;font-size:0.8rem;" onclick="showModal('credit')">$1.99 this search</button>
+        <button class="btn-primary" style="padding:8px 16px;font-size:0.8rem;" onclick="showModal('pro')">$9.99/mo unlimited</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>3. SEO Audit — Checklist Blur Overlay</h2>
+  <p class="subtitle">What free users see on the audit results page</p>
+
+  <div class="demo-section">
+    <div class="label">Before</div>
+    <div class="blurred-content" style="margin-bottom: 32px;">
+      <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">Title tag</span><span class="check-detail">42 characters</span></div>
+      <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">Meta description</span><span class="check-detail">133 characters</span></div>
+      <div class="audit-check"><span class="check-warn">WARN</span><span class="check-label">Content depth</span><span class="check-detail">316 words</span></div>
+      <div class="blurred-rows">
+        <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">Heading hierarchy</span></div>
+        <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">HTTPS / SSL</span></div>
+        <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">JSON-LD structured data</span></div>
+      </div>
+      <div class="overlay" style="height: 60%;">
+        <h3>Sign In Free to Unlock</h3>
+        <p>See all checks and recommendations</p>
+        <button class="btn-primary" style="background:#4285f4;color:#fff;">Sign In with Google</button>
+      </div>
+    </div>
+
+    <div class="label">After</div>
+    <div class="blurred-content">
+      <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">Title tag</span><span class="check-detail">42 characters</span></div>
+      <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">Meta description</span><span class="check-detail">133 characters</span></div>
+      <div class="audit-check"><span class="check-warn">WARN</span><span class="check-label">Content depth</span><span class="check-detail">316 words</span></div>
+      <div class="blurred-rows">
+        <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">Heading hierarchy</span></div>
+        <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">HTTPS / SSL</span></div>
+        <div class="audit-check"><span class="check-pass">PASS</span><span class="check-label">JSON-LD structured data</span></div>
+      </div>
+      <div class="overlay" style="height: 60%;">
+        <h3>+15 more checks found</h3>
+        <p>See full results, recommendations, keyword gaps, and AI visibility analysis.</p>
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="showModal('credit')">$1.99 — Full Report</button>
+          <button class="btn-primary" onclick="showModal('pro')">$9.99/mo — Unlimited</button>
+        </div>
+        <button class="btn-ghost" onclick="showModal('free')">or sign in for 3 free preview searches</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>4. Purchase Modal (triggered by any pricing CTA)</h2>
+  <p class="subtitle">This is the universal modal. Click any "$1.99" or "$9.99" button above to see it.</p>
+
+  <div class="note">
+    The modal shows pricing cards. When the user clicks one, if they're not signed in, Google sign-in fires automatically. On sign-in success, they're immediately redirected to Stripe Checkout. One smooth flow: click price → sign in (1 click) → pay → results unlock.
+  </div>
+
+  <div style="display: flex; gap: 16px; margin-top: 16px;">
+    <button class="btn-secondary" onclick="showModal('credit')">Demo: Credit Purchase</button>
+    <button class="btn-primary" onclick="showModal('pro')">Demo: Pro Subscription</button>
+    <button class="btn-ghost" onclick="showModal('free')">Demo: Free Sign-In</button>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>5. Bottom Page CTA (Keyword Results)</h2>
+  <p class="subtitle">Always visible at the bottom of results for unpaid users</p>
+
+  <div class="demo-section" style="text-align: center;">
+    <h3 style="color: #fff; font-size: 1.3rem; margin-bottom: 8px; text-transform: none; letter-spacing: 0;">
+      Unlock all <span style="color: #eab308;">847 keywords</span>
+    </h3>
+    <p style="color: #888; margin-bottom: 20px; font-size: 0.9rem;">
+      Including the top jackpot-tier picks hidden from free results.<br>
+      Real Google Ads data. Export to CSV. Plan your strategy.
+    </p>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="showModal('credit')">$1.99 — Unlock This Search</button>
+      <button class="btn-primary" onclick="showModal('pro')">$9.99/mo — Unlimited Searches</button>
+    </div>
+    <button class="btn-ghost" onclick="showModal('free')">or sign in for 3 free preview searches</button>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>6. AEO Scan & Export Buttons (Gated Features)</h2>
+  <p class="subtitle">Disabled buttons with pricing tooltips for non-paying users</p>
+
+  <div class="demo-section">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <button style="background:#1a1a22;border:2px solid #333;color:#555;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.85rem;position:relative;" onclick="showModal('credit')" title="Requires Pro or credits">
+        AEO Scan <span style="background:#eab30830;color:#eab308;font-size:0.65rem;padding:2px 6px;border-radius:4px;margin-left:4px;">PRO</span>
+      </button>
+      <button style="background:#1a1a22;border:2px solid #333;color:#555;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.85rem;" onclick="showModal('credit')" title="Requires Pro or credits">
+        Export CSV <span style="background:#eab30830;color:#eab308;font-size:0.65rem;padding:2px 6px;border-radius:4px;margin-left:4px;">PRO</span>
+      </button>
+      <button style="background:#1a1a22;border:2px solid #333;color:#555;padding:10px 20px;border-radius:10px;cursor:pointer;font-size:0.85rem;" onclick="showModal('credit')" title="Requires Pro or credits">
+        Expand Results <span style="background:#eab30830;color:#eab308;font-size:0.65rem;padding:2px 6px;border-radius:4px;margin-left:4px;">PRO</span>
+      </button>
+    </div>
+    <p style="color:#666;font-size:0.75rem;margin-top:8px;">All premium features — clicking opens the purchase modal</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL -->
+<!-- ============================================================ -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="hideModal(event)">
+  <div class="modal" id="modalContent" onclick="event.stopPropagation()">
+    <!-- Credit purchase view -->
+    <div id="view-credit" style="display:none;">
+      <h3>Unlock Your Results</h3>
+      <p>Choose a plan to see all keywords, export data, and access premium features.</p>
+      <div class="price-cards">
+        <div class="price-card" onclick="simulateFlow('credit')">
+          <div class="amount">$1.99</div>
+          <div class="period">per search</div>
+          <div class="desc">Unlock this search only</div>
+        </div>
+        <div class="price-card" onclick="simulateFlow('3pack')">
+          <div class="amount">$4.99</div>
+          <div class="period">3-pack</div>
+          <div class="desc">$1.66 per search</div>
+        </div>
+        <div class="price-card popular" onclick="simulateFlow('pro')">
+          <div class="badge">Best Value</div>
+          <div class="amount">$9.99</div>
+          <div class="period">per month</div>
+          <div class="desc">Unlimited searches + audits</div>
+        </div>
+      </div>
+      <div class="divider">or</div>
+      <button class="btn-ghost" onclick="simulateFlow('free')" style="width:100%;text-align:center;">Sign in with Google for 3 free preview searches</button>
+    </div>
+
+    <!-- Pro subscription view -->
+    <div id="view-pro" style="display:none;">
+      <h3>Go Unlimited</h3>
+      <p>Unlimited keyword searches, SEO audits, AEO scans, exports, and all premium features.</p>
+      <div class="price-cards">
+        <div class="price-card popular" onclick="simulateFlow('pro')">
+          <div class="badge">Best Value</div>
+          <div class="amount">$9.99<span style="font-size:0.7rem;color:#888;">/mo</span></div>
+          <div class="period">Cancel anytime</div>
+          <div class="desc" style="color:#22c55e;">14x cheaper than SEMrush</div>
+        </div>
+      </div>
+      <p style="font-size:0.8rem;color:#666;margin-top:8px;">Or <a href="#" style="color:#eab308;" onclick="showView('credit')">buy a single search from $1.99</a></p>
+      <div class="divider">or</div>
+      <button class="btn-ghost" onclick="simulateFlow('free')" style="width:100%;text-align:center;">Sign in with Google for 3 free preview searches</button>
+    </div>
+
+    <!-- Free sign-in view -->
+    <div id="view-free" style="display:none;">
+      <h3>Try Before You Buy</h3>
+      <p>Sign in with Google to get 3 free preview searches. See sample results with real data — 20 keywords revealed per search.</p>
+      <button class="btn-primary" style="background:#4285f4;color:#fff;width:100%;margin-bottom:12px;" onclick="simulateFlow('free')">
+        <span style="margin-right:8px;">G</span> Sign In with Google
+      </button>
+      <p style="font-size:0.75rem;color:#666;">No credit card required. Upgrade anytime.</p>
+      <div class="divider">or</div>
+      <p style="font-size:0.8rem;color:#888;">Skip the preview — <a href="#" style="color:#eab308;" onclick="showView('credit')">unlock full results from $1.99</a></p>
+    </div>
+
+    <!-- Simulated flow result -->
+    <div id="view-flow" style="display:none;">
+      <div id="flow-steps"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showModal(view) {
+  document.getElementById('modalBackdrop').classList.add('active');
+  showView(view);
+}
+
+function hideModal(e) {
+  if (e.target === document.getElementById('modalBackdrop')) {
+    document.getElementById('modalBackdrop').classList.remove('active');
+  }
+}
+
+function showView(view) {
+  document.querySelectorAll('#modalContent > div').forEach(d => d.style.display = 'none');
+  document.getElementById('view-' + view).style.display = 'block';
+}
+
+function simulateFlow(type) {
+  const steps = document.getElementById('flow-steps');
+  showView('flow');
+
+  if (type === 'free') {
+    steps.innerHTML = `
+      <h3 style="color:#fff;margin-bottom:16px;">Free Sign-In Flow</h3>
+      <div style="text-align:left;space-y:8px;">
+        <p style="color:#22c55e;margin:8px 0;">1. Google sign-in popup opens</p>
+        <p style="color:#22c55e;margin:8px 0;">2. User clicks their Google account (1 click)</p>
+        <p style="color:#22c55e;margin:8px 0;">3. Page refreshes with 3 free preview runs</p>
+        <p style="color:#888;margin:8px 0;">4. User sees sample results (20 keywords visible, rest locked)</p>
+        <p style="color:#eab308;margin:16px 0;">Next conversion point: after using free runs, same modal reappears with pricing only (no more free option)</p>
+      </div>
+    `;
+  } else if (type === 'credit' || type === '3pack') {
+    const price = type === 'credit' ? '$1.99' : '$4.99 (3-pack)';
+    steps.innerHTML = `
+      <h3 style="color:#fff;margin-bottom:16px;">Credit Purchase Flow — ${price}</h3>
+      <div style="text-align:left;">
+        <p style="color:#eab308;margin:8px 0;">1. User clicks "${price}"</p>
+        <p style="color:#22c55e;margin:8px 0;">2. If not signed in → Google popup (1 click, 2 sec)</p>
+        <p style="color:#22c55e;margin:8px 0;">3. Immediately redirect to Stripe Checkout</p>
+        <p style="color:#22c55e;margin:8px 0;">4. User enters card + pays</p>
+        <p style="color:#22c55e;margin:8px 0;">5. Stripe webhook fires → credit applied</p>
+        <p style="color:#22c55e;margin:8px 0;">6. Redirect back to results → FULLY UNLOCKED</p>
+        <p style="color:#888;margin:16px 0;font-size:0.8rem;">Total steps: 2-3 clicks (price → Google → Stripe → done)</p>
+      </div>
+    `;
+  } else if (type === 'pro') {
+    steps.innerHTML = `
+      <h3 style="color:#fff;margin-bottom:16px;">Pro Subscription Flow — $9.99/mo</h3>
+      <div style="text-align:left;">
+        <p style="color:#eab308;margin:8px 0;">1. User clicks "$9.99/mo"</p>
+        <p style="color:#22c55e;margin:8px 0;">2. If not signed in → Google popup (1 click, 2 sec)</p>
+        <p style="color:#22c55e;margin:8px 0;">3. Immediately redirect to Stripe Checkout (subscription)</p>
+        <p style="color:#22c55e;margin:8px 0;">4. User enters card + subscribes</p>
+        <p style="color:#22c55e;margin:8px 0;">5. Stripe webhook fires → Pro plan activated</p>
+        <p style="color:#22c55e;margin:8px 0;">6. Redirect back to results → FULLY UNLOCKED</p>
+        <p style="color:#22c55e;margin:8px 0;">7. All future searches + audits unlimited</p>
+        <p style="color:#888;margin:16px 0;font-size:0.8rem;">Total steps: 2-3 clicks (price → Google → Stripe → done)</p>
+      </div>
+    `;
+  }
+}
+</script>
+
+</body>
+</html>

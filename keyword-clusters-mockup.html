@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyword Clustering Mockup - JackpotKeywords</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; }
+
+  h2 { color: #fff; margin-bottom: 8px; font-size: 18px; }
+  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+  .section { margin-bottom: 56px; }
+  .section-title { color: #d4a843; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; border-bottom: 1px solid #1f2937; padding-bottom: 8px; }
+
+  /* View toggle */
+  .view-toggle {
+    display: inline-flex;
+    background: #1f2937;
+    border-radius: 8px;
+    padding: 2px;
+    margin-bottom: 16px;
+  }
+  .view-btn {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #9ca3af;
+    cursor: pointer;
+    border: none;
+    background: none;
+  }
+  .view-btn.active {
+    background: #d4a843;
+    color: #000;
+    font-weight: 600;
+  }
+
+  /* Category tabs */
+  .category-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .cat-tab {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    background: #111;
+    border: 1px solid #1f2937;
+    color: #9ca3af;
+    cursor: pointer;
+  }
+  .cat-tab.active {
+    background: #d4a84315;
+    border-color: #d4a84340;
+    color: #d4a843;
+    font-weight: 500;
+  }
+  .cat-tab .count { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+
+  /* Cluster card */
+  .cluster-card {
+    background: #111;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .cluster-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cluster-header:hover { background: #1f293730; }
+  .cluster-name {
+    font-weight: 600;
+    color: #fff;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cluster-count {
+    font-size: 11px;
+    color: #9ca3af;
+    background: #1f2937;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .cluster-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+  .cluster-stat-value { color: #fff; font-weight: 500; font-family: 'SF Mono', monospace; }
+  .cluster-chevron { color: #6b7280; font-size: 18px; transition: transform 0.2s; }
+  .cluster-chevron.open { transform: rotate(180deg); }
+
+  /* Cluster expanded body */
+  .cluster-body { border-top: 1px solid #1f2937; }
+  .cluster-body table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cluster-body th { padding: 8px 16px; color: #6b7280; font-weight: 500; text-align: left; font-size: 12px; }
+  .cluster-body th.right { text-align: right; }
+  .cluster-body th.center { text-align: center; }
+  .cluster-body td { padding: 10px 16px; border-top: 1px solid #1f293750; }
+  .cluster-body td.right { text-align: right; font-family: 'SF Mono', monospace; }
+  .cluster-body td.center { text-align: center; }
+  .cluster-body tr:hover { background: #1f293730; }
+
+  /* Jackpot cluster */
+  .cluster-card.has-jackpot { border-left: 3px solid #d4a843; }
+  .cluster-card.has-jackpot .cluster-header { background: linear-gradient(90deg, #d4a84308, transparent 40%); }
+
+  /* Score */
+  .score { font-weight: 700; font-size: 13px; }
+  .score-high { color: #22c55e; }
+  .score-mid { color: #eab308; }
+  .score-low { color: #6b7280; }
+
+  /* Intent badge */
+  .intent-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .intent-commercial { background: #d4a84320; color: #d4a843; border: 1px solid #d4a84340; }
+  .intent-informational { background: #3b82f620; color: #3b82f6; border: 1px solid #3b82f640; }
+  .intent-navigational { background: #a855f720; color: #a855f7; border: 1px solid #a855f740; }
+
+  /* Comp */
+  .comp-low { color: #22c55e; font-size: 11px; font-weight: 500; }
+  .comp-med { color: #eab308; font-size: 11px; font-weight: 500; }
+
+  /* Cluster summary bar */
+  .cluster-summary {
+    display: flex;
+    gap: 24px;
+    padding: 12px 16px;
+    background: #0d0d0d;
+    font-size: 12px;
+    color: #6b7280;
+    border-top: 1px solid #1f2937;
+  }
+  .cluster-summary strong { color: #d4a843; }
+
+  /* Notes */
+  .note { background: #1f2937; border-radius: 8px; padding: 16px; margin-top: 16px; font-size: 13px; color: #9ca3af; line-height: 1.6; }
+  .note strong { color: #d4a843; }
+
+  /* Jackpot icon */
+  .jackpot-icon { width: 16px; height: 16px; vertical-align: middle; margin-right: 2px; }
+</style>
+</head>
+<body>
+
+<h2>Keyword Clustering - UI Mockup</h2>
+<p class="subtitle">How clusters appear alongside the existing category view</p>
+
+<!-- VIEW TOGGLE -->
+<div class="section">
+  <div class="section-title">View Toggle: Keywords vs Clusters</div>
+  <p style="color: #9ca3af; font-size: 13px; margin-bottom: 16px;">
+    A toggle next to Ad Score / SEO Score switches between the flat keyword list and grouped cluster view.
+    Both views work within the same category tab system.
+  </p>
+
+  <!-- Toggle -->
+  <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+    <div class="view-toggle">
+      <button class="view-btn">Keywords</button>
+      <button class="view-btn active">Clusters</button>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active">Ad Score</button>
+      <button class="view-btn">SEO Score</button>
+    </div>
+    <span style="color: #6b7280; font-size: 13px;">12 clusters &middot; 544 keywords in Direct / Head Terms</span>
+  </div>
+
+  <!-- Category tabs -->
+  <div class="category-tabs">
+    <div class="cat-tab active">
+      <div>Direct / Head Terms</div>
+      <div class="count">544 keywords &middot; 12 clusters</div>
+    </div>
+    <div class="cat-tab">
+      <div>Feature-Based</div>
+      <div class="count">126 keywords &middot; 8 clusters</div>
+    </div>
+    <div class="cat-tab">
+      <div>Competitor Brands</div>
+      <div class="count">78 keywords &middot; 6 clusters</div>
+    </div>
+    <div class="cat-tab">
+      <div>Problem-Based</div>
+      <div class="count">14 keywords &middot; 4 clusters</div>
+    </div>
+    <div class="cat-tab">
+      <div>Industry / Niche</div>
+      <div class="count">68 keywords &middot; 5 clusters</div>
+    </div>
+  </div>
+
+  <!-- Cluster cards -->
+
+  <!-- Cluster 1: Jackpot cluster -->
+  <div class="cluster-card has-jackpot">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        <svg class="jackpot-icon" viewBox="0 0 24 24" fill="#d4a843"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        OBS Audio Issues
+        <span class="cluster-count">6 keywords</span>
+        <span class="intent-badge intent-informational">Info</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">1,480/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.00</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#22c55e;">85</span></div>
+      </div>
+      <span class="cluster-chevron open">&#9660;</span>
+    </div>
+    <div class="cluster-body">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px;"><input type="checkbox" /></th>
+            <th>Keyword</th>
+            <th class="right" style="width:100px;">Volume</th>
+            <th class="right" style="width:110px;">CPC Range</th>
+            <th class="center" style="width:70px;">Comp</th>
+            <th class="center" style="width:80px;">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-left: 3px solid #d4a843; background: linear-gradient(90deg, #d4a84308, transparent 40%);">
+            <td><input type="checkbox" /></td>
+            <td style="color:#fff;">obs audio not working</td>
+            <td class="right" style="color:#fff;">260/mo</td>
+            <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+            <td class="center"><span class="comp-low">LOW</span></td>
+            <td class="center"><span class="score score-high">85</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td style="color:#fff;">obs desktop audio not working</td>
+            <td class="right" style="color:#fff;">210/mo</td>
+            <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+            <td class="center"><span class="comp-low">LOW</span></td>
+            <td class="center"><span class="score score-mid">74</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td style="color:#fff;">obs studio audio not working</td>
+            <td class="right" style="color:#fff;">170/mo</td>
+            <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+            <td class="center"><span class="comp-low">LOW</span></td>
+            <td class="center"><span class="score score-mid">72</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td style="color:#fff;">obs sound not working</td>
+            <td class="right" style="color:#fff;">320/mo</td>
+            <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+            <td class="center"><span class="comp-low">LOW</span></td>
+            <td class="center"><span class="score score-mid">71</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td style="color:#fff;">obs mic not working</td>
+            <td class="right" style="color:#fff;">260/mo</td>
+            <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+            <td class="center"><span class="comp-low">LOW</span></td>
+            <td class="center"><span class="score score-mid">70</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td style="color:#fff;">desktop audio not working obs</td>
+            <td class="right" style="color:#fff;">260/mo</td>
+            <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+            <td class="center"><span class="comp-low">LOW</span></td>
+            <td class="center"><span class="score score-mid">66</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="cluster-summary">
+        <div>Combined volume: <strong>1,480/mo</strong></div>
+        <div>All LOW competition</div>
+        <div>Target with one blog post or landing page</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cluster 2: Collapsed -->
+  <div class="cluster-card has-jackpot">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        <svg class="jackpot-icon" viewBox="0 0 24 24" fill="#d4a843"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        Voicemeeter / Audio Mixer
+        <span class="cluster-count">8 keywords</span>
+        <span class="intent-badge intent-navigational">Nav</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">42,320/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.14</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#22c55e;">89</span></div>
+      </div>
+      <span class="cluster-chevron">&#9660;</span>
+    </div>
+  </div>
+
+  <!-- Cluster 3: Collapsed -->
+  <div class="cluster-card has-jackpot">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        <svg class="jackpot-icon" viewBox="0 0 24 24" fill="#d4a843"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        OBS Streaming Setup
+        <span class="cluster-count">11 keywords</span>
+        <span class="intent-badge intent-informational">Info</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">8,200/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.12</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#22c55e;">86</span></div>
+      </div>
+      <span class="cluster-chevron">&#9660;</span>
+    </div>
+  </div>
+
+  <!-- Cluster 4: No jackpot -->
+  <div class="cluster-card">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        OBS Recording Settings
+        <span class="cluster-count">5 keywords</span>
+        <span class="intent-badge intent-informational">Info</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">2,100/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.08</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#eab308;">68</span></div>
+      </div>
+      <span class="cluster-chevron">&#9660;</span>
+    </div>
+  </div>
+
+  <!-- Cluster 5: No jackpot -->
+  <div class="cluster-card">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        Dropped Frames / Performance
+        <span class="cluster-count">4 keywords</span>
+        <span class="intent-badge intent-informational">Info</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">890/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.00</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#eab308;">65</span></div>
+      </div>
+      <span class="cluster-chevron">&#9660;</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Design notes:</strong><br>
+    - Clusters are sorted by best score descending — jackpot clusters float to top<br>
+    - Jackpot icon + gold left border on clusters containing 75+ keywords<br>
+    - Click to expand/collapse — shows the flat keyword table inside<br>
+    - Cluster summary row at bottom shows combined volume + actionable hint<br>
+    - Cluster name is AI-generated (Gemini names the group based on semantic similarity)<br>
+    - Each cluster gets the dominant intent badge<br>
+    - "Select all" checkbox in cluster selects all keywords for export<br>
+    - Cluster count shown in category tabs alongside keyword count<br>
+    - Clusters work within existing category tab system — not a replacement<br>
+    - Toggle between Keywords (flat list) and Clusters (grouped) view
+  </div>
+</div>
+
+
+<!-- HOW THEY WORK TOGETHER -->
+<div class="section">
+  <div class="section-title">Combined: Filter bar with Intent + Cluster view</div>
+  <p style="color: #9ca3af; font-size: 13px; margin-bottom: 16px;">
+    Intent filter works in both Keywords and Clusters view. In cluster view, filtering by intent hides clusters that don't match.
+  </p>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+    <div class="view-toggle">
+      <button class="view-btn">Keywords</button>
+      <button class="view-btn active">Clusters</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;background:#111;border:1px solid #1f2937;border-radius:8px;padding:6px 12px;">
+      <span style="color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Intent:</span>
+      <button style="background:#d4a84320;border:1px solid #d4a84340;color:#d4a843;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;">Commercial</button>
+      <button style="background:none;border:1px solid #374151;color:#9ca3af;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;">Info</button>
+      <button style="background:none;border:1px solid #374151;color:#9ca3af;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;">Txn</button>
+      <button style="background:none;border:1px solid #374151;color:#9ca3af;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;">Nav</button>
+      <button style="background:none;border:1px solid #374151;color:#6b7280;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;">All</button>
+    </div>
+    <span style="color: #6b7280; font-size: 13px;">Showing 3 of 12 clusters (Commercial intent)</span>
+  </div>
+
+  <!-- Only commercial clusters shown -->
+  <div class="cluster-card has-jackpot">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        <svg class="jackpot-icon" viewBox="0 0 24 24" fill="#d4a843"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        Best OBS Tools Comparison
+        <span class="cluster-count">4 keywords</span>
+        <span class="intent-badge intent-commercial">Commercial</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">620/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.45</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#22c55e;">82</span></div>
+      </div>
+      <span class="cluster-chevron">&#9660;</span>
+    </div>
+  </div>
+
+  <div class="cluster-card">
+    <div class="cluster-header">
+      <div class="cluster-name">
+        Streamlabs Alternatives
+        <span class="cluster-count">5 keywords</span>
+        <span class="intent-badge intent-commercial">Commercial</span>
+      </div>
+      <div class="cluster-stats">
+        <div>Total vol: <span class="cluster-stat-value">890/mo</span></div>
+        <div>Avg CPC: <span class="cluster-stat-value">$0.32</span></div>
+        <div>Best score: <span class="cluster-stat-value" style="color:#eab308;">72</span></div>
+      </div>
+      <span class="cluster-chevron">&#9660;</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Key interaction:</strong><br>
+    - Intent filter buttons toggle (like the existing filter bar selects)<br>
+    - In Keywords view: filters rows in the table<br>
+    - In Clusters view: hides entire clusters whose dominant intent doesn't match<br>
+    - Selecting a cluster's checkbox selects all its keywords for batch export<br>
+    - Export respects both views — "Export selected clusters" exports all keywords in selected clusters
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JackpotKeywords — Idea Board Mockup (Final)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; scroll-behavior: smooth; }
+
+  /* Nav */
+  .nav { background: #111118; border-bottom: 1px solid #222; padding: 0 20px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { color: #eab308; font-weight: 800; font-size: 1.1rem; margin-right: 32px; white-space: nowrap; }
+  .nav-links { display: flex; gap: 24px; flex: 1; }
+  .nav-link { color: #888; text-decoration: none; font-size: 0.85rem; font-weight: 500; padding: 16px 0; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .nav-link:hover { color: #ccc; }
+  .nav-link.active { color: #eab308; border-bottom-color: #eab308; }
+  .nav-link.has-dot { position: relative; }
+  .nav-link.has-dot::after { content: ''; position: absolute; top: 14px; right: -8px; width: 6px; height: 6px; background: #eab308; border-radius: 50%; }
+  .nav-avatar { width: 32px; height: 32px; background: #eab308; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000; font-weight: 700; font-size: 0.8rem; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+  .page-title { font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  .page-subtitle { color: #888; font-size: 0.85rem; margin-bottom: 24px; }
+
+  /* Demo selector */
+  .demo-bar { background: #0f0f17; padding: 10px 20px; border-bottom: 1px solid #eab30840; display: flex; align-items: center; gap: 16px; }
+  .demo-bar span { color: #eab308; font-weight: 700; font-size: 0.85rem; }
+  .demo-btn { padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; border: 1px solid #333; background: #1a1a22; color: #888; transition: all 0.15s; }
+  .demo-btn:hover { border-color: #555; color: #ccc; }
+  .demo-btn.active { background: #eab30815; color: #eab308; border-color: #eab308; }
+  .demo-view { display: none; }
+  .demo-view.active { display: block; }
+
+  /* Quick nav */
+  .quick-nav { position: sticky; top: 56px; z-index: 90; background: #0a0a0f; border-bottom: 1px solid #222; padding: 10px 0; margin-bottom: 24px; }
+  .quick-nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 20px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .qn-btn { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; border: 1px solid #333; background: #1a1a22; color: #888; transition: all 0.15s; text-decoration: none; white-space: nowrap; }
+  .qn-btn:hover { border-color: #555; color: #ccc; }
+  .qn-btn.qn-active { border-color: #eab308; color: #eab308; background: #eab30810; }
+  .qn-count { color: #555; font-size: 0.7rem; margin-left: 4px; }
+  .qn-count.has-progress { color: #22c55e; }
+
+  /* Section */
+  .section { margin-bottom: 40px; scroll-margin-top: 120px; }
+  .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .section-icon { font-size: 1.2rem; }
+  .section-title { font-size: 1.1rem; font-weight: 700; color: #fff; }
+  .section-desc { color: #666; font-size: 0.8rem; margin-bottom: 16px; }
+
+  /* Cards */
+  .card { background: #111118; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+  .card:hover { border-color: #2a2a35; }
+
+  /* Dashboard */
+  .dashboard-card { display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: border-color 0.15s; }
+  .dashboard-card:hover { border-color: #eab308; }
+  .dc-product { font-weight: 700; color: #fff; font-size: 0.95rem; }
+  .dc-date { color: #666; font-size: 0.75rem; margin-top: 2px; }
+  .dc-stats { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .dc-stat { color: #888; font-size: 0.7rem; background: #1a1a22; padding: 2px 8px; border-radius: 4px; }
+  .dc-stat strong { color: #eab308; }
+  .dc-arrow { color: #555; font-size: 1.2rem; }
+  .progress-bar { width: 140px; height: 4px; background: #222; border-radius: 2px; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  /* Checklist */
+  .checklist-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #1a1a22; align-items: flex-start; }
+  .checklist-item:last-child { border-bottom: none; }
+  .checkbox { width: 20px; height: 20px; border: 2px solid #444; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; transition: all 0.15s; }
+  .checkbox:hover { border-color: #eab308; }
+  .checkbox.checked { background: #22c55e; border-color: #22c55e; }
+  .checkbox.checked::after { content: '\2713'; color: #fff; font-size: 0.7rem; font-weight: 700; }
+  .cl-content { flex: 1; min-width: 0; }
+  .cl-title { color: #fff; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+  .cl-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 0.65rem; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+  .tag-blue { background: #3b82f620; color: #60a5fa; }
+  .tag-green { background: #22c55e20; color: #4ade80; }
+  .tag-amber { background: #eab30820; color: #eab308; }
+  .tag-red { background: #ef444420; color: #f87171; }
+  .tag-purple { background: #a855f720; color: #c084fc; }
+  .tag-gray { background: #33333380; color: #999; }
+  .cl-keywords { color: #666; font-size: 0.72rem; margin-top: 4px; }
+
+  /* Video */
+  .video-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1a1a22; }
+  .video-item:last-child { border-bottom: none; }
+  .video-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+  .vi-yt { background: #ef444420; color: #f87171; }
+  .vi-short { background: #a855f720; color: #c084fc; }
+  .video-title { color: #fff; font-size: 0.85rem; font-weight: 500; }
+  .video-vol { color: #888; font-size: 0.72rem; }
+
+  /* Draft */
+  .draft-toggle { color: #eab308; font-size: 0.72rem; cursor: pointer; margin-top: 6px; display: inline-block; user-select: none; }
+  .draft-toggle:hover { text-decoration: underline; }
+  .draft-body { background: #0a0a0f; border: 1px solid #222; border-radius: 8px; padding: 16px; margin-top: 8px; font-size: 0.78rem; color: #ccc; line-height: 1.65; white-space: pre-wrap; display: none; }
+  .draft-body.open { display: block; }
+  .draft-meta { display: flex; gap: 12px; margin-top: 8px; font-size: 0.68rem; color: #555; flex-wrap: wrap; }
+
+  /* Filter row (results page) */
+  .filter-row { background: #111118; border: 1px solid #222; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-chip { background: #1a1a22; border: 1px solid #333; color: #999; padding: 4px 12px; border-radius: 6px; font-size: 0.72rem; }
+  .filter-spacer { flex: 1; }
+  .filter-label { color: #666; font-size: 0.72rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+  .btn { padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 2px solid; white-space: nowrap; }
+  .btn-gray { background: #1a1a22; border-color: #333; color: #888; }
+  .btn-purple { background: #a855f71a; border-color: #a855f7; color: #c084fc; }
+  .btn-red { background: #ef44441a; border-color: #ef4444; color: #f87171; }
+  .btn-green { background: #22c55e1a; border-color: #22c55e; color: #4ade80; }
+  .btn-green:hover { background: #22c55e25; }
+  .badge { font-size: 0.6rem; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+  .badge-new { background: #22c55e30; color: #22c55e; }
+
+  .results-header { background: #111118; border: 1px solid #222; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+  .results-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .results-title { font-size: 1.1rem; font-weight: 700; color: #fff; }
+  .results-meta { color: #666; font-size: 0.78rem; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .note { background: #1a1a22; border-left: 3px solid #eab308; padding: 12px 16px; margin: 0 0 20px; font-size: 0.78rem; color: #888; border-radius: 0 8px 8px 0; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span>Idea Board Mockup (Final)</span>
+  <div class="demo-btn active" onclick="showView('results',this)">Results Page</div>
+  <div class="demo-btn" onclick="showView('dashboard',this)">My Ideas Dashboard</div>
+  <div class="demo-btn" onclick="showView('board',this)">Idea Board</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 1: Results page -->
+<!-- ============================================================ -->
+<div class="demo-view active" id="view-results">
+  <nav class="nav">
+    <span class="nav-logo">JackpotKeywords</span>
+    <div class="nav-links">
+      <a class="nav-link active" href="#">Search</a>
+      <a class="nav-link" href="#">SEO Audit</a>
+      <a class="nav-link has-dot" href="#" onclick="showView('dashboard',document.querySelectorAll('.demo-btn')[1]);return false;">My Ideas</a>
+      <a class="nav-link" href="#">Blog</a>
+      <a class="nav-link" href="#">Pricing</a>
+    </div>
+    <div class="nav-avatar">M</div>
+  </nav>
+  <div class="container">
+    <div class="note"><strong>Results page.</strong> "My Ideas" in nav (dot = new items). Green "Idea Board" button in filter row. Clicking generates ideas and navigates to the board.</div>
+    <div class="results-header">
+      <div class="results-row">
+        <div>
+          <div class="results-title">1,000 keywords found</div>
+          <div class="results-meta">For "AI Keyword Research Tool" · 61.5s · 91 seeds → 1000 keywords</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-gray">Keywords</button>
+          <button class="btn btn-gray">Clusters</button>
+          <button class="btn btn-gray" style="margin-left:8px;">Ad Score</button>
+          <button class="btn btn-gray">SEO Score</button>
+          <button class="btn btn-gray" style="margin-left:8px;">New Search</button>
+          <button class="btn btn-gray">Export ▾</button>
+        </div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Filters</span>
+      <span class="filter-chip">Volume: Any</span>
+      <span class="filter-chip">CPC: Any</span>
+      <span class="filter-chip">Comp: Any</span>
+      <span class="filter-chip">Trend: Any</span>
+      <span class="filter-spacer"></span>
+      <button class="btn btn-purple">🔍 AEO Scan</button>
+      <button class="btn btn-red">⚡ Expand</button>
+      <button class="btn btn-green" onclick="showView('board',document.querySelectorAll('.demo-btn')[2])">💡 Idea Board <span class="badge badge-new">NEW</span></button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table style="width:100%;font-size:0.78rem;border-collapse:collapse;">
+        <thead><tr style="border-bottom:1px solid #222;"><th style="text-align:left;padding:10px 12px;color:#888;font-weight:500;">Keyword</th><th style="padding:10px 8px;color:#888;text-align:center;">Intent</th><th style="padding:10px 8px;color:#888;text-align:right;">Volume</th><th style="padding:10px 8px;color:#888;text-align:right;">CPC</th><th style="padding:10px 8px;color:#888;text-align:center;">Comp</th><th style="padding:10px 8px;color:#888;text-align:right;">Score</th></tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #1a1a22;"><td style="padding:10px 12px;color:#e5e5e5;">seo keyword analysis tool</td><td style="text-align:center;"><span class="tag tag-amber">Comm</span></td><td style="text-align:right;color:#fff;">8,100</td><td style="text-align:right;color:#888;">$5.25</td><td style="text-align:center;color:#4ade80;">LOW</td><td style="text-align:right;color:#22c55e;font-weight:700;">91</td></tr>
+          <tr style="border-bottom:1px solid #1a1a22;"><td style="padding:10px 12px;color:#e5e5e5;">google ads keyword planner</td><td style="text-align:center;"><span class="tag tag-blue">Nav</span></td><td style="text-align:right;color:#fff;">2,900</td><td style="text-align:right;color:#888;">$10.07</td><td style="text-align:center;color:#4ade80;">LOW</td><td style="text-align:right;color:#22c55e;font-weight:700;">89</td></tr>
+          <tr style="border-bottom:1px solid #1a1a22;"><td style="padding:10px 12px;color:#555;">••• locked 3</td><td style="text-align:center;"><span class="tag tag-gray">Comm</span></td><td style="text-align:right;color:#888;">1,900</td><td style="text-align:right;color:#888;">$8.03</td><td style="text-align:center;color:#4ade80;">LOW</td><td style="text-align:right;color:#22c55e;font-weight:700;">87</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 2: My Ideas Dashboard -->
+<!-- ============================================================ -->
+<div class="demo-view" id="view-dashboard">
+  <nav class="nav">
+    <span class="nav-logo">JackpotKeywords</span>
+    <div class="nav-links">
+      <a class="nav-link" href="#" onclick="showView('results',document.querySelectorAll('.demo-btn')[0]);return false;">Search</a>
+      <a class="nav-link" href="#">SEO Audit</a>
+      <a class="nav-link active" href="#">My Ideas</a>
+      <a class="nav-link" href="#">Blog</a>
+      <a class="nav-link" href="#">Pricing</a>
+    </div>
+    <div class="nav-avatar">M</div>
+  </nav>
+  <div class="container">
+    <div class="note"><strong>My Ideas dashboard.</strong> Lists all boards. Shows per-section progress. Click to continue. Completed boards fade.</div>
+    <div class="page-title">My Ideas</div>
+    <div class="page-subtitle">Content plans and social drafts generated from your keyword searches.</div>
+
+    <div class="card dashboard-card" onclick="showView('board',document.querySelectorAll('.demo-btn')[2])">
+      <div style="flex:1;">
+        <div class="dc-product">JackpotKeywords <span style="color:#666;font-weight:400;">· jackpotkeywords.web.app</span></div>
+        <div class="dc-date">April 17, 2026</div>
+        <div class="dc-stats">
+          <span class="dc-stat"><strong>3</strong>/6 Content</span>
+          <span class="dc-stat"><strong>0</strong>/5 Videos</span>
+          <span class="dc-stat"><strong>0</strong>/6 Social</span>
+          <span class="dc-stat"><strong>1</strong>/4 SEO</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:19%;background:#eab308;"></div></div>
+      </div>
+      <span class="dc-arrow">&rarr;</span>
+    </div>
+
+    <div class="card dashboard-card">
+      <div style="flex:1;">
+        <div class="dc-product">Handmade Soy Candles <span style="color:#666;font-weight:400;">· etsyshop.com</span></div>
+        <div class="dc-date">April 14, 2026</div>
+        <div class="dc-stats">
+          <span class="dc-stat"><strong>0</strong>/5 Content</span>
+          <span class="dc-stat"><strong>0</strong>/3 Videos</span>
+          <span class="dc-stat"><strong>0</strong>/4 Social</span>
+          <span class="dc-stat"><strong>0</strong>/3 SEO</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:0%;"></div></div>
+      </div>
+      <span class="dc-arrow">&rarr;</span>
+    </div>
+
+    <div class="card dashboard-card" style="opacity:0.5;">
+      <div style="flex:1;">
+        <div class="dc-product">BulkListingPro <span style="color:#666;font-weight:400;">· bulklistingpro.com</span></div>
+        <div class="dc-date">April 10, 2026</div>
+        <div class="dc-stats">
+          <span class="dc-stat"><strong>6</strong>/6 Content</span>
+          <span class="dc-stat"><strong>4</strong>/4 Videos</span>
+          <span class="dc-stat"><strong>5</strong>/5 Social</span>
+          <span class="dc-stat"><strong>3</strong>/3 SEO</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:#22c55e;"></div></div>
+      </div>
+      <span class="dc-arrow" style="color:#22c55e;">&#10003;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 3: Idea Board (single page, all sections) -->
+<!-- ============================================================ -->
+<div class="demo-view" id="view-board">
+  <nav class="nav">
+    <span class="nav-logo">JackpotKeywords</span>
+    <div class="nav-links">
+      <a class="nav-link" href="#" onclick="showView('results',document.querySelectorAll('.demo-btn')[0]);return false;">Search</a>
+      <a class="nav-link" href="#">SEO Audit</a>
+      <a class="nav-link active" href="#" onclick="showView('dashboard',document.querySelectorAll('.demo-btn')[1]);return false;">My Ideas</a>
+      <a class="nav-link" href="#">Blog</a>
+      <a class="nav-link" href="#">Pricing</a>
+    </div>
+    <div class="nav-avatar">M</div>
+  </nav>
+
+  <!-- Quick Nav (sticky) -->
+  <div class="quick-nav">
+    <div class="quick-nav-inner">
+      <a href="#sec-content" class="qn-btn qn-active">📝 Content <span class="qn-count has-progress">3/6</span></a>
+      <a href="#sec-videos" class="qn-btn">▶ Videos <span class="qn-count">0/5</span></a>
+      <a href="#sec-reddit" class="qn-btn">💬 Reddit <span class="qn-count">0/2</span></a>
+      <a href="#sec-twitter" class="qn-btn">🐦 Twitter/X <span class="qn-count">0/3</span></a>
+      <a href="#sec-linkedin" class="qn-btn">💼 LinkedIn <span class="qn-count">0/1</span></a>
+      <a href="#sec-seo" class="qn-btn">🔧 SEO Actions <span class="qn-count has-progress">1/4</span></a>
+    </div>
+  </div>
+
+  <div class="container" style="padding-top:8px;">
+    <div class="note"><strong>Single-page Idea Board.</strong> Quick-nav anchors to each section. All content, video, social, and SEO actions in one scroll. Checkboxes track progress. Click "View draft" to expand full copy.</div>
+
+    <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:24px;">
+      <div>
+        <a href="#" onclick="showView('results',document.querySelectorAll('.demo-btn')[0]);return false;" style="color:#666;font-size:0.78rem;text-decoration:none;">&larr; Back to Keywords</a>
+        <div class="page-title" style="margin-top:6px;">Idea Board: <span style="color:#eab308;">JackpotKeywords</span></div>
+        <div class="page-subtitle" style="margin-bottom:0;">4 of 21 items completed · jackpotkeywords.web.app</div>
+      </div>
+      <button class="btn btn-gray" style="margin-top:20px;">Export PDF</button>
+    </div>
+
+    <!-- ── CONTENT ── -->
+    <div class="section" id="sec-content">
+      <div class="section-head"><span class="section-icon">📝</span><span class="section-title">Content Checklist</span></div>
+      <div class="section-desc">Blog posts, comparisons, and guides from your top keyword clusters.</div>
+      <div class="card">
+        <div class="checklist-item">
+          <div class="checkbox checked" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Blog: "SEO Keyword Analysis Tools: 2026 Buyer's Guide"</div>
+            <div class="cl-meta"><span class="tag tag-blue">Guide</span><span class="tag tag-green">Easy</span><span class="tag tag-gray">~200-400/mo</span></div>
+            <div class="cl-keywords">seo keyword analysis tools (8,100/mo), keyword analysis tool (2,900/mo)</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox checked" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Comparison: "JackpotKeywords vs SEMrush — Which Is Right for You?"</div>
+            <div class="cl-meta"><span class="tag tag-amber">Comparison</span><span class="tag tag-green">Easy</span><span class="tag tag-gray">~100-200/mo</span></div>
+            <div class="cl-keywords">semrush alternative (1,900/mo), cheaper than semrush (880/mo)</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox checked" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">FAQ: "Keyword Research Questions Answered"</div>
+            <div class="cl-meta"><span class="tag tag-blue">FAQ</span><span class="tag tag-green">Easy</span><span class="tag tag-gray">~100-200/mo</span></div>
+            <div class="cl-keywords">what is keyword research (1,300/mo), how to find keywords (590/mo)</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Blog: "How to Find Low Competition Keywords That Rank"</div>
+            <div class="cl-meta"><span class="tag tag-blue">Guide</span><span class="tag tag-amber">Medium</span><span class="tag tag-gray">~300-600/mo</span></div>
+            <div class="cl-keywords">low competition keywords (2,000/mo), find easy keywords (480/mo)</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Blog: "Google Ads Keyword Planner: Complete Setup Guide"</div>
+            <div class="cl-meta"><span class="tag tag-blue">Tutorial</span><span class="tag tag-amber">Medium</span><span class="tag tag-gray">~150-300/mo</span></div>
+            <div class="cl-keywords">google ads keyword planner (2,900/mo), google keyword tool (1,600/mo)</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Landing: "Free SEO Audit Tool"</div>
+            <div class="cl-meta"><span class="tag tag-amber">Landing</span><span class="tag tag-green">Easy</span><span class="tag tag-gray">~80-150/mo</span></div>
+            <div class="cl-keywords">free seo audit tool (1,600/mo), website seo checker (1,000/mo)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIDEOS ── -->
+    <div class="section" id="sec-videos">
+      <div class="section-head"><span class="section-icon">▶</span><span class="section-title">Video Ideas</span></div>
+      <div class="section-desc">YouTube topics from autocomplete data. Volume reflects YouTube-specific search interest.</div>
+      <div class="card">
+        <div style="color:#666;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">YouTube Videos</div>
+        <div class="video-item">
+          <div class="video-icon vi-yt">▶</div>
+          <div style="flex:1;"><div class="video-title">"How to do keyword research for beginners (step by step)"</div><div class="video-vol">2,400/mo · Tutorial · 8-12 min</div></div>
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+        </div>
+        <div class="video-item">
+          <div class="video-icon vi-yt">▶</div>
+          <div style="flex:1;"><div class="video-title">"Best free keyword research tools in 2026"</div><div class="video-vol">1,300/mo · Comparison · 6-10 min</div></div>
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+        </div>
+        <div class="video-item">
+          <div class="video-icon vi-yt">▶</div>
+          <div style="flex:1;"><div class="video-title">"Keyword research tutorial for small business owners"</div><div class="video-vol">880/mo · Tutorial · 10-15 min</div></div>
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+        </div>
+        <div style="color:#666;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 8px;">YouTube Shorts</div>
+        <div class="video-item">
+          <div class="video-icon vi-short">⚡</div>
+          <div style="flex:1;"><div class="video-title">"Find 1,000 keywords in 30 seconds with AI"</div><div class="video-vol">Short · Demo · 30-60s</div></div>
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+        </div>
+        <div class="video-item">
+          <div class="video-icon vi-short">⚡</div>
+          <div style="flex:1;"><div class="video-title">"3 keyword research mistakes killing your SEO"</div><div class="video-vol">Short · Tips · 30-45s</div></div>
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REDDIT ── -->
+    <div class="section" id="sec-reddit">
+      <div class="section-head"><span class="section-icon">💬</span><span class="section-title">Reddit</span></div>
+      <div class="section-desc">Value-first posts for relevant subreddits. No direct self-promotion — build credibility, then mention tools in context.</div>
+      <div class="card">
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">r/SEO — "How I found 50 untapped keywords without paying for SEMrush"</div>
+            <div class="cl-meta"><span class="tag tag-amber">Value Post</span><span class="tag tag-gray">r/SEO · 450K members</span></div>
+            <div class="draft-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View draft ▾</div>
+            <div class="draft-body">I've been running keyword research for my SaaS tool for about a year now and always felt like I was guessing. SEMrush at $140/mo wasn't in my budget.
+
+Here's what I did instead:
+
+1. Used an AI keyword tool that takes a plain English product description
+2. Got 1,000+ keywords organized by 12 intent categories (direct, competitor, problem-based, etc.)
+3. Filtered to LOW competition + rising trends only
+4. Found 50 keywords my competitors weren't targeting
+
+The key insight: problem-based keywords ("how to fix [issue]") converted 3x better than generic product keywords.
+
+The 12 intent categories were the game changer. Instead of just getting variations of my seed keyword, I got:
+- Competitor brand searches (people looking for alternatives)
+- Problem queries (people describing their frustration)
+- Use-case keywords (specific scenarios)
+- Seasonal opportunities
+
+Each keyword came with real Google Ads data — not estimates like most free tools give you.
+
+Anyone else using AI for keyword discovery? Curious what approaches are working.</div>
+            <div class="draft-meta"><span>612 chars</span><span>Tone: Authentic</span><span>CTA: Soft question</span><span>No direct links per r/SEO rules</span></div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">r/smallbusiness — "Free keyword research approach for bootstrapped founders"</div>
+            <div class="cl-meta"><span class="tag tag-blue">Educational</span><span class="tag tag-gray">r/smallbusiness · 1.2M members</span></div>
+            <div class="draft-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View draft ▾</div>
+            <div class="draft-body">If you're spending money on Google Ads or writing blog content without doing keyword research, you're probably wasting budget.
+
+Here's the free approach I use:
+
+Step 1: Google Keyword Planner (free with a Google Ads account — you don't need to run ads)
+Step 2: Google Autocomplete — type your product + each letter a-z
+Step 3: "People Also Ask" boxes in Google search results
+Step 4: Google Search Console — keywords you're ALREADY appearing for
+
+The goal: find keywords with 100+ monthly searches and LOW competition. Ten pages targeting 300/mo keywords each = 3,000 monthly visitors.
+
+Don't chase high-volume keywords. "Shoes" has millions of searches but you'll never rank. "Comfortable work shoes for nurses" has 500 searches and almost no competition.
+
+What tools is everyone else using?</div>
+            <div class="draft-meta"><span>743 chars</span><span>Tone: Founder-to-founder</span><span>CTA: Question</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TWITTER ── -->
+    <div class="section" id="sec-twitter">
+      <div class="section-head"><span class="section-icon">🐦</span><span class="section-title">Twitter/X</span></div>
+      <div class="section-desc">Threads and standalone tweets. Hook-first format optimized for engagement.</div>
+      <div class="card">
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Thread: "12 types of keywords most businesses miss"</div>
+            <div class="cl-meta"><span class="tag tag-amber">Thread · 7 tweets</span></div>
+            <div class="draft-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View draft ▾</div>
+            <div class="draft-body">1/ Most businesses only target obvious keywords.
+
+Here are 12 types of keywords your competitors are missing — and how to find them. 🧵
+
+2/ 1. Problem keywords — "How to fix [problem your product solves]"
+These convert 3x better because the searcher is actively in pain.
+
+3/ 2. Competitor alternative keywords — "[competitor] alternative", "cheaper than [competitor]"
+These people already want what you sell — they just don't know you exist.
+
+4/ 3. Audience keywords — "[job title] tools", "best software for [role]"
+Target the person, not the product category.
+
+5/ 4. Use-case keywords — "[specific workflow] tool"
+Super specific = low competition + high conversion.
+
+6/ 5-8. Benefit, seasonal, local, and adjacent keywords.
+Benefit: "save time on [task]"
+Seasonal: "[product] Black Friday deals"
+Local: "[service] near me"
+Adjacent: related topics your audience also searches for.
+
+7/ Most keyword tools only find type 1 (product keywords).
+
+AI-powered tools find all 12 by analyzing your product description.
+
+What keyword types are you targeting?</div>
+            <div class="draft-meta"><span>7 tweets</span><span>Tone: Thought leadership</span><span>CTA: Question + soft mention</span></div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Single tweets — 5 hook variants</div>
+            <div class="cl-meta"><span class="tag tag-blue">Single · 5 options</span></div>
+            <div class="draft-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View draft ▾</div>
+            <div class="draft-body">Option 1:
+"Stop paying $140/month for keyword tools. I found 50 untapped keywords in 30 seconds using AI. The trick? Describe your product in plain English instead of guessing seed keywords."
+
+Option 2:
+"The best keywords aren't the ones with the highest volume. They're the ones with: ✓ 100+ searches ✓ LOW competition ✓ Rising trend ✓ Clear buying intent. I call these goldmine keywords."
+
+Option 3:
+"Keyword research shouldn't cost $140/month. Google Keyword Planner: Free (ranges). AI tools: $10/mo (exact data + intent). SEMrush: $140/mo (everything, mostly unused). Match the tool to your need."
+
+Option 4:
+"Your competitors' brand names are keywords. '[competitor] alternative' '[competitor] pricing' 'cheaper than [competitor]' These searchers are actively looking for options."
+
+Option 5:
+"Asked an AI 'what would someone search for if they needed my product?' Got 1,000 keyword suggestions I'd never think of. The 'problem-based' category alone was worth it."</div>
+            <div class="draft-meta"><span>5 variants</span><span>Pick best, A/B test</span></div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">YouTube Short script: "Find keywords in 30 seconds"</div>
+            <div class="cl-meta"><span class="tag tag-purple">Cross-post</span><span class="tag tag-gray">Works on X, TikTok, Reels</span></div>
+            <div class="draft-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View draft ▾</div>
+            <div class="draft-body">Hook (0-3s): "Stop guessing keywords."
+Problem (3-8s): "Traditional tools need seed keywords you don't have."
+Solution (8-20s): "Describe your product in plain English → AI generates 1,000 keywords across 12 intent categories."
+Proof (20-30s): [Screen recording: type description, show results appearing]
+CTA (30s): "Link in bio. 3 free searches."
+
+Thumbnail text: "AI Keywords in 30s"
+Music: Upbeat, no vocals</div>
+            <div class="draft-meta"><span>30s script</span><span>Demo format</span><span>Cross-platform</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LINKEDIN ── -->
+    <div class="section" id="sec-linkedin">
+      <div class="section-head"><span class="section-icon">💼</span><span class="section-title">LinkedIn</span></div>
+      <div class="section-desc">Professional articles and posts. Data-driven, educational tone.</div>
+      <div class="card">
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Article: "Why Keyword Intent Matters More Than Volume"</div>
+            <div class="cl-meta"><span class="tag tag-blue">Article</span><span class="tag tag-gray">800-1,200 words</span></div>
+            <div class="draft-toggle" onclick="this.nextElementSibling.classList.toggle('open')">View draft ▾</div>
+            <div class="draft-body">Hook:
+"A keyword with 50,000 monthly searches generated zero revenue. A keyword with 200 searches generated $4,000/month. Here's what I learned about keyword intent."
+
+Outline:
+1. The volume trap — why most businesses chase the wrong keywords
+2. What keyword intent means (informational vs commercial vs transactional)
+3. Real example: "keyword research" (301K/mo, $0 revenue) vs "affordable semrush alternative" (720/mo, high conversion)
+4. How to identify intent from the keyword itself
+5. The 12 intent categories framework
+6. Action step: audit your current keywords for intent alignment
+
+CTA: "What's the highest-converting keyword for your business? Drop it in the comments."
+
+Tags: #SEO #KeywordResearch #DigitalMarketing #SmallBusiness</div>
+            <div class="draft-meta"><span>Article outline</span><span>Tone: Professional</span><span>CTA: Engagement</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SEO ACTIONS ── -->
+    <div class="section" id="sec-seo">
+      <div class="section-head"><span class="section-icon">🔧</span><span class="section-title">SEO Actions</span></div>
+      <div class="section-desc">Technical and on-site improvements from your SEO audit and AEO scan results.</div>
+      <div class="card">
+        <div class="checklist-item">
+          <div class="checkbox checked" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Implement FAQPage schema on key product pages</div>
+            <div class="cl-meta"><span class="tag tag-green">Quick Win</span><span class="tag tag-purple">AEO</span><span class="tag tag-gray">Impact: High</span></div>
+            <div class="cl-keywords">Source: AEO Scan — AI crawlers look for FAQ schema to extract answers directly</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Create comparison landing pages for top 3 competitors (SEMrush, Ahrefs, Ubersuggest)</div>
+            <div class="cl-meta"><span class="tag tag-amber">Moderate</span><span class="tag tag-red">AEO Gap</span><span class="tag tag-gray">Impact: High</span></div>
+            <div class="cl-keywords">Source: AEO Scan — competitors cited in 9/10 queries, you cited in 0/10</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Expand homepage content beyond 316 words</div>
+            <div class="cl-meta"><span class="tag tag-green">Quick Win</span><span class="tag tag-blue">Audit</span><span class="tag tag-gray">Impact: Medium</span></div>
+            <div class="cl-keywords">Source: SEO Audit — thin content warning. Target 800+ words explaining product value.</div>
+          </div>
+        </div>
+        <div class="checklist-item">
+          <div class="checkbox" onclick="this.classList.toggle('checked')"></div>
+          <div class="cl-content">
+            <div class="cl-title">Add Organization schema with business name, logo, and contact</div>
+            <div class="cl-meta"><span class="tag tag-green">Quick Win</span><span class="tag tag-blue">Audit</span><span class="tag tag-gray">Impact: Low</span></div>
+            <div class="cl-keywords">Source: SEO Audit — Organization schema supports Knowledge Panel eligibility</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="card" style="text-align:center;padding:32px;margin-top:24px;border-color:#222;">
+      <div style="color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:8px;">Board complete? Run another search.</div>
+      <div style="color:#666;font-size:0.85rem;margin-bottom:16px;">Each keyword search generates a fresh Idea Board tailored to your product.</div>
+      <a href="#" onclick="showView('results',document.querySelectorAll('.demo-btn')[0]);return false;" class="btn btn-green" style="display:inline-block;text-decoration:none;padding:10px 24px;">New Keyword Search &rarr;</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function showView(id, btn) {
+  document.querySelectorAll('.demo-view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// Spy-scroll for quick nav highlighting
+const boardView = document.getElementById('view-board');
+const sections = boardView.querySelectorAll('.section');
+const qnBtns = boardView.querySelectorAll('.qn-btn');
+window.addEventListener('scroll', () => {
+  if (!boardView.classList.contains('active')) return;
+  let current = '';
+  sections.forEach(s => {
+    if (s.getBoundingClientRect().top <= 140) current = s.id;
+  });
+  qnBtns.forEach(b => {
+    b.classList.toggle('qn-active', b.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+</body>
+</html>

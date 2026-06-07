@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intent Labels Mockup - JackpotKeywords</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; }
+
+  h2 { color: #fff; margin-bottom: 8px; font-size: 18px; }
+  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+  .section { margin-bottom: 48px; }
+  .section-title { color: #d4a843; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; border-bottom: 1px solid #1f2937; padding-bottom: 8px; }
+
+  /* Intent badge styles */
+  .intent-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+  }
+  .intent-commercial { background: #d4a84320; color: #d4a843; border: 1px solid #d4a84340; }
+  .intent-transactional { background: #22c55e20; color: #22c55e; border: 1px solid #22c55e40; }
+  .intent-informational { background: #3b82f620; color: #3b82f6; border: 1px solid #3b82f640; }
+  .intent-navigational { background: #a855f720; color: #a855f7; border: 1px solid #a855f740; }
+
+  /* Table */
+  .table-wrap { background: #111; border: 1px solid #1f2937; border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { border-bottom: 1px solid #1f2937; }
+  th { padding: 12px 16px; color: #9ca3af; font-weight: 500; text-align: left; }
+  th.right { text-align: right; }
+  th.center { text-align: center; }
+  td { padding: 12px 16px; border-bottom: 1px solid #1f293750; }
+  td.right { text-align: right; font-family: 'SF Mono', 'Fira Code', monospace; }
+  td.center { text-align: center; }
+  tr:hover { background: #1f293730; }
+
+  /* Jackpot row */
+  .jackpot-row {
+    border-left: 3px solid #d4a843;
+    background: linear-gradient(90deg, #d4a84308 0%, transparent 40%);
+  }
+  .jackpot-row:hover { filter: brightness(1.25); }
+
+  /* Score */
+  .score { font-weight: 700; font-size: 14px; }
+  .score-high { color: #22c55e; }
+  .score-mid { color: #eab308; }
+  .score-low { color: #6b7280; }
+
+  /* Comp */
+  .comp-low { color: #22c55e; font-size: 12px; font-weight: 500; }
+  .comp-med { color: #eab308; font-size: 12px; font-weight: 500; }
+  .comp-high { color: #ef4444; font-size: 12px; font-weight: 500; }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #111;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .filter-label { color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .filter-select {
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #d1d5db;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    outline: none;
+  }
+  .filter-select.active { border-color: #d4a843; color: #d4a843; }
+  .filter-divider { width: 1px; height: 24px; background: #374151; }
+
+  /* Keyword with intent inline */
+  .kw-cell { display: flex; align-items: center; gap: 8px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af; }
+
+  /* Notes */
+  .note { background: #1f2937; border-radius: 8px; padding: 16px; margin-top: 16px; font-size: 13px; color: #9ca3af; line-height: 1.6; }
+  .note strong { color: #d4a843; }
+</style>
+</head>
+<body>
+
+<h2>Search Intent Labels - UI Mockup</h2>
+<p class="subtitle">How intent labels appear in the keyword results table</p>
+
+<!-- OPTION A: Intent as inline badge next to keyword -->
+<div class="section">
+  <div class="section-title">Option A: Intent badge inline with keyword name</div>
+  <p style="color: #9ca3af; font-size: 13px; margin-bottom: 12px;">Badge sits next to the keyword — compact, scannable. No extra column needed.</p>
+
+  <div class="filter-bar">
+    <span class="filter-label">Filters</span>
+    <select class="filter-select"><option>Volume: Any</option></select>
+    <div class="filter-divider"></div>
+    <select class="filter-select"><option>CPC: Any</option></select>
+    <div class="filter-divider"></div>
+    <select class="filter-select"><option>Comp: Any</option></select>
+    <div class="filter-divider"></div>
+    <select class="filter-select"><option>Trend: Any</option></select>
+    <div class="filter-divider"></div>
+    <select class="filter-select"><option>Score: Any</option></select>
+    <div class="filter-divider"></div>
+    <select class="filter-select active"><option>Intent: Any</option><option>Commercial</option><option>Transactional</option><option>Informational</option><option>Navigational</option></select>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="intent-badge intent-commercial">Commercial</span> Comparing or evaluating products</div>
+    <div class="legend-item"><span class="intent-badge intent-transactional">Transactional</span> Ready to buy/download</div>
+    <div class="legend-item"><span class="intent-badge intent-informational">Informational</span> Learning or researching</div>
+    <div class="legend-item"><span class="intent-badge intent-navigational">Navigational</span> Looking for a specific brand/site</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px;"><input type="checkbox" /></th>
+          <th>Keyword</th>
+          <th>Source</th>
+          <th class="right" style="width:100px;">Volume</th>
+          <th class="right" style="width:120px;">CPC Range</th>
+          <th class="center" style="width:80px;">Comp</th>
+          <th class="center" style="width:80px;">Trend</th>
+          <th class="center" style="width:90px;">Ad Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="jackpot-row">
+          <td><input type="checkbox" /></td>
+          <td><div class="kw-cell"><span>voicemeeter alternative</span> <span class="intent-badge intent-commercial">Commercial</span></div></td>
+          <td style="color:#6b7280;">AI</td>
+          <td class="right" style="color:#fff;">320/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#6b7280;">-</td>
+          <td class="center"><span class="score score-high">84</span></td>
+        </tr>
+        <tr class="jackpot-row">
+          <td><input type="checkbox" /></td>
+          <td><div class="kw-cell"><span>obs audio not working</span> <span class="intent-badge intent-informational">Info</span></div></td>
+          <td style="color:#6b7280;">AI</td>
+          <td class="right" style="color:#fff;">260/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#22c55e;">+12%</td>
+          <td class="center"><span class="score score-high">85</span></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" /></td>
+          <td><div class="kw-cell"><span>streamlabs download</span> <span class="intent-badge intent-navigational">Nav</span></div></td>
+          <td style="color:#6b7280;">KP</td>
+          <td class="right" style="color:#fff;">2,900/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.07-$0.72</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#eab308;">0%</td>
+          <td class="center"><span class="score score-mid">68</span></td>
+        </tr>
+        <tr class="jackpot-row">
+          <td><input type="checkbox" /></td>
+          <td><div class="kw-cell"><span>best obs companion app</span> <span class="intent-badge intent-commercial">Commercial</span></div></td>
+          <td style="color:#6b7280;">Auto</td>
+          <td class="right" style="color:#fff;">140/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.12-$0.85</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#22c55e;">+34%</td>
+          <td class="center"><span class="score score-high">79</span></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" /></td>
+          <td><div class="kw-cell"><span>obs stream monitor tool</span> <span class="intent-badge intent-transactional">Txn</span></div></td>
+          <td style="color:#6b7280;">AI</td>
+          <td class="right" style="color:#fff;">90/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.45-$1.20</td>
+          <td class="center"><span class="comp-med">MEDIUM</span></td>
+          <td class="center" style="color:#22c55e;">+8%</td>
+          <td class="center"><span class="score score-mid">62</span></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" /></td>
+          <td><div class="kw-cell"><span>how to fix dropped frames obs</span> <span class="intent-badge intent-informational">Info</span></div></td>
+          <td style="color:#6b7280;">Auto</td>
+          <td class="right" style="color:#fff;">480/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#6b7280;">-</td>
+          <td class="center"><span class="score score-mid">72</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>Design notes:</strong><br>
+    - Badge is abbreviated on narrow keywords: "Info", "Txn", "Nav", "Comm" — full word on hover tooltip<br>
+    - New "Intent" filter dropdown added to the filter bar<br>
+    - No extra column needed — keeps table width the same<br>
+    - Colors: blue=informational, green=transactional, gold=commercial, purple=navigational
+  </div>
+</div>
+
+
+<!-- OPTION B: Intent as its own column -->
+<div class="section">
+  <div class="section-title">Option B: Intent as a separate sortable column</div>
+  <p style="color: #9ca3af; font-size: 13px; margin-bottom: 12px;">Dedicated column — sortable, filterable, but adds width to an already wide table.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px;"><input type="checkbox" /></th>
+          <th>Keyword</th>
+          <th>Source</th>
+          <th class="center" style="width:90px;">Intent</th>
+          <th class="right" style="width:100px;">Volume</th>
+          <th class="right" style="width:120px;">CPC Range</th>
+          <th class="center" style="width:80px;">Comp</th>
+          <th class="center" style="width:80px;">Trend</th>
+          <th class="center" style="width:90px;">Ad Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="jackpot-row">
+          <td><input type="checkbox" /></td>
+          <td>voicemeeter alternative</td>
+          <td style="color:#6b7280;">AI</td>
+          <td class="center"><span class="intent-badge intent-commercial">Commercial</span></td>
+          <td class="right" style="color:#fff;">320/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#6b7280;">-</td>
+          <td class="center"><span class="score score-high">84</span></td>
+        </tr>
+        <tr class="jackpot-row">
+          <td><input type="checkbox" /></td>
+          <td>obs audio not working</td>
+          <td style="color:#6b7280;">AI</td>
+          <td class="center"><span class="intent-badge intent-informational">Info</span></td>
+          <td class="right" style="color:#fff;">260/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.00-$0.00</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#22c55e;">+12%</td>
+          <td class="center"><span class="score score-high">85</span></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" /></td>
+          <td>streamlabs download</td>
+          <td style="color:#6b7280;">KP</td>
+          <td class="center"><span class="intent-badge intent-navigational">Nav</span></td>
+          <td class="right" style="color:#fff;">2,900/mo</td>
+          <td class="right" style="color:#d1d5db;">$0.07-$0.72</td>
+          <td class="center"><span class="comp-low">LOW</span></td>
+          <td class="center" style="color:#eab308;">0%</td>
+          <td class="center"><span class="score score-mid">68</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>Design notes:</strong><br>
+    - Column is sortable — group all commercial keywords together<br>
+    - Adds ~90px width to table — may feel cramped on smaller screens<br>
+    - Could hide this column on mobile and show as a badge in the card layout instead
+  </div>
+</div>
+
+</body>
+</html>

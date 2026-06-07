@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Calculator Mockup - Dual Toggle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Calculator panel */
+  .calculator {
+    background: #111; border: 1px solid #1f1f1f; border-radius: 12px; overflow: hidden;
+  }
+  .calc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; cursor: pointer; transition: background 0.15s;
+  }
+  .calc-header:hover { background: rgba(255,255,255,0.02); }
+  .calc-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #fff;
+  }
+  .calc-summary { font-size: 12px; color: #6b7280; margin-left: 12px; }
+  .calc-chevron { color: #6b7280; font-size: 16px; transition: transform 0.2s; }
+  .calc-chevron.open { transform: rotate(180deg); }
+
+  .calc-body { border-top: 1px solid #1f1f1f; padding: 20px; }
+
+  /* Controls row */
+  .controls-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+
+  /* Toggle group */
+  .toggle-group { display: flex; background: #1f1f1f; border-radius: 8px; padding: 2px; }
+  .toggle-btn {
+    padding: 6px 14px; border-radius: 6px; font-size: 12px; border: none;
+    cursor: pointer; transition: all 0.15s; background: transparent; color: #9ca3af;
+    font-weight: 500;
+  }
+  .toggle-btn.active { background: #d4a017; color: #000; font-weight: 600; }
+
+  /* Input with label */
+  .input-group { display: flex; align-items: center; gap: 6px; }
+  .input-label { font-size: 13px; color: #9ca3af; white-space: nowrap; }
+  .input-wrapper { position: relative; }
+  .input-prefix {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: #6b7280; font-size: 13px;
+  }
+  .calc-input {
+    width: 110px; background: #1f1f1f; border: 1px solid #374151; border-radius: 8px;
+    padding: 8px 12px 8px 24px; font-size: 13px; color: #fff; outline: none;
+  }
+  .calc-input:focus { border-color: #d4a017; }
+  .calc-input.no-prefix { padding-left: 12px; }
+
+  /* Calculate button */
+  .calc-btn {
+    padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer; transition: all 0.15s;
+    background: #d4a017; color: #000;
+  }
+  .calc-btn:hover { background: #b8901a; }
+  .calc-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 16px; color: #6b7280; font-size: 13px;
+  }
+  .empty-state strong { color: #9ca3af; }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px;
+  }
+  .summary-card {
+    background: rgba(31,31,31,0.5); border-radius: 8px; padding: 12px; text-align: center;
+  }
+  .summary-value { font-size: 18px; font-weight: 700; color: #fff; }
+  .summary-value.gold { color: #d4a017; }
+  .summary-label {
+    font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;
+  }
+
+  /* Keyword table */
+  .kw-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .kw-table thead { border-bottom: 1px solid #1f1f1f; }
+  .kw-table th {
+    text-align: right; padding: 8px 12px; color: #6b7280; font-weight: 500; font-size: 11px;
+  }
+  .kw-table th:first-child { text-align: left; }
+  .kw-table td { padding: 8px 12px; border-bottom: 1px solid rgba(31,31,31,0.5); text-align: right; color: #d1d5db; }
+  .kw-table td:first-child { text-align: left; color: #d1d5db; }
+  .kw-table td.gold { color: #d4a017; }
+  .kw-table tfoot td { border-top: 1px solid #374151; font-weight: 600; color: #fff; }
+  .kw-table tfoot td.gold { color: #d4a017; }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
+
+  /* Estimate note */
+  .estimate-note { font-size: 11px; color: #4b5563; text-align: center; margin-top: 12px; }
+
+  /* Divider */
+  .divider { width: 1px; height: 28px; background: #374151; }
+
+  /* Selection badge */
+  .selection-badge {
+    font-size: 11px; color: #d4a017; background: rgba(212,160,23,0.1);
+    padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(212,160,23,0.2);
+    white-space: nowrap;
+  }
+
+  /* Demo controls */
+  .demo-controls {
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    display: flex; flex-direction: column; gap: 8px; background: #1f1f1f; padding: 16px;
+    border-radius: 12px; border: 1px solid #374151;
+  }
+  .demo-label { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+  .demo-row { display: flex; gap: 6px; }
+  .demo-btn {
+    padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    border: 1px solid #374151; background: #111; color: #9ca3af; cursor: pointer;
+  }
+  .demo-btn.active { background: #d4a017; color: #000; border-color: #d4a017; }
+
+  @media (max-width: 768px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <p style="color:#6b7280; font-size:12px; margin-bottom:24px;">Mockup: Budget Calculator with dual toggles. Use demo controls (bottom-right) to switch states.</p>
+
+  <div class="calculator">
+    <div class="calc-header" onclick="toggleExpand()">
+      <div style="display:flex; align-items:center;">
+        <span class="calc-title">Budget Calculator</span>
+        <span class="calc-summary" id="headerSummary"></span>
+      </div>
+      <span class="calc-chevron open" id="chevron">&#9660;</span>
+    </div>
+
+    <div class="calc-body" id="calcBody">
+
+      <!-- No keywords selected state -->
+      <div id="emptyState" style="display:none;">
+        <div class="empty-state">
+          Select keywords from the table below to estimate campaign costs.<br>
+          <strong>Checkbox 1+ keywords</strong> to activate the calculator.
+        </div>
+      </div>
+
+      <!-- Active state -->
+      <div id="activeState">
+        <!-- Controls row -->
+        <div class="controls-row">
+          <!-- Mode toggle -->
+          <div class="toggle-group" id="modeToggle">
+            <button class="toggle-btn active" onclick="setMode('budget')">Budget &rarr; Volume</button>
+            <button class="toggle-btn" onclick="setMode('volume')">Volume &rarr; Budget</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Period toggle -->
+          <div class="toggle-group" id="periodToggle">
+            <button class="toggle-btn active" onclick="setPeriod('daily')">Daily</button>
+            <button class="toggle-btn" onclick="setPeriod('monthly')">Monthly</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Input -->
+          <div class="input-group" id="inputGroup">
+            <span class="input-label" id="inputLabel">Budget:</span>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="inputPrefix">$</span>
+              <input type="number" class="calc-input" id="calcInput" value="10" />
+            </div>
+            <span class="input-label" id="inputSuffix">/day</span>
+          </div>
+
+          <button class="calc-btn" id="calcBtn" onclick="calculate()">Calculate</button>
+
+          <span class="selection-badge" id="selectionBadge">6 keywords selected</span>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsArea" style="display:none;">
+          <!-- Summary cards -->
+          <div class="summary-grid" id="summaryGrid">
+            <div class="summary-card">
+              <div class="summary-value" id="sumClicks">47</div>
+              <div class="summary-label" id="sumClicksLabel">Est. Daily Clicks</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-value" id="sumImpressions">1,562</div>
+              <div class="summary-label" id="sumImpLabel">Est. Impressions</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-value gold" id="sumCost">$10.00</div>
+              <div class="summary-label" id="sumCostLabel">Est. Daily Cost</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-value" id="sumCpc">$0.21</div>
+              <div class="summary-label">Avg CPC</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-value" id="sumCtr">3.0%</div>
+              <div class="summary-label">Est. CTR</div>
+            </div>
+          </div>
+
+          <!-- Per-keyword table -->
+          <div style="background:rgba(31,31,31,0.3); border-radius:8px; overflow:hidden;">
+            <table class="kw-table">
+              <thead>
+                <tr>
+                  <th style="text-align:left">Keyword</th>
+                  <th id="thClicks">Clicks/day</th>
+                  <th>Impressions</th>
+                  <th>CPC</th>
+                  <th id="thCost">Cost/day</th>
+                  <th>CTR</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>keyword research tool free</td>
+                  <td class="mono">12</td>
+                  <td class="mono">403</td>
+                  <td class="mono">$0.15</td>
+                  <td class="mono gold">$1.80</td>
+                  <td class="mono">3.0%</td>
+                </tr>
+                <tr>
+                  <td>best free keyword research tool</td>
+                  <td class="mono">9</td>
+                  <td class="mono">270</td>
+                  <td class="mono">$0.22</td>
+                  <td class="mono gold">$1.98</td>
+                  <td class="mono">3.3%</td>
+                </tr>
+                <tr>
+                  <td>seo keyword suggestion tool</td>
+                  <td class="mono">8</td>
+                  <td class="mono">293</td>
+                  <td class="mono">$0.12</td>
+                  <td class="mono gold">$0.96</td>
+                  <td class="mono">2.7%</td>
+                </tr>
+                <tr>
+                  <td>low competition keyword finder</td>
+                  <td class="mono">7</td>
+                  <td class="mono">233</td>
+                  <td class="mono">$0.18</td>
+                  <td class="mono gold">$1.26</td>
+                  <td class="mono">3.0%</td>
+                </tr>
+                <tr>
+                  <td>keyword clustering tool</td>
+                  <td class="mono">6</td>
+                  <td class="mono">200</td>
+                  <td class="mono">$0.25</td>
+                  <td class="mono gold">$1.50</td>
+                  <td class="mono">3.0%</td>
+                </tr>
+                <tr>
+                  <td>niche keyword research tool</td>
+                  <td class="mono">5</td>
+                  <td class="mono">163</td>
+                  <td class="mono">$0.30</td>
+                  <td class="mono gold">$1.50</td>
+                  <td class="mono">3.1%</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td class="mono" id="totalClicks">47</td>
+                  <td class="mono" id="totalImp">1,562</td>
+                  <td class="mono" id="totalCpc">$0.21</td>
+                  <td class="mono gold" id="totalCost">$10.00</td>
+                  <td class="mono" id="totalCtr">3.0%</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="estimate-note">
+            Estimates based on CPC data and Google Ads forecasting. Actual results may vary.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Demo controls -->
+<div class="demo-controls">
+  <div class="demo-label">Selection State:</div>
+  <div class="demo-row">
+    <button class="demo-btn" onclick="setSelection(0)">0 selected</button>
+    <button class="demo-btn active" onclick="setSelection(6)">6 selected</button>
+  </div>
+  <div class="demo-label" style="margin-top:8px;">Show Results:</div>
+  <div class="demo-row">
+    <button class="demo-btn" onclick="showResults(false)">Hidden</button>
+    <button class="demo-btn active" onclick="showResults(true)">Shown</button>
+  </div>
+</div>
+
+<script>
+  let mode = 'budget';   // 'budget' or 'volume'
+  let period = 'daily';  // 'daily' or 'monthly'
+  let selectedCount = 6;
+
+  function setMode(m) {
+    mode = m;
+    updateToggles();
+    updateInput();
+    updateLabels();
+  }
+
+  function setPeriod(p) {
+    period = p;
+    updateInput();
+    updateLabels();
+  }
+
+  function updateToggles() {
+    const btns = document.querySelectorAll('#modeToggle .toggle-btn');
+    btns[0].classList.toggle('active', mode === 'budget');
+    btns[1].classList.toggle('active', mode === 'volume');
+  }
+
+  function updateInput() {
+    const label = document.getElementById('inputLabel');
+    const prefix = document.getElementById('inputPrefix');
+    const input = document.getElementById('calcInput');
+    const suffix = document.getElementById('inputSuffix');
+
+    const pBtns = document.querySelectorAll('#periodToggle .toggle-btn');
+    pBtns[0].classList.toggle('active', period === 'daily');
+    pBtns[1].classList.toggle('active', period === 'monthly');
+
+    if (mode === 'budget') {
+      label.textContent = 'Budget:';
+      prefix.textContent = '$';
+      prefix.style.display = '';
+      input.className = 'calc-input';
+      input.value = period === 'daily' ? '10' : '300';
+      suffix.textContent = period === 'daily' ? '/day' : '/mo';
+    } else {
+      label.textContent = 'Target:';
+      prefix.style.display = 'none';
+      input.className = 'calc-input no-prefix';
+      input.value = period === 'daily' ? '50' : '1500';
+      suffix.textContent = period === 'daily' ? 'clicks/day' : 'clicks/mo';
+    }
+  }
+
+  function updateLabels() {
+    const p = period === 'daily' ? 'Daily' : 'Monthly';
+    const mo = period === 'daily' ? 'day' : 'mo';
+
+    document.getElementById('sumClicksLabel').textContent = `Est. ${p} Clicks`;
+    document.getElementById('sumImpLabel').textContent = `Est. Impressions`;
+    document.getElementById('sumCostLabel').textContent = `Est. ${p} Cost`;
+    document.getElementById('thClicks').textContent = `Clicks/${mo}`;
+    document.getElementById('thCost').textContent = `Cost/${mo}`;
+
+    // Update summary values for period
+    if (period === 'daily') {
+      document.getElementById('sumClicks').textContent = '47';
+      document.getElementById('sumImpressions').textContent = '1,562';
+      document.getElementById('sumCost').textContent = '$10.00';
+      document.getElementById('totalClicks').textContent = '47';
+      document.getElementById('totalImp').textContent = '1,562';
+      document.getElementById('totalCost').textContent = '$10.00';
+      document.getElementById('headerSummary').textContent = '$10.00/day est.';
+    } else {
+      document.getElementById('sumClicks').textContent = '1,410';
+      document.getElementById('sumImpressions').textContent = '46,860';
+      document.getElementById('sumCost').textContent = '$300.00';
+      document.getElementById('totalClicks').textContent = '1,410';
+      document.getElementById('totalImp').textContent = '46,860';
+      document.getElementById('totalCost').textContent = '$300.00';
+      document.getElementById('headerSummary').textContent = '$300.00/mo est.';
+    }
+
+    // In volume mode, the cost is the output (highlighted differently)
+    if (mode === 'volume') {
+      document.getElementById('headerSummary').textContent = period === 'daily'
+        ? '50 clicks/day → $10.64/day'
+        : '1,500 clicks/mo → $319.15/mo';
+    }
+  }
+
+  function calculate() {
+    showResults(true);
+  }
+
+  function setSelection(count) {
+    selectedCount = count;
+    document.querySelectorAll('.demo-controls .demo-row')[0].querySelectorAll('.demo-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0 && count === 0) || (i === 1 && count > 0));
+    });
+
+    document.getElementById('emptyState').style.display = count === 0 ? '' : 'none';
+    document.getElementById('activeState').style.display = count > 0 ? '' : 'none';
+    document.getElementById('selectionBadge').textContent = `${count} keywords selected`;
+
+    if (count === 0) {
+      document.getElementById('headerSummary').textContent = '';
+    }
+  }
+
+  function showResults(show) {
+    document.getElementById('resultsArea').style.display = show ? '' : 'none';
+    document.querySelectorAll('.demo-controls .demo-row')[1].querySelectorAll('.demo-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0 && !show) || (i === 1 && show));
+    });
+    if (show) updateLabels();
+  }
+
+  function toggleExpand() {
+    const body = document.getElementById('calcBody');
+    const chevron = document.getElementById('chevron');
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      chevron.classList.add('open');
+    } else {
+      body.style.display = 'none';
+      chevron.classList.remove('open');
+    }
+  }
+
+  // Init
+  updateLabels();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "rows": [
+    {
+      "keys": [
+        "https://jackpotkeywords.web.app/"
+      ],
+      "clicks": 1,
+      "impressions": 3,
+      "ctr": 0.33333333333333331,
+      "position": 1
+    }
+  ],
+  "responseAggregationType": "byPage"
+}

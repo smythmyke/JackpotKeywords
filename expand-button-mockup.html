@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expand Results - Sticky Filter Bar Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+  /* Header area (scrolls away) */
+  .results-header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid #1f1f1f;
+    margin-bottom: 24px;
+  }
+  .results-header h1 { font-size: 24px; font-weight: 700; color: #fff; }
+  .results-header p { font-size: 14px; color: #9ca3af; margin-top: 4px; }
+  .header-actions {
+    display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .toggle-group {
+    display: flex; background: #1f1f1f; border-radius: 8px; padding: 2px;
+  }
+  .toggle-btn {
+    padding: 6px 12px; border-radius: 6px; font-size: 13px; border: none;
+    cursor: pointer; transition: all 0.15s; background: transparent; color: #9ca3af;
+  }
+  .toggle-btn.active { background: #d4a017; color: #000; font-weight: 600; }
+  .btn {
+    padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer; transition: all 0.15s; text-decoration: none;
+  }
+  .btn-primary { background: #d4a017; color: #000; }
+  .btn-primary:hover { background: #b8901a; }
+  .btn-gray { background: #1f1f1f; color: #fff; }
+  .btn-gray:hover { background: #2a2a2a; }
+
+  /* Category grid (scrolls away) */
+  .category-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px;
+  }
+  .category-btn {
+    padding: 10px 12px; border-radius: 8px; font-size: 13px; text-align: left;
+    background: #111; border: 1px solid #1f1f1f; color: #9ca3af; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .category-btn.active {
+    background: rgba(212, 160, 23, 0.08); color: #d4a017;
+    border-color: rgba(212, 160, 23, 0.3); font-weight: 500;
+  }
+  .category-btn .count { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+
+  /* STICKY FILTER BAR */
+  .filter-bar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #111;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    /* subtle shadow when stuck */
+    transition: box-shadow 0.2s;
+  }
+  .filter-bar.stuck {
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    border-top-color: transparent;
+  }
+  .filter-label {
+    font-size: 11px; color: #6b7280; text-transform: uppercase;
+    letter-spacing: 0.05em; font-weight: 600; margin-right: 4px;
+  }
+  .filter-select {
+    background: #1f1f1f; border: 1px solid #374151; border-radius: 4px;
+    color: #d1d5db; font-size: 13px; padding: 5px 8px; outline: none; cursor: pointer;
+  }
+  .filter-divider { width: 1px; height: 24px; background: #374151; }
+
+  /* EXPAND BUTTON - the star of the show */
+  .expand-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 2px solid #ef4444; background: rgba(239, 68, 68, 0.08);
+    color: #f87171; cursor: pointer; transition: all 0.2s;
+    margin-left: auto; /* push to right side */
+    white-space: nowrap;
+  }
+  .expand-btn:hover {
+    background: rgba(239, 68, 68, 0.15); border-color: #f87171;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+  }
+  .expand-btn .lightning { font-size: 14px; }
+
+  /* Expanding state */
+  .expand-btn.expanding {
+    border-color: #f59e0b; color: #fbbf24;
+    background: rgba(245, 158, 11, 0.08);
+    cursor: wait; opacity: 0.8;
+  }
+  .expand-btn.expanding .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid #fbbf2444; border-top-color: #fbbf24;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Done state */
+  .expand-btn.done {
+    border-color: #22c55e; color: #4ade80;
+    background: rgba(34, 197, 94, 0.08);
+    cursor: default; opacity: 0.7;
+  }
+
+  /* Clear filters */
+  .clear-filters {
+    font-size: 12px; color: #6b7280; background: none; border: none;
+    cursor: pointer; transition: color 0.15s;
+  }
+  .clear-filters:hover { color: #fff; }
+
+  /* Keyword table */
+  .keyword-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .keyword-table th {
+    text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 500;
+    font-size: 12px; border-bottom: 1px solid #1f1f1f;
+  }
+  .keyword-table td {
+    padding: 10px 12px; border-bottom: 1px solid #111; color: #d1d5db;
+  }
+  .keyword-table tr:hover { background: rgba(255,255,255,0.02); }
+  .score-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 12px; font-weight: 600;
+  }
+  .score-high { background: rgba(34,197,94,0.12); color: #4ade80; }
+  .score-mid { background: rgba(212,160,23,0.12); color: #d4a017; }
+  .trend-up { color: #4ade80; }
+  .trend-stable { color: #9ca3af; }
+  .source-google { color: #60a5fa; font-size: 11px; }
+
+  /* State switcher for demo */
+  .demo-controls {
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    display: flex; gap: 8px; background: #1f1f1f; padding: 12px;
+    border-radius: 12px; border: 1px solid #374151;
+  }
+  .demo-btn {
+    padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    border: 1px solid #374151; background: #111; color: #9ca3af; cursor: pointer;
+  }
+  .demo-btn.active { background: #d4a017; color: #000; border-color: #d4a017; }
+
+  /* Spacer to make page scrollable */
+  .spacer { height: 200px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header (scrolls away) -->
+  <div class="results-header">
+    <h1>247 keywords found</h1>
+    <p>For "AI Keyword Research Tool" &middot; 43.4s &middot; 65 seeds &rarr; 247 keywords</p>
+    <div class="header-actions">
+      <div class="toggle-group">
+        <button class="toggle-btn active">Keywords</button>
+        <button class="toggle-btn">Clusters</button>
+      </div>
+      <div class="toggle-group">
+        <button class="toggle-btn active">Ad Score</button>
+        <button class="toggle-btn">SEO Score</button>
+      </div>
+      <a class="btn btn-primary" href="#">New Search</a>
+      <button class="btn btn-gray">Export &#9662;</button>
+    </div>
+  </div>
+
+  <!-- Category grid (scrolls away) -->
+  <div class="category-grid">
+    <button class="category-btn active">
+      <div>Direct / Head Terms</div>
+      <div class="count">89 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Feature-Based</div>
+      <div class="count">42 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Problem / Pain Point</div>
+      <div class="count">31 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Audience-Based</div>
+      <div class="count">28 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Competitor Brands</div>
+      <div class="count">18 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Competitor Alt</div>
+      <div class="count">15 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Use Case</div>
+      <div class="count">11 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Niche / Industry</div>
+      <div class="count">7 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Benefit / Outcome</div>
+      <div class="count">4 keywords</div>
+    </button>
+    <button class="category-btn">
+      <div>Adjacent</div>
+      <div class="count">2 keywords</div>
+    </button>
+  </div>
+
+  <!-- STICKY FILTER BAR with Expand button -->
+  <div class="filter-bar" id="filterBar">
+    <span class="filter-label">Filters</span>
+    <select class="filter-select">
+      <option>Volume: Any</option>
+      <option>100+</option>
+      <option>500+</option>
+      <option>1,000+</option>
+    </select>
+    <div class="filter-divider"></div>
+    <select class="filter-select">
+      <option>CPC: Any</option>
+      <option>Under $1</option>
+      <option>Under $2</option>
+    </select>
+    <div class="filter-divider"></div>
+    <select class="filter-select">
+      <option>Comp: Any</option>
+      <option>LOW</option>
+      <option>MEDIUM</option>
+    </select>
+    <div class="filter-divider"></div>
+    <select class="filter-select">
+      <option>Trend: Any</option>
+      <option>Rising</option>
+      <option>Stable</option>
+    </select>
+    <div class="filter-divider"></div>
+    <select class="filter-select">
+      <option>Score: Any</option>
+      <option>80+</option>
+      <option>70+</option>
+    </select>
+    <div class="filter-divider"></div>
+    <select class="filter-select">
+      <option>Intent: Any</option>
+      <option>Commercial</option>
+      <option>Transactional</option>
+    </select>
+    <div class="filter-divider"></div>
+    <select class="filter-select">
+      <option>Rel: Any</option>
+      <option>8+</option>
+      <option>6+</option>
+    </select>
+
+    <!-- EXPAND RESULTS BUTTON -->
+    <button class="expand-btn" id="expandBtn" onclick="cycleState()">
+      <span class="lightning">&#9889;</span>
+      <span id="expandLabel">Expand Results</span>
+    </button>
+  </div>
+
+  <!-- Keyword table -->
+  <table class="keyword-table">
+    <thead>
+      <tr>
+        <th style="width: 30px;"><input type="checkbox" /></th>
+        <th>Keyword</th>
+        <th>Volume</th>
+        <th>CPC</th>
+        <th>Comp</th>
+        <th>Score</th>
+        <th>Trend</th>
+        <th>Intent</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>keyword research tool free <span class="source-google">G</span></td>
+        <td>12,100</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">92</span></td>
+        <td class="trend-up">&uarr; Rising</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>best free keyword research tool <span class="source-google">G</span></td>
+        <td>8,100</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">90</span></td>
+        <td class="trend-up">&uarr; Rising</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>seo keyword suggestion tool <span class="source-google">G</span></td>
+        <td>4,400</td>
+        <td>$0.12</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">88</span></td>
+        <td class="trend-stable">&rarr; Stable</td>
+        <td>Transactional</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>free keyword difficulty checker <span class="source-google">G</span></td>
+        <td>2,900</td>
+        <td>$0.00</td>
+        <td>MEDIUM</td>
+        <td><span class="score-badge score-mid">85</span></td>
+        <td class="trend-up">&uarr; Rising</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>low competition keyword finder <span class="source-google">G</span></td>
+        <td>1,900</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">87</span></td>
+        <td class="trend-stable">&rarr; Stable</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>keyword clustering tool <span class="source-google">G</span></td>
+        <td>1,600</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">86</span></td>
+        <td class="trend-up">&uarr; Rising</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>ppc keyword research tool free <span class="source-google">G</span></td>
+        <td>1,300</td>
+        <td>$0.08</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-mid">83</span></td>
+        <td class="trend-stable">&rarr; Stable</td>
+        <td>Transactional</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>niche keyword research tool <span class="source-google">G</span></td>
+        <td>1,000</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">84</span></td>
+        <td class="trend-up">&uarr; Rising</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>long tail keyword generator <span class="source-google">G</span></td>
+        <td>880</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-mid">82</span></td>
+        <td class="trend-stable">&rarr; Stable</td>
+        <td>Informational</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>semrush alternative free <span class="source-google">G</span></td>
+        <td>720</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-high">86</span></td>
+        <td class="trend-up">&uarr; Rising</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>keyword gap analysis tool <span class="source-google">G</span></td>
+        <td>590</td>
+        <td>$0.15</td>
+        <td>MEDIUM</td>
+        <td><span class="score-badge score-mid">80</span></td>
+        <td class="trend-stable">&rarr; Stable</td>
+        <td>Commercial</td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" /></td>
+        <td>content gap analysis keyword tool <span class="source-google">G</span></td>
+        <td>480</td>
+        <td>$0.00</td>
+        <td>LOW</td>
+        <td><span class="score-badge score-mid">79</span></td>
+        <td class="trend-stable">&rarr; Stable</td>
+        <td>Commercial</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="spacer"></div>
+  <div class="spacer"></div>
+</div>
+
+<!-- Demo controls -->
+<div class="demo-controls">
+  <span style="font-size: 11px; color: #6b7280; align-self: center; margin-right: 4px;">Demo:</span>
+  <button class="demo-btn active" onclick="setState('ready')">Ready</button>
+  <button class="demo-btn" onclick="setState('expanding')">Expanding</button>
+  <button class="demo-btn" onclick="setState('done')">Done (+47)</button>
+</div>
+
+<script>
+  let currentState = 'ready';
+
+  function setState(state) {
+    currentState = state;
+    const btn = document.getElementById('expandBtn');
+    const label = document.getElementById('expandLabel');
+
+    // Reset
+    btn.className = 'expand-btn';
+    btn.innerHTML = '';
+
+    if (state === 'ready') {
+      btn.innerHTML = '<span class="lightning">&#9889;</span><span>Expand Results</span>';
+    } else if (state === 'expanding') {
+      btn.className = 'expand-btn expanding';
+      btn.innerHTML = '<span class="spinner"></span><span>Expanding...</span>';
+    } else if (state === 'done') {
+      btn.className = 'expand-btn done';
+      btn.innerHTML = '<span>&#10003;</span><span>Expanded +47</span>';
+    }
+
+    // Update demo buttons
+    document.querySelectorAll('.demo-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.toLowerCase().includes(state === 'done' ? 'done' : state));
+    });
+  }
+
+  function cycleState() {
+    if (currentState === 'ready') {
+      setState('expanding');
+      setTimeout(() => setState('done'), 2000);
+    }
+  }
+
+  // Sticky detection - add shadow when stuck
+  const filterBar = document.getElementById('filterBar');
+  const observer = new IntersectionObserver(
+    ([e]) => {
+      filterBar.classList.toggle('stuck', e.intersectionRatio < 1);
+    },
+    { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+  );
+  observer.observe(filterBar);
+</script>
+
+</body>
+</html>

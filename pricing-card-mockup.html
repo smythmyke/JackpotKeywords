@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pricing Card Mockup — JackpotKeywords</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            jackpot: {
+              300: '#fcd34d',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+            },
+            'score-green': '#10b981',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { background: #0a0a0f; color: #e5e7eb; font-family: system-ui, -apple-system, sans-serif; }
+    .section-label { font-size: 12px; color: #9ca3af; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; margin-bottom: 24px; font-weight: 600; }
+  </style>
+</head>
+<body class="min-h-screen py-12">
+
+  <div class="max-w-7xl mx-auto px-4">
+    <h1 class="text-3xl font-bold text-white text-center mb-2">Layout 2 — Final</h1>
+    <p class="text-gray-500 text-center mb-16 text-sm">Amber Pro · Green center hero · Neutral 3-Pack</p>
+
+    <!-- Asymmetric 1fr : 2fr : 1fr grid. Pro = amber. Center = green hero. 3-pack = neutral. -->
+    <div class="grid grid-cols-1 md:grid-cols-[1fr_2fr_1fr] gap-6 max-w-6xl mx-auto items-stretch">
+
+      <!-- PRO — amber accent -->
+      <div class="bg-gray-900 rounded-xl border-2 border-jackpot-500 ring-1 ring-jackpot-500/20 p-6 text-center relative flex flex-col">
+        <div class="text-xs font-bold text-jackpot-400 mb-2 uppercase tracking-wider">Unlimited</div>
+        <div class="text-3xl font-bold text-white">$9.99<span class="text-base text-gray-400">/mo</span></div>
+        <div class="text-gray-400 text-sm mt-1">Pro Subscription</div>
+        <ul class="mt-6 space-y-2.5 text-left flex-1">
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-jackpot-400 mt-0.5">&#10003;</span> Unlimited searches</li>
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-jackpot-400 mt-0.5">&#10003;</span> Refine &amp; Idea Board</li>
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-jackpot-400 mt-0.5">&#10003;</span> AEO scans included</li>
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-jackpot-400 mt-0.5">&#10003;</span> All exports</li>
+        </ul>
+        <button class="mt-6 w-full bg-jackpot-500 hover:bg-jackpot-600 text-black font-bold py-3 rounded-lg transition">
+          Subscribe
+        </button>
+        <div class="text-xs text-gray-500 mt-2">~5 searches/mo breaks even</div>
+      </div>
+
+      <!-- SEE RESULTS NOW — green hero, wider -->
+      <div class="bg-gradient-to-br from-score-green/15 via-gray-900 to-gray-900 rounded-xl border-2 border-score-green ring-2 ring-score-green/20 p-8 text-center relative flex flex-col shadow-2xl shadow-score-green/10">
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-score-green text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Recommended</div>
+        <div class="text-xs font-bold text-score-green mb-2 uppercase tracking-wider mt-2">One-Time Unlock</div>
+        <div class="flex items-baseline justify-center gap-3">
+          <div class="text-6xl font-extrabold text-white">$1.99</div>
+          <div class="text-gray-400 text-lg">one-time</div>
+        </div>
+        <div class="text-gray-200 text-xl mt-2 font-bold">See Results Now</div>
+        <p class="text-gray-400 text-sm mt-2 max-w-md mx-auto">Unblur every keyword in your current search — all data, all exports, saved forever. No subscription.</p>
+
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 mt-6 text-left flex-1 max-w-md mx-auto">
+          <div class="flex items-start gap-2 text-sm text-gray-200"><span class="text-score-green mt-0.5">&#10003;</span> All keyword strings</div>
+          <div class="flex items-start gap-2 text-sm text-gray-200"><span class="text-score-green mt-0.5">&#10003;</span> Volume &amp; CPC</div>
+          <div class="flex items-start gap-2 text-sm text-gray-200"><span class="text-score-green mt-0.5">&#10003;</span> Jackpot Scores</div>
+          <div class="flex items-start gap-2 text-sm text-gray-200"><span class="text-score-green mt-0.5">&#10003;</span> CSV export</div>
+          <div class="flex items-start gap-2 text-sm text-gray-200"><span class="text-score-green mt-0.5">&#10003;</span> Google Ads export</div>
+          <div class="flex items-start gap-2 text-sm text-gray-200"><span class="text-score-green mt-0.5">&#10003;</span> Permanent access</div>
+        </div>
+
+        <button class="mt-7 w-full bg-score-green hover:bg-green-500 text-black font-extrabold py-5 rounded-lg transition text-xl shadow-lg shadow-score-green/20">
+          See Results Now &rarr;
+        </button>
+        <div class="text-xs text-gray-400 mt-2">Takes 5 seconds · No account setup beyond Google sign-in</div>
+      </div>
+
+      <!-- 3-PACK — neutral gray -->
+      <div class="bg-gray-900 rounded-xl border border-gray-800 p-6 text-center relative flex flex-col">
+        <div class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Save 16%</div>
+        <div class="text-3xl font-bold text-white">$4.99</div>
+        <div class="text-gray-400 text-sm mt-1">3-Pack</div>
+        <ul class="mt-6 space-y-2.5 text-left flex-1">
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-gray-400 mt-0.5">&#10003;</span> 3 unlocks</li>
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-gray-400 mt-0.5">&#10003;</span> $1.66 each</li>
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-gray-400 mt-0.5">&#10003;</span> Never expire</li>
+          <li class="flex items-start gap-2 text-sm text-gray-300"><span class="text-gray-400 mt-0.5">&#10003;</span> Save $0.99</li>
+        </ul>
+        <button class="mt-6 w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-lg transition">
+          Buy 3-Pack
+        </button>
+        <div class="text-xs text-gray-500 mt-2">For running multiple searches</div>
+      </div>
+
+    </div>
+
+    <!-- Notes -->
+    <div class="max-w-3xl mx-auto text-sm text-gray-400 leading-relaxed mt-16 bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+      <div class="font-bold text-white mb-3">Color hierarchy</div>
+      <ul class="space-y-2 list-disc list-inside">
+        <li><strong class="text-jackpot-400">Amber (jackpot-500)</strong> — Pro Subscription. Border + ring + checkmarks + solid fill button. Matches the brand's "jackpot" palette, signals premium recurring.</li>
+        <li><strong class="text-score-green">Green (score-green)</strong> — See Results Now hero. Border + ring + glow + solid fill button. Distinct "go/action" color.</li>
+        <li><strong class="text-gray-300">Neutral gray</strong> — 3-Pack. Recedes behind the two accent colors. Still has its own value prop (save 16%) but doesn't compete for attention.</li>
+      </ul>
+      <div class="font-bold text-white mt-5 mb-2">Layout</div>
+      <ul class="space-y-1.5 list-disc list-inside">
+        <li>Grid: <code class="bg-gray-800 px-1.5 rounded">grid-cols-[1fr_2fr_1fr]</code> — center is 2× the width of the side cards</li>
+        <li>Height parity: <code class="bg-gray-800 px-1.5 rounded">items-stretch</code> + <code class="bg-gray-800 px-1.5 rounded">flex-1</code> benefits lists push buttons to bottom</li>
+        <li>Mobile: stacks to single column at &lt; md breakpoint</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>
