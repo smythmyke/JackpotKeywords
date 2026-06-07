@@ -35,6 +35,14 @@ export async function runApiJob(jobId: string): Promise<void> {
   const job = await claimApiJob(jobId);
   if (!job) return; // already claimed/finished — at-least-once trigger guard
 
+  // Free-quota jobs (MCP free tier) were already metered by the initiating
+  // surface, so they must NOT go through the /v1 endpoint (which would deduct
+  // credits on top). Run the pipeline directly instead.
+  if (job.billing === 'free_quota') {
+    await runFreeQuotaJob(jobId, job);
+    return;
+  }
+
   const endpoint = OPERATION_ENDPOINT[job.operation];
   if (!endpoint) {
     await completeApiJob(jobId, 'error', { error: `Unknown operation: ${job.operation}` });
@@ -49,7 +57,9 @@ export async function runApiJob(jobId: string): Promise<void> {
         'Content-Type': 'application/json',
         'X-Internal-Secret': INTERNAL_JOB_SECRET,
         'X-Api-Customer-Id': job.customerId,
-        'X-Api-Source': 'zapier',
+        // Attribution: jobs created by the MCP connector carry source:'mcp';
+        // legacy jobs (Zapier's POST /v1/jobs) have no source field.
+        'X-Api-Source': job.source || 'zapier',
         'User-Agent': WORKER_USER_AGENT,
       },
       body: JSON.stringify(job.input || {}),
@@ -82,6 +92,55 @@ export async function runApiJob(jobId: string): Promise<void> {
     functions.logger.error(`runApiJob ${jobId} failed:`, errMsg);
     await completeApiJob(jobId, 'error', { error: errMsg });
     await postCallback(job.callbackUrl, { jobId, status: 'error', error: errMsg });
+  }
+}
+
+/**
+ * Run a free-quota job (MCP free tier) by invoking the pipeline directly.
+ * The monthly free allowance was consumed when the job was created; refund it
+ * if the pipeline fails so the user's one free report isn't burned on our
+ * failure. Only 'recommend' is offered on the free tier.
+ */
+async function runFreeQuotaJob(jobId: string, job: import('../services/apiJobs').ApiJob): Promise<void> {
+  if (job.operation !== 'recommend') {
+    const error = `Operation not available on the free tier: ${job.operation}`;
+    await completeApiJob(jobId, 'error', { error });
+    return;
+  }
+
+  const { runRecommendPipeline } = await import('../services/recommendPipeline');
+  const { refundFreeRecommend, recordFreeRecommendCall } = await import('../services/apiFreeQuota');
+
+  const input = job.input || {};
+  const startTime = Date.now();
+  try {
+    const result = await runRecommendPipeline({
+      description: typeof input.description === 'string' ? input.description : undefined,
+      url: typeof input.url === 'string' ? input.url : undefined,
+      budget: typeof input.budget === 'number' ? input.budget : undefined,
+      location: typeof input.location === 'string' ? input.location : undefined,
+      limit: 200, // free tier returns the full ranked set
+    });
+    const latencyMs = Date.now() - startTime;
+    void recordFreeRecommendCall(job.customerId, latencyMs, result.returned);
+    await completeApiJob(jobId, 'success', {
+      result: {
+        productName: result.productName,
+        query: result.query,
+        url: result.url,
+        recommendations: result.recommendations,
+        totalCandidates: result.totalCandidates,
+        returned: result.returned,
+        executionTimeMs: latencyMs,
+      },
+    });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    functions.logger.error(`runFreeQuotaJob ${jobId} failed:`, errMsg);
+    await refundFreeRecommend(job.customerId).catch(() => {});
+    await completeApiJob(jobId, 'error', {
+      error: `${errMsg} (your free report was not counted)`,
+    });
   }
 }
 

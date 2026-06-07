@@ -38,12 +38,25 @@ export const OPERATION_ENDPOINT: Readonly<Record<ApiJobOperation, string>> = {
   audit: '/audit',
 };
 
+/**
+ * How the worker settles the job's cost:
+ *  - 'credits' (default): the worker calls the sync /v1 endpoint, which
+ *    deducts/refunds the customer's credit balance as a direct call would.
+ *  - 'free_quota': the initiating surface (MCP free tier) already consumed the
+ *    monthly free allowance; the worker runs the pipeline directly and refunds
+ *    the allowance on failure. Never touches the credit balance.
+ */
+export type ApiJobBilling = 'credits' | 'free_quota';
+
 export interface ApiJob {
   id: string;
   customerId: string;
   operation: ApiJobOperation;
   input: Record<string, unknown>;
   callbackUrl?: string;
+  /** Attribution surface for X-Api-Source ('mcp' etc.). Absent = legacy Zapier. */
+  source?: string;
+  billing?: ApiJobBilling;
   status: ApiJobStatus;
   result?: unknown;
   error?: string;
@@ -57,6 +70,8 @@ export async function createApiJob(params: {
   operation: ApiJobOperation;
   input: Record<string, unknown>;
   callbackUrl?: string;
+  source?: string;
+  billing?: ApiJobBilling;
 }): Promise<string> {
   const now = new Date().toISOString();
   const ref = db.collection('apiJobs').doc();
@@ -65,6 +80,8 @@ export async function createApiJob(params: {
     operation: params.operation,
     input: params.input,
     ...(params.callbackUrl ? { callbackUrl: params.callbackUrl } : {}),
+    ...(params.source ? { source: params.source } : {}),
+    ...(params.billing ? { billing: params.billing } : {}),
     status: 'queued' as ApiJobStatus,
     attempts: 0,
     createdAt: now,

@@ -27,11 +27,16 @@ export function isMcpOAuthConfigured(): boolean {
   return !!authkitDomain();
 }
 
-/** Canonical resource URL clients bind tokens to (token `aud`). */
+/**
+ * Canonical resource URL clients bind tokens to (token `aud`), and the URL the
+ * PRM `resource` field + WWW-Authenticate hint advertise. Must match the URL
+ * clients connect to — the Connector Directory listing URL on Hosting (the
+ * /api/** rewrite routes it here), NOT the raw cloudfunctions.net URL.
+ */
 export function mcpResourceUrl(): string {
   return (
     process.env.JK_MCP_RESOURCE_URL ||
-    'https://us-central1-even-plate-378520.cloudfunctions.net/api/api/mcp'
+    'https://jackpotkeywords.web.app/api/mcp'
   );
 }
 

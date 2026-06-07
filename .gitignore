@@ -18,3 +18,4 @@ mcp-server/
 
 # Regenerable pipeline debug dumps (scripts/debug-contamination.mjs)
 research/contamination-debug/
+.claude/scheduled_tasks.lock

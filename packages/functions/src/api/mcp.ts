@@ -101,6 +101,32 @@ interface ToolResult {
   isError?: boolean;
 }
 
+/** Input fields shared by the recommend / recommend_deep research tools. */
+const RESEARCH_INPUT_PROPERTIES = {
+  url: {
+    type: 'string',
+    description:
+      'Product URL to extract context from (e.g. https://yourproduct.com). At least one of url/description required.',
+  },
+  description: {
+    type: 'string',
+    description:
+      "Plain-English product description (e.g. 'AI keyword research tool for indie makers'). At least one of url/description required.",
+  },
+  budget: {
+    type: 'number',
+    description: 'Optional daily ad budget in USD. Influences AI scoring / intent classification.',
+  },
+  location: {
+    type: 'string',
+    description: "Optional location for local-intent boosting (e.g. 'San Francisco, CA').",
+  },
+} as const;
+
+const ASYNC_FLOW_NOTE =
+  'Runs as a background job (research takes 1–3 minutes): this tool returns a job_id immediately — ' +
+  'call jackpotkeywords_get_report with that job_id (poll every ~30 seconds) to fetch the finished report.';
+
 const TOOLS = [
   {
     name: 'jackpotkeywords_recommend',
@@ -108,29 +134,10 @@ const TOOLS = [
       'Run the full JackpotKeywords keyword-research pipeline for a product and return ' +
       'ranked keyword recommendations by composite Jackpot Score (search volume, CPC, ' +
       'competition, trend, AI relevance), backed by real Google Ads Keyword Planner data. ' +
-      'Free tier: 1 full report per account per month. Latency ~60–180s.',
+      `Free tier: 1 full report per account per month. ${ASYNC_FLOW_NOTE}`,
     inputSchema: {
       type: 'object',
-      properties: {
-        url: {
-          type: 'string',
-          description:
-            'Product URL to extract context from (e.g. https://yourproduct.com). At least one of url/description required.',
-        },
-        description: {
-          type: 'string',
-          description:
-            "Plain-English product description (e.g. 'AI keyword research tool for indie makers'). At least one of url/description required.",
-        },
-        budget: {
-          type: 'number',
-          description: 'Optional daily ad budget in USD. Influences AI scoring / intent classification.',
-        },
-        location: {
-          type: 'string',
-          description: "Optional location for local-intent boosting (e.g. 'San Francisco, CA').",
-        },
-      },
+      properties: RESEARCH_INPUT_PROPERTIES,
       additionalProperties: false,
     },
     annotations: {
@@ -139,6 +146,104 @@ const TOOLS = [
       destructiveHint: false,
       idempotentHint: false,
       openWorldHint: true,
+    },
+  },
+  {
+    name: 'jackpotkeywords_recommend_deep',
+    description:
+      'Deep keyword research: everything jackpotkeywords_recommend does PLUS competitor ' +
+      'discovery, keyword clusters, and per-category aggregates. Uses prepaid credits ' +
+      `($0.30 per run; new accounts include $2.00 starter credit). ${ASYNC_FLOW_NOTE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...RESEARCH_INPUT_PROPERTIES,
+        limit: {
+          type: 'number',
+          description: 'Max keywords to return (default 50, max 200).',
+        },
+      },
+      additionalProperties: false,
+    },
+    annotations: {
+      title: 'Deep keyword research (competitors + clusters)',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
+  {
+    name: 'jackpotkeywords_audit',
+    description:
+      'SEO audit of a website: crawls up to 10 pages and scores titles, meta descriptions, ' +
+      'headings, structured data, sitemap/robots, Open Graph, and more, with prioritized ' +
+      `fixes. Uses prepaid credits ($0.50 per run). ${ASYNC_FLOW_NOTE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'The site to audit (e.g. example.com or https://example.com). Required.',
+        },
+      },
+      required: ['url'],
+      additionalProperties: false,
+    },
+    annotations: {
+      title: 'SEO site audit',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
+  {
+    name: 'jackpotkeywords_aeo_scan',
+    description:
+      'AI-visibility (AEO) scan: checks whether AI assistants and AI-powered search mention ' +
+      'your product/site for relevant queries, and reports gaps with recommendations. ' +
+      `Uses prepaid credits ($1.00 per run). ${ASYNC_FLOW_NOTE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'The product/site URL to scan (e.g. https://yourproduct.com). Required.',
+        },
+      },
+      required: ['url'],
+      additionalProperties: false,
+    },
+    annotations: {
+      title: 'AI visibility (AEO) scan',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
+  {
+    name: 'jackpotkeywords_get_report',
+    description:
+      'Fetch the status or finished result of a research job started by jackpotkeywords_recommend, ' +
+      'jackpotkeywords_recommend_deep, jackpotkeywords_audit, or jackpotkeywords_aeo_scan. ' +
+      'If the job is still running, wait ~30 seconds and call again.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        job_id: {
+          type: 'string',
+          description: 'The job_id returned when the research tool was called.',
+        },
+      },
+      required: ['job_id'],
+      additionalProperties: false,
+    },
+    annotations: {
+      title: 'Get research report',
+      readOnlyHint: true,
+      openWorldHint: false,
     },
   },
   {
@@ -153,6 +258,22 @@ const TOOLS = [
     },
     annotations: {
       title: 'Free usage status',
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
+  },
+  {
+    name: 'jackpotkeywords_credit_balance',
+    description:
+      'Report the authenticated account\'s prepaid credit balance (used by the deep research, ' +
+      'audit, and AEO scan tools) in USD.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    },
+    annotations: {
+      title: 'Credit balance',
       readOnlyHint: true,
       openWorldHint: true,
     },
@@ -228,26 +349,69 @@ async function callTool(
   switch (name) {
     case 'jackpotkeywords_recommend':
       return runRecommendTool(args, auth);
+    case 'jackpotkeywords_recommend_deep':
+      return runCreditJobTool('recommend-deep', args, auth);
+    case 'jackpotkeywords_audit':
+      return runCreditJobTool('audit', args, auth);
+    case 'jackpotkeywords_aeo_scan':
+      return runCreditJobTool('aeo-scan', args, auth);
+    case 'jackpotkeywords_get_report':
+      return runGetReportTool(args, auth);
     case 'jackpotkeywords_usage_status':
       return runUsageStatusTool(auth);
+    case 'jackpotkeywords_credit_balance':
+      return runCreditBalanceTool(auth);
     default:
       return toolError(`Unknown tool: ${name}`);
   }
 }
 
-async function runRecommendTool(args: Record<string, unknown>, auth: McpAuth): Promise<ToolResult> {
+/** Extract + lightly validate the shared research inputs (url/description/budget/location). */
+function researchInput(args: Record<string, unknown>): {
+  input: Record<string, unknown>;
+  error?: string;
+} {
   const url = typeof args.url === 'string' ? args.url.trim() : '';
   const description = typeof args.description === 'string' ? args.description.trim() : '';
   if (!url && !description) {
-    return toolError('Provide a `url` and/or `description` of the product to research.');
+    return { input: {}, error: 'Provide a `url` and/or `description` of the product to research.' };
   }
+  return {
+    input: {
+      ...(url ? { url } : {}),
+      ...(description ? { description } : {}),
+      ...(typeof args.budget === 'number' ? { budget: args.budget } : {}),
+      ...(typeof args.location === 'string' ? { location: args.location } : {}),
+    },
+  };
+}
 
-  const { consumeFreeRecommend, refundFreeRecommend, recordFreeRecommendCall } = await import(
-    '../services/apiFreeQuota'
-  );
-  const { runRecommendPipeline } = await import('../services/recommendPipeline');
+/** The "job started" reply every research tool returns. */
+function jobStartedResult(jobId: string, operation: string, footer: string): ToolResult {
+  const text =
+    `Research started (job_id: ${jobId}, operation: ${operation}). ` +
+    'It typically completes in 1–3 minutes. ' +
+    `Call jackpotkeywords_get_report with job_id "${jobId}" to fetch the result — if it's still running, wait ~30 seconds and call again.` +
+    (footer ? `\n${footer}` : '');
+  return {
+    content: [{ type: 'text', text }],
+    structuredContent: { jobId, operation, status: 'queued' },
+  };
+}
 
-  // Consume the monthly free allowance up-front (refunded if the pipeline fails).
+/**
+ * Free-tier keyword research: meters the monthly free allowance at this layer,
+ * then enqueues a free_quota job (the worker runs the pipeline directly and
+ * refunds the allowance on failure — see jobs/worker.ts).
+ */
+async function runRecommendTool(args: Record<string, unknown>, auth: McpAuth): Promise<ToolResult> {
+  const { input, error } = researchInput(args);
+  if (error) return toolError(error);
+
+  const { consumeFreeRecommend, refundFreeRecommend } = await import('../services/apiFreeQuota');
+  const { createApiJob } = await import('../services/apiJobs');
+
+  // Consume the monthly free allowance up-front (refunded if the job fails).
   const consume = await consumeFreeRecommend(auth.customerId);
   if (!consume.allowed) {
     // Passive, compliant messaging — state the limit, no upsell, no checkout link.
@@ -255,31 +419,146 @@ async function runRecommendTool(args: Record<string, unknown>, auth: McpAuth): P
       return toolError('Free keyword research is at capacity right now. Please try again later.');
     }
     return toolError(
-      `You've used your free keyword report for this month. Your free allowance resets on ${consume.status.resetsOn}.`,
+      `You've used your free keyword report for this month. Your free allowance resets on ${consume.status.resetsOn}. ` +
+        'The jackpotkeywords_recommend_deep tool remains available via prepaid credits.',
     );
   }
 
-  const startTime = Date.now();
   try {
-    const result = await runRecommendPipeline({
-      description: description || undefined,
-      url: url || undefined,
-      budget: typeof args.budget === 'number' ? args.budget : undefined,
-      location: typeof args.location === 'string' ? args.location : undefined,
-      limit: 200, // free tier returns the full ranked set
+    const jobId = await createApiJob({
+      customerId: auth.customerId,
+      operation: 'recommend',
+      input,
+      source: 'mcp',
+      billing: 'free_quota',
     });
-    const latencyMs = Date.now() - startTime;
-    void recordFreeRecommendCall(auth.customerId, latencyMs, result.returned);
-    return {
-      content: [{ type: 'text', text: formatRecommendText(result, consume.status.resetsOn) }],
-      structuredContent: result as unknown as Record<string, unknown>,
-    };
+    return jobStartedResult(
+      jobId,
+      'recommend',
+      `This uses your free monthly report (resets ${consume.status.resetsOn}); it's automatically refunded if the job fails.`,
+    );
   } catch (err) {
-    // Don't burn the user's one free report on our failure.
+    // Don't burn the user's one free report on our failure to enqueue.
     await refundFreeRecommend(auth.customerId).catch(() => {});
     const message = err instanceof Error ? err.message : String(err);
-    return toolError(`Keyword research failed (${message}). Your free report was not counted — please try again.`);
+    return toolError(`Could not start keyword research (${message}). Your free report was not counted — please try again.`);
   }
+}
+
+/**
+ * Credit-billed research tools (recommend-deep / audit / aeo-scan). Fast-fail
+ * on balance here for a clean error; the real deduction (and refund on
+ * failure) happens when the job worker calls the matching /v1 endpoint.
+ */
+async function runCreditJobTool(
+  operation: 'recommend-deep' | 'audit' | 'aeo-scan',
+  args: Record<string, unknown>,
+  auth: McpAuth,
+): Promise<ToolResult> {
+  let input: Record<string, unknown>;
+  if (operation === 'recommend-deep') {
+    const r = researchInput(args);
+    if (r.error) return toolError(r.error);
+    input = r.input;
+    if (typeof args.limit === 'number') {
+      input.limit = Math.max(1, Math.min(200, Math.floor(args.limit)));
+    }
+  } else {
+    const url = typeof args.url === 'string' ? args.url.trim() : '';
+    if (!url) return toolError('Provide the `url` to scan (e.g. https://example.com).');
+    input = { url };
+  }
+
+  const { getApiCustomerById, isBillingExemptApiCustomer, OPERATION_COST_CENTS } = await import(
+    '../services/apiCredits'
+  );
+  const { createApiJob } = await import('../services/apiJobs');
+
+  const cost = OPERATION_COST_CENTS[operation] ?? 0;
+  const customer = await getApiCustomerById(auth.customerId);
+  if (!customer) return toolError('Account not found. Please reconnect JackpotKeywords.');
+  if (!isBillingExemptApiCustomer(customer) && customer.balanceCents < cost) {
+    return toolError(
+      `This tool costs $${(cost / 100).toFixed(2)} per run; your credit balance is $${(customer.balanceCents / 100).toFixed(2)}. ` +
+        'Credits can be added from your account at jackpotkeywords.web.app.',
+    );
+  }
+
+  try {
+    const jobId = await createApiJob({
+      customerId: auth.customerId,
+      operation,
+      input,
+      source: 'mcp',
+    });
+    return jobStartedResult(
+      jobId,
+      operation,
+      `Cost: $${(cost / 100).toFixed(2)} in prepaid credits (automatically refunded if the job fails).`,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return toolError(`Could not start ${operation} (${message}). Nothing was charged — please try again.`);
+  }
+}
+
+/** Poll/fetch a research job's status or finished report. */
+async function runGetReportTool(args: Record<string, unknown>, auth: McpAuth): Promise<ToolResult> {
+  const jobId = typeof args.job_id === 'string' ? args.job_id.trim() : '';
+  if (!jobId) return toolError('Provide the `job_id` returned when the research tool was called.');
+
+  const { getApiJob } = await import('../services/apiJobs');
+  const job = await getApiJob(jobId);
+  if (!job || job.customerId !== auth.customerId) {
+    return toolError(`No job found with id "${jobId}" for this account.`);
+  }
+
+  if (job.status === 'queued' || job.status === 'processing') {
+    const elapsedS = Math.max(0, Math.round((Date.now() - Date.parse(job.createdAt)) / 1000));
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            `Job ${jobId} (${job.operation}) is still ${job.status} — ${elapsedS}s elapsed. ` +
+            'Research typically takes 1–3 minutes; wait ~30 seconds and call jackpotkeywords_get_report again.',
+        },
+      ],
+      structuredContent: { jobId, operation: job.operation, status: job.status, elapsedSeconds: elapsedS },
+    };
+  }
+
+  if (job.status === 'error') {
+    return toolError(`Job ${jobId} (${job.operation}) failed: ${job.error || 'unknown error'}.`);
+  }
+
+  // success
+  const result = (job.result ?? {}) as Record<string, unknown>;
+  const text = isRecommendResult(result)
+    ? formatRecommendText(result, '')
+    : `Job ${jobId} (${job.operation}) completed. Full results are in the structured data.`;
+  return {
+    content: [{ type: 'text', text }],
+    structuredContent: { jobId, operation: job.operation, status: 'success', result },
+  };
+}
+
+function isRecommendResult(result: Record<string, unknown>): result is Parameters<typeof formatRecommendText>[0] {
+  return Array.isArray((result as { recommendations?: unknown }).recommendations);
+}
+
+async function runCreditBalanceTool(auth: McpAuth): Promise<ToolResult> {
+  const { getApiCustomerById } = await import('../services/apiCredits');
+  const customer = await getApiCustomerById(auth.customerId);
+  if (!customer) return toolError('Account not found. Please reconnect JackpotKeywords.');
+  const balance = customer.balanceCents / 100;
+  const text =
+    `Credit balance: $${balance.toFixed(2)}. ` +
+    'Costs per run: deep research $0.30, SEO audit $0.50, AEO scan $1.00 (basic keyword research is free, 1/month).';
+  return {
+    content: [{ type: 'text', text }],
+    structuredContent: { balanceCents: customer.balanceCents, balanceUsd: balance },
+  };
 }
 
 async function runUsageStatusTool(auth: McpAuth): Promise<ToolResult> {
@@ -294,7 +573,7 @@ async function runUsageStatusTool(auth: McpAuth): Promise<ToolResult> {
   };
 }
 
-/** Human-readable summary of a recommend result for the ChatGPT transcript. */
+/** Human-readable summary of a recommend result for the chat transcript. */
 function formatRecommendText(
   result: {
     productName?: string;
@@ -312,7 +591,7 @@ function formatRecommendText(
     totalCandidates: number;
     returned: number;
   },
-  resetsOn: string,
+  footer: string,
 ): string {
   const lines: string[] = [];
   if (result.productName) lines.push(`Product: ${result.productName}`);
@@ -335,8 +614,10 @@ function formatRecommendText(
   if (result.recommendations.length > 25) {
     lines.push(`  … and ${result.recommendations.length - 25} more (see structured data).`);
   }
-  lines.push('');
-  lines.push(`This was your free monthly report. Your free allowance resets ${resetsOn}.`);
+  if (footer) {
+    lines.push('');
+    lines.push(footer);
+  }
   return lines.join('\n');
 }
 
