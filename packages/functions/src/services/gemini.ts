@@ -720,6 +720,77 @@ Return JSON format:
   }));
 }
 
+/**
+ * Name AND relevance-gate clusters in a single Gemini call. Deep surfaces
+ * return cluster aggregates built on the full candidate pool, where only the
+ * top INLINE_RELEVANCE_MAX keywords ever get per-keyword relevance scoring —
+ * so off-topic keyword families survive as whole clusters. Judging each
+ * cluster from its sample keywords catches those. Clusters rated 1-3
+ * (different product category) are dropped; unrated clusters are kept with
+ * their existing name — absence of a verdict is not a verdict.
+ */
+export async function nameAndScoreClusters(
+  clusters: KeywordCluster[],
+  context: ProductContext,
+): Promise<KeywordCluster[]> {
+  if (clusters.length === 0) return clusters;
+
+  const groupList = clusters.map((c, i) =>
+    `Group ${i}: [${c.keywordKeys.slice(0, 8).map((k) => `"${k}"`).join(', ')}]`,
+  ).join('\n');
+
+  const prompt = `You are organizing keyword research results for a specific product.
+
+Product: "${context.productName}" — ${context.whatItDoes}
+Key features: ${context.keyFeatures.join(', ')}
+Target audience: ${context.targetAudience.join(', ')}
+
+For each keyword group below, return:
+1. "name": a short descriptive label (2-4 words) for the group's common topic/theme.
+2. "relevance": how relevant the group is to THIS SPECIFIC product, 1-10:
+   - 8-10: core topic, feature, or use case of this product
+   - 6-7: related space — competitor comparison/alternative searches belong here
+   - 4-5: same industry but not a direct match
+   - 1-3: different product category or unrelated to this product
+
+${groupList}
+
+Return ONLY valid JSON, no markdown:
+[
+  { "id": 0, "name": "Example Topic Name", "relevance": 7 },
+  ...
+]`;
+
+  const text = await geminiGenerate(prompt);
+  let entries: any[];
+  try {
+    entries = await safeParseGeminiJSON(text, 'array');
+  } catch (_err) {
+    functions.logger.warn('Failed to parse cluster names/scores, returning clusters unchanged');
+    return clusters;
+  }
+
+  const byId = new Map<number, { name?: string; relevance?: number }>();
+  for (const e of entries) {
+    if (typeof e?.id === 'number') byId.set(e.id, e);
+  }
+
+  const kept: KeywordCluster[] = [];
+  let dropped = 0;
+  clusters.forEach((c, i) => {
+    const entry = byId.get(i);
+    if (typeof entry?.relevance === 'number' && entry.relevance <= 3) {
+      dropped++;
+      return;
+    }
+    kept.push({ ...c, name: entry?.name || c.name });
+  });
+  if (dropped > 0) {
+    functions.logger.info(`Clusters: dropped ${dropped} off-topic clusters (relevance <= 3)`);
+  }
+  return kept;
+}
+
 const REFINE_PROMPTS: Record<string, string> = {
   feature: 'Generate keyword seeds focused on this SPECIFIC FEATURE of the product. Include variations, long-tail phrases, and how-to queries related to this feature.',
   problem: 'Generate keyword seeds focused on this SPECIFIC PAIN POINT or problem. Include "how to" queries, troubleshooting phrases, and frustration-based searches.',

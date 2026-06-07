@@ -17,7 +17,7 @@ import {
   extractProductContext,
   generateSeeds,
   scoreAndClassify,
-  nameClustersBatch,
+  nameAndScoreClusters,
 } from './gemini';
 import {
   expandAutocomplete,
@@ -202,15 +202,40 @@ export async function runRecommendPipeline(
     returned: recommendations.length,
   };
   if (deep) {
-    // scoreAndClassify returns placeholder cluster names ("Cluster N") — the web
-    // app names them async via /api/search/name-clusters, but deep surfaces
-    // return everything in one shot, so name them inline. Best-effort: on
-    // failure keep the placeholders rather than failing a finished pipeline.
+    // Clusters are built on the FULL candidate pool inside scoreAndClassify —
+    // before the relevance filter above, which itself only ever scores the top
+    // INLINE_RELEVANCE_MAX keywords — so off-topic keyword families survive as
+    // whole clusters. Prune keys the filter dropped (recomputing aggregates),
+    // then name + relevance-gate the clusters in one Gemini call. Best-effort:
+    // on failure return what we have rather than failing a finished pipeline.
     try {
-      result.clusters = await nameClustersBatch(scored.clusters);
+      const byKeyword = new Map(scored.keywords.map((kw) => [kw.keyword, kw]));
+      const pruned = scored.clusters
+        .map((cluster) => {
+          const kws = cluster.keywordKeys
+            .map((key) => byKeyword.get(key))
+            .filter((kw): kw is NonNullable<typeof kw> => kw !== undefined);
+          if (kws.length === 0) return null;
+          if (kws.length === cluster.keywordKeys.length) return cluster;
+          const bestAdScore = Math.max(...kws.map((kw) => kw.adScore));
+          const bestSeoScore = Math.max(...kws.map((kw) => kw.seoScore));
+          return {
+            ...cluster,
+            keywordKeys: kws.map((kw) => kw.keyword),
+            totalVolume: kws.reduce((sum, kw) => sum + kw.avgMonthlySearches, 0),
+            avgCpc: Math.round(
+              (kws.reduce((sum, kw) => sum + (kw.lowCpc + kw.highCpc) / 2, 0) / kws.length) * 100,
+            ) / 100,
+            bestAdScore,
+            bestSeoScore,
+            isJackpot: bestAdScore >= 75 || bestSeoScore >= 75,
+          };
+        })
+        .filter((c): c is NonNullable<typeof c> => c !== null);
+      result.clusters = await nameAndScoreClusters(pruned, context);
     } catch (err) {
       functions.logger.warn(
-        'Recommend: cluster naming failed, returning placeholder names:',
+        'Recommend: cluster naming/gating failed, returning unnamed clusters:',
         err instanceof Error ? err.message : String(err),
       );
       result.clusters = scored.clusters;
