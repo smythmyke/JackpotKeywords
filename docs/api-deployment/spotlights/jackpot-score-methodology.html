@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: letter; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2937; }
+  .page { width: 8.5in; min-height: 11in; }
+  .hdr { height: 110px; background: #0a0a0a url('logo.png') center/contain no-repeat; }
+  .rule { height: 4px; background: linear-gradient(90deg, #f59e0b, #b45309); }
+  .tagbar { background: #111827; color: #fbbf24; font-size: 11px; letter-spacing: 2.5px; padding: 5px 0; text-align: center; font-weight: 600; }
+  .content { padding: 22px 0.75in 0; }
+  h2 { font-size: 19px; margin: 0 0 6px; color: #111827; }
+  p.lead { font-size: 13px; color: #374151; line-height: 1.5; }
+  .steps { margin: 15px 0; }
+  .step { display: flex; gap: 13px; margin-bottom: 11px; }
+  .num { flex: 0 0 28px; height: 28px; border-radius: 50%; background: #fef3c7; color: #b45309; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .step .body { font-size: 12.5px; line-height: 1.42; }
+  .step .body b { color: #111827; }
+  .score { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 13px 16px; }
+  .score h3 { font-size: 14px; color: #b45309; margin-bottom: 4px; }
+  .score p { font-size: 12.5px; line-height: 1.42; color: #374151; }
+  h4 { font-size: 14px; margin: 16px 0 0; color: #111827; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11.5px; }
+  th { text-align: left; background: #f3f4f6; color: #374151; padding: 5px 8px; font-weight: 600; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eef0f2; }
+  td.f { font-family: "SF Mono", Consolas, monospace; color: #b45309; font-weight: 600; white-space: nowrap; }
+  .foot { margin: 22px 0.75in 0; border-top: 1px solid #e5e7eb; padding-top: 9px; font-size: 11px; color: #6b7280; display: flex; }
+  .foot a { color: #b45309; text-decoration: none; margin-left: auto; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hdr"></div>
+  <div class="rule"></div>
+  <div class="tagbar">API METHODOLOGY</div>
+
+  <div class="content">
+    <h2>How the Jackpot Score is calculated</h2>
+    <p class="lead">Every keyword the API returns carries a <b>Jackpot Score</b> (0&ndash;100) plus real market data. It isn't a guess or a single raw metric resold &mdash; it's a composite signal built from four independent data sources, so you can rank opportunities by how <i>winnable</i> they actually are.</p>
+
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div class="body"><b>AI seed generation.</b> From your product description and/or URL, the pipeline extracts grounded product context and generates seed keywords spanning buyer intents (direct, use-case, competitor) &mdash; not generic synonyms.</div></div>
+      <div class="step"><div class="num">2</div><div class="body"><b>Multi-platform autocomplete expansion.</b> Seeds are expanded against real search-autocomplete suggestions, capturing the long-tail phrasing people actually type &mdash; including questions and modifiers.</div></div>
+      <div class="step"><div class="num">3</div><div class="body"><b>Google Keyword Planner enrichment.</b> Every candidate is enriched with real monthly search volume, low/high CPC, and competition level &mdash; the same source advertisers price against.</div></div>
+      <div class="step"><div class="num">4</div><div class="body"><b>Google Trends overlay.</b> Each keyword gets a trend direction (rising / stable / declining) so you can favor momentum over saturation.</div></div>
+    </div>
+
+    <div class="score">
+      <h3>The Jackpot Score</h3>
+      <p>A composite of demand (volume), commercial value (CPC), the competition gap, trend momentum, and relevance to your product. Higher = a better opportunity to win. Sort descending and the strongest plays surface first &mdash; especially <b>low-competition, high-intent, rising</b> terms.</p>
+    </div>
+
+    <h4>What each result field means</h4>
+    <table>
+      <tr><th>Field</th><th>Meaning</th></tr>
+      <tr><td class="f">keyword</td><td>The search term.</td></tr>
+      <tr><td class="f">monthlyVolume</td><td>Estimated monthly searches (Keyword Planner).</td></tr>
+      <tr><td class="f">lowCpc / highCpc</td><td>Advertiser cost-per-click range (USD) &mdash; a proxy for commercial value.</td></tr>
+      <tr><td class="f">competition</td><td>LOW / MEDIUM / HIGH paid competition.</td></tr>
+      <tr><td class="f">jackpotScore</td><td>0&ndash;100 composite opportunity score.</td></tr>
+      <tr><td class="f">intent</td><td>commercial / transactional / navigational &mdash; buyer readiness.</td></tr>
+      <tr><td class="f">category</td><td>direct / use_case / competitor_brand &mdash; relation to your product.</td></tr>
+      <tr><td class="f">trendDirection</td><td>rising / stable / declining (Google Trends).</td></tr>
+    </table>
+  </div>
+
+  <div class="foot">
+    <span>One /recommend call &middot; 50 ranked keywords &middot; ~60&ndash;180s</span>
+    <a>jackpotkeywords.web.app</a>
+  </div>
+</div>
+</body>
+</html>

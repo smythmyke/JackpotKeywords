@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: letter; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2937; }
+  .page { width: 8.5in; min-height: 11in; }
+  .hdr { height: 110px; background: #0a0a0a url('logo.png') center/contain no-repeat; }
+  .rule { height: 4px; background: linear-gradient(90deg, #f59e0b, #b45309); }
+  .tagbar { background: #111827; color: #fbbf24; font-size: 11px; letter-spacing: 2.5px; padding: 5px 0; text-align: center; font-weight: 600; }
+  .content { padding: 22px 0.75in 0; }
+  h2 { font-size: 19px; margin: 0 0 6px; color: #111827; }
+  p.lead { font-size: 13px; color: #374151; line-height: 1.5; }
+  .code { background: #1f2937; color: #e5e7eb; border-radius: 8px; padding: 11px 14px; font-family: "SF Mono", Consolas, monospace; font-size: 12px; margin: 12px 0; }
+  .code .k { color: #fbbf24; }
+  .code .s { color: #86efac; }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+  th { text-align: left; background: #f3f4f6; color: #374151; padding: 6px 7px; font-weight: 600; }
+  td { padding: 6px 7px; border-bottom: 1px solid #eef0f2; }
+  .kw { font-weight: 600; color: #111827; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .low { background: #dcfce7; color: #166534; }
+  .high { background: #fee2e2; color: #991b1b; }
+  .comp { background: #ede9fe; color: #5b21b6; }
+  .star { color: #d97706; font-weight: 700; }
+  h4 { font-size: 16px; margin: 16px 0 0; color: #111827; }
+  .read { margin: 6px 0 0; }
+  .read li { font-size: 12.5px; line-height: 1.45; margin: 5px 0 5px 18px; }
+  .read li b { color: #b45309; }
+  .takeaway { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 15px; margin-top: 14px; font-size: 12.5px; line-height: 1.42; color: #374151; }
+  .foot { margin: 20px 0.75in 0; border-top: 1px solid #e5e7eb; padding-top: 9px; font-size: 11px; color: #6b7280; display: flex; }
+  .foot a { color: #b45309; text-decoration: none; margin-left: auto; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hdr"></div>
+  <div class="rule"></div>
+  <div class="tagbar">USE CASE</div>
+
+  <div class="content">
+    <h2>Finding low-competition, high-intent keywords</h2>
+    <p class="lead">You sell reusable silicone food storage bags. One <b>/recommend</b> call returns 50 ranked keywords &mdash; including competitor terms surfaced automatically. Here's the request and how to read what comes back.</p>
+
+    <div class="code">
+      POST /api/v1/recommend<br>
+      { <span class="k">"description"</span>: <span class="s">"Reusable silicone food storage bags for meal prep"</span> }
+    </div>
+
+    <table>
+      <tr><th>Keyword</th><th>Volume</th><th>CPC</th><th>Competition</th><th>Score</th><th>Category</th><th>Trend</th></tr>
+      <tr><td class="kw">reusable food storage bags</td><td>2,900</td><td>$0.29&ndash;$1.69</td><td><span class="badge high">HIGH</span></td><td>75</td><td>direct</td><td>rising</td></tr>
+      <tr><td class="kw">silicone freezer bags</td><td>1,300</td><td>$0.27&ndash;$1.46</td><td><span class="badge high">HIGH</span></td><td>73</td><td>direct</td><td>stable</td></tr>
+      <tr><td class="kw">stasher reusable silicone bags <span class="star">&starf;</span></td><td>590</td><td>$0.15&ndash;$0.64</td><td><span class="badge low">LOW</span></td><td>69</td><td>direct</td><td>rising</td></tr>
+      <tr><td class="kw">sustainable food storage bags <span class="star">&starf;</span></td><td>110</td><td>&mdash;</td><td><span class="badge low">LOW</span></td><td>67</td><td>direct</td><td>rising</td></tr>
+      <tr><td class="kw">stasher silicone bags</td><td>3,600</td><td>$0.15&ndash;$0.64</td><td><span class="badge high">HIGH</span></td><td>67</td><td><span class="badge comp">competitor_brand</span></td><td>rising</td></tr>
+      <tr><td class="kw">stasher bags sous vide <span class="star">&starf;</span></td><td>210</td><td>$0.21&ndash;$0.79</td><td><span class="badge low">LOW</span></td><td>63</td><td>use_case</td><td>rising</td></tr>
+    </table>
+
+    <h4>How to read it</h4>
+    <ul class="read">
+      <li><b>Sort by jackpotScore.</b> The highest scores are the most winnable opportunities, balancing demand against how hard the term is to rank for.</li>
+      <li><b>Hunt the &starf; rows: LOW competition + commercial intent + rising trend.</b> "stasher reusable silicone bags" and "sustainable food storage bags" have real demand with little competition &mdash; the jackpots.</li>
+      <li><b>category = competitor_brand</b> flags terms where shoppers are searching a rival (Stasher) &mdash; ads and content here capture competitors' buyers.</li>
+      <li><b>category = use_case</b> ("sous vide") reveals adjacent demand you might not have targeted.</li>
+      <li><b>intent</b> tells you buyer readiness, so you can prioritize transactional/commercial terms over informational ones.</li>
+    </ul>
+
+    <div class="takeaway">
+      <b>Takeaway:</b> a single API call turned a one-line product description into 50 ranked keywords &mdash; complete with real volume/CPC data, competitor terms, and use-case discovery &mdash; in about a minute. No seed list required.
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Endpoint: POST /api/v1/recommend</span>
+    <a>jackpotkeywords.web.app</a>
+  </div>
+</div>
+</body>
+</html>
