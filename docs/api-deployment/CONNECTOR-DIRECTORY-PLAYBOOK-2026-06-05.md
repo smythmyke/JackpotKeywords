@@ -12,6 +12,20 @@ corrected below.
 
 ## 0. The big corrections (read first)
 
+0. **One WorkOS ENVIRONMENT per product** (learned shipping JK, 2026-06-07). The WorkOS
+   hierarchy is Workspace → Environments → Applications. "Applications" within an
+   environment are for multiple SURFACES of ONE product (web/mobile/desktop) — they share
+   the environment's user pool and its single AuthKit domain (= OAuth issuer). GovToolsPro's
+   production env has a custom `auth.govtoolspro.com` AuthKit domain, so any second product
+   added there as an "application" would sign users in through GovToolsPro's domain. For each
+   new product: **environment picker dropdown → Create environment (production)**, name it
+   after the product; inside it use the auto-created default application's client ID, create
+   an API key, read the generated `<phrase>.authkit.app` domain from Domains → AuthKit,
+   enable Authentication → Methods → Magic Auth, and enable Connect → Configuration →
+   DCR + CIMD (+ add the MCP URL as a Resource Indicator). JK's env: issuer
+   `bright-myth-67.authkit.app`. Verify DCR took: `registration_endpoint` appears in
+   `https://<domain>/.well-known/oauth-authorization-server` (absent = toggle off).
+
 1. **A custom domain is NOT required to ship.** Earlier docs said production WorkOS
    AuthKit needs a custom-domain CNAME and that JK was "BLOCKED" on `*.web.app`. **That
    was wrong.** GovToolsPro's connector ran end-to-end on the WorkOS-provided
