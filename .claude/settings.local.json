@@ -191,7 +191,15 @@
       "PowerShell(git *)",
       "PowerShell(npm run *)",
       "PowerShell(Get-Content .env | ForEach-Object { \\($_ -split '='\\)[0] } | Where-Object { $_ -and $_ -notmatch '^#' })",
-      "PowerShell(node scripts/debug-contamination.mjs)"
+      "PowerShell(node scripts/debug-contamination.mjs)",
+      "PowerShell(Add-Content *)",
+      "PowerShell(firebase deploy *)",
+      "mcp__claude_ai_JackpotKeywords__jackpotkeywords_recommend",
+      "mcp__claude_ai_JackpotKeywords__jackpotkeywords_recommend_deep",
+      "mcp__claude_ai_JackpotKeywords__jackpotkeywords_aeo_scan",
+      "mcp__claude_ai_JackpotKeywords__jackpotkeywords_credit_balance",
+      "mcp__claude_ai_JackpotKeywords__jackpotkeywords_get_report",
+      "mcp__claude_ai_GovToolsPro__get_solicitation"
     ]
   }
 }
