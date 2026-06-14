@@ -14,13 +14,13 @@ A demand/interest tool for **creators/influencers** ("what should I make next").
 - Scrape/paid sources (Reddit-commercial, etc.) abandoned.
 
 ## Reuses from Product Search
-Suggest-endpoint infra (`autocomplete.ts`), BigQuery client + Trends data (Phase 0 of Product Search), Firestore daily-refresh pattern, Stage/momentum helpers from `trendSignals`. Build Product Search first so this is mostly assembly.
+Suggest-endpoint infra (`autocomplete.ts`), Firestore daily-refresh pattern, Stage/momentum helpers from `trendSignals`. Build Product Search first so this is mostly assembly. **No BigQuery** (same cost-safety decision as Product Search — all sources are fixed-quota or free HTTP).
 
 ---
 
 ## Phase 0 — Topic data spine
 - **0.1 Wikipedia Pageviews** — REST API client (no auth); per-topic daily interest time-series = the load-bearing momentum anchor.
-- **0.2 GDELT 2.0** — DOC API or BigQuery; news/theme momentum + emerging topics.
+- **0.2 GDELT 2.0** — **DOC API only** (free HTTP, no BigQuery); news/theme momentum + emerging topics.
 - **0.3 YouTube Data API v3** — `videos.mostPopular` (cheap, 10k units/day); category trends. Mind the quota (search = 100 units).
 - **0.4 Suggest extension + history** — add **Etsy** + **TikTok** suggest to `autocomplete.ts`; store per-poll **suggest-depth** so per-platform proxy momentum can accrue.
 - **0.5 Hacker News API** — top stories (tech niches).

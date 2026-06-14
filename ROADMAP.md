@@ -1,6 +1,6 @@
 # ROADMAP — JackpotKeywords
 
-**Last updated:** 2026-06-02
+**Last updated:** 2026-06-14
 **Scope:** Keyword research / SEO tool. Full-stack monorepo (web + Firebase Functions + shared packages). Gemini-backed seed generation, autocomplete expansion, Keyword Planner API enrichment, Google Trends overlay, Jackpot Score aggregation. MVP scaffold complete 2026-03-28; deploying to Firebase next. AEO scan module is a parallel track. Converted from Phase-structured roadmap on 2026-05-27.
 
 <!-- DASHBOARD-META
@@ -63,7 +63,24 @@ key_dates: []
   + 6 extensions and post the jackpot keywords found (content + case study + proof in one).
 - ☐ DIST-3: Product Hunt press kit (screenshots, 45s demo, SEMrush-$140-vs-JK comparison
   graphic). See `project_jackpot_press_plan`. Don't launch PH until the funnel converts.
-- ☐ DIST-4: Decide on a custom domain (currently live on `jackpotkeywords.web.app`).
+- ◐ DIST-4: **Custom domain — DECIDED 2026-06-14: register `jackpotkeywords.com` via Porkbun**
+  (~$11/yr flat; free DNS API + documented `/domain/create` register endpoint; no nameserver
+  lock-in, unlike Cloudflare). Domain confirmed AVAILABLE (Verisign RDAP 404). Rationale:
+  removes the documented `.web.app` shared-domain organic-traffic ceiling (crawl priority,
+  authority compounding, trust/CTR per John Mueller + Public Suffix List) — and JK has 0
+  indexed pages today, so migration cost is ~zero (nothing to lose). NOT a documented fix for
+  the GSC "couldn't fetch" error (that's transient + crawl-priority); the win is the organic
+  ceiling. Cutover checklist:
+  - ☐ User: create Porkbun acct, load ~$11 credit, generate API key+secret (or click-buy)
+  - ☐ User: add custom domain in Firebase Hosting console (project even-plate-378520) → it
+    emits the A/TXT records to create
+  - ☐ Push those records via Porkbun DNS API
+  - ☐ Code cutover: 49 sitemap `<loc>`s, `robots.txt` Sitemap line, canonical/base URLs,
+    IndexNow `HOST` in `packages/web/scripts/indexnow-ping.mjs` (+ key file path) →
+    `jackpotkeywords.com`; deploy a NEW IndexNow key file for the new host
+  - ☐ 301 redirect `jackpotkeywords.web.app` → `jackpotkeywords.com`; add new domain as a GSC
+    property + re-submit sitemap; keep old property for the migration report
+  - See memory `jackpotkeywords_custom_domain` and `[[indexnow_seo_status]]`.
 
 ## BACKLOG
 
@@ -161,8 +178,8 @@ All three promoted from "conditional" to active as a deliberate *discovery exper
 
 ### Trend-data integration — unused Google sources into existing functions (2026-06-14)
 *From the 2026-06-14 research pass: JK uses KP (Ideas+Forecast only), the free autocomplete endpoints, and Gemini — but pulls **zero real trend data** (`googleTrends.ts` is a stub; trend direction is guessed from KP's monthly-volume histogram). This section is **integration into already-performing functions only**; net-new features (e.g. `discover_niches`) come AFTER, in a separate effort. ToS exposure (KP-derived-score resale, etc. — see [[project_ads_tos_derived_score]]) is **deferred for discussion until this integration section is done.** **Sequencing note:** traffic is ~0 right now, so improving the functions has near-zero near-term impact — this is groundwork, not a growth lever; do it cheap, in priority order, don't gold-plate.*
-- ☐ TREND-1: **KP Historical Metrics** — cheapest win (~0.5 day, $0 incremental, Ads auth already wired). Call the historical-metrics endpoint we currently skip; use it to sharpen seasonality/trend calls in the `recommend` pipeline + the Demand Score "momentum" factor. Replaces the stubbed `googleTrends.ts` histogram-guess logic.
-- ☐ TREND-2: **Google Trends BigQuery public dataset** (~1–2 days, ~$0 — `bigquery-public-data.google_trends.international_top_rising_terms` / `..._top_terms`, daily refresh, 5-yr backfill, same GCP project even-plate-378520). Feed real rising/flat/declining signal into `recommend` trend-direction + Demand Score momentum input. The "trends users aren't aware of" core signal.
+- ☐ TREND-1: **KP monthly-volume signal — MOSTLY ALREADY DONE (audit 2026-06-14).** `generateKeywordIdeas` already returns ~12-mo `monthly_search_volumes`, and `keywordPlanner.ts:analyzeTrendFromVolumes()` already derives trend direction + a seasonal flag. The dedicated KP *historical-metrics* endpoint adds only marginal extra history → **skip/deprioritize.** Remaining real work = compute the 4-stage **lifecycle** (Emerging/Rising/Peaking/Cooling) the discovery mockups use (current code only does rising/stable/declining) inside the new `trendSignals` service. Ads API is quota-limited, **not** byte-billed → no bill-explosion risk.
+- ☐ TREND-2: **Google Trends BigQuery — DROPPED from v1 (decision 2026-06-14, bill-risk + no traffic).** User had a massive BigQuery bill on the patents project; with ~0 traffic the bill-explosion surface isn't worth it. **v1 substitute (zero byte-billing surface):** niche *discovery* = Gemini-generated candidate niches (optionally grounded) **validated against real KP data** before display + optional **free Google Daily Trends RSS** (plain HTTP GET) for freshness; momentum/seasonality/Stage = KP 12-mo monthly volumes (TREND-1). BigQuery kept ONLY as a clearly-labeled future enhancement — re-add later **behind `maximum_bytes_billed` cap + daily Firestore cache + project daily-bytes quota**, and only if traffic ever justifies the 5-yr Stage precision. Cost notes + safeguards: `docs/discovery/PRODUCT-SEARCH-PLAN-2026-06-14.md`.
 - ☐ TREND-3: **Demand Score wiring** — once TREND-1/2 land, swap the weakest current Demand Score factor for a real trend-momentum input ([[project_demand_score]]).
 - ☐ TREND-4: **Surface flow-through** — confirm the improved trend signal propagates to MCP/WebMCP `recommend` tools and the AEO/audit "rising vs declining topic" flag (no per-surface work expected; verify only).
 - ☐ TREND-5 (access-gated, defer): **Merchant/Shopping Content API best-sellers + market insights** — best-selling products/brands by category+country with demand-rank change. Higher value but **gated behind a qualifying Merchant Center account**; validate eligibility for the account before committing effort. Likely belongs with the future `discover_niches` feature, not this integration pass.

@@ -14,15 +14,18 @@ A "push" discovery tool: a standing, daily-refreshed board of **rising sellable 
 
 ---
 
+## ⚠️ Cost-safety decision (2026-06-14) — NO BigQuery in v1
+User had a massive BigQuery bill on the patents project; with ~0 traffic the bill-explosion surface isn't worth it. **BigQuery is dropped from v1.** Every v1 data source is **either fixed-quota or free HTTP — none is billed by bytes scanned:** Google Ads API (KP) = quota-limited, not byte-billed; Gemini = predictable per-call; Daily Trends RSS = free GET; Firestore = bounded reads/writes. BigQuery stays a clearly-labeled *future enhancement* only — re-add behind `maximum_bytes_billed` cap + daily cache + project daily-bytes quota, and only if traffic ever justifies the 5-yr Stage precision.
+
 ## Phase 0 — Shared trend-data spine (prereq; also upgrades existing `recommend`)
-*This is roadmap TREND-1/TREND-2. Build once; both Product Search and `recommend` consume it.*
-- **0.1 KP Historical Metrics** — call the historical-metrics endpoint we currently skip; replace the stubbed `googleTrends.ts` histogram-guess with real monthly history → seasonality + trend direction.
-- **0.2 Google Trends BigQuery** — add a BigQuery client (same GCP project, `even-plate-378520`); pull `international_top_rising_terms` / `international_top_terms` (daily, US first); cache in Firestore.
-- **0.3 `trendSignals` service** — one internal module returning, per term/niche: momentum %, stage (Emerging/Rising/Peaking/Cooling), seasonality[12], 5-yr direction. Used everywhere.
-- **Deliverable:** `services/trendSignals.ts` + cached Trends data + `recommend` trend-direction upgraded. **Verify:** real momentum/seasonality on an existing search.
+*Roadmap TREND-1/TREND-2 (revised BQ-free). Build once; both Product Search and `recommend` consume it. **Audit finding:** KP already returns ~12-mo `monthly_search_volumes` and `analyzeTrendFromVolumes()` already derives trend + seasonality — so the spine is mostly assembly + Stage computation, no new paid data.*
+- **0.1 (revised) — reuse existing KP monthly volumes;** skip the redundant KP historical-metrics endpoint.
+- **0.2 (revised, BQ-free) — niche/term discovery without BigQuery:** Gemini-generated candidate niches (per category, optionally grounded) **validated against real KP data** before anything is shown; optional freshness from the **free Google Daily Trends RSS** (`trends.google.com/trends/trendingsearches/daily/rss?geo=US` — plain HTTP GET, no auth, no bill). Candidate-gen is AI; every displayed number is real Google data.
+- **0.3 `trendSignals` service** — one internal module returning, per term/niche: momentum %, **Stage (Emerging/Rising/Peaking/Cooling)** (NEW — current code only does rising/stable/declining), seasonality[12]. Sources from KP monthly volumes (+ optional RSS). Wire into `overlayTrends` so `recommend` benefits too.
+- **Deliverable:** `services/trendSignals.ts` + `recommend` trend/Stage upgraded. **Verify:** real momentum/seasonality/Stage on an existing search; zero BigQuery dependency.
 
 ## Phase 1 — Niche dataset + Goldmine Score (backend)
-- **1.1 Niche assembly** — seed from Trends rising terms → cluster into niches (Gemini, reuse clustering) → dedupe.
+- **1.1 Niche assembly (BQ-free)** — Gemini candidate niches (per category, optionally grounded) + optional Daily Trends RSS → cluster/dedupe (Gemini, reuse clustering) → drop any niche that fails KP validation in 1.2.
 - **1.2 Enrichment** — KP volume/CPC/competition per niche (reuse `keywordPlanner.ts`); attach `trendSignals`.
 - **1.3 Sell-channel coverage** — reuse the suggest endpoints (`autocomplete.ts`); presence per platform (Amazon/Etsy/YT/Pin/eBay/TikTok); Gemini best-fit channel tag.
 - **1.4 Goldmine Score** — composite (momentum + demand + commercial value + competition gap), non-invertible; KP minority weight. Document weights.
