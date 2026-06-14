@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Niche Opportunity Report (Option B) Mockup — JackpotKeywords</title>
+<style>
+  :root {
+    --gray-950:#030712; --gray-900:#111827; --gray-850:#1a2030; --gray-800:#1f2937; --gray-700:#374151;
+    --gray-600:#4b5563; --gray-500:#6b7280; --gray-400:#9ca3af; --gray-300:#d1d5db; --gray-200:#e5e7eb;
+    --gray-100:#f3f4f6; --white:#ffffff;
+    --jackpot-300:#fcd34d; --jackpot-400:#fbbf24; --jackpot-500:#f59e0b; --jackpot-600:#d97706;
+    --green-400:#4ade80; --green-500:#22c55e; --score-green:#10b981;
+    --yellow-400:#facc15; --yellow-500:#eab308; --orange-500:#f97316; --red-400:#f87171; --red-500:#ef4444;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#030712; color:var(--gray-200); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; min-height:100vh; }
+
+  .demo-bar { background:var(--gray-900); border-bottom:1px solid var(--gray-800); padding:10px 16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; position:sticky; top:0; z-index:50; }
+  .demo-bar .label { color:var(--gray-500); margin-right:6px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; }
+  .demo-btn { background:var(--gray-800); color:var(--gray-300); border:1px solid var(--gray-700); border-radius:6px; padding:6px 12px; font-weight:500; font-size:12px; cursor:pointer; }
+  .demo-btn:hover { background:var(--gray-850); color:var(--gray-100); border-color:var(--gray-600); }
+  .demo-btn.active { background:var(--jackpot-500); color:#111; border-color:var(--jackpot-500); font-weight:700; }
+
+  .topnav { display:flex; justify-content:space-between; align-items:center; padding:14px 28px; border-bottom:1px solid var(--gray-800); background:rgba(3,7,18,0.7); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; color:var(--white); }
+  .brand-dot { width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,var(--jackpot-400),var(--jackpot-600)); display:inline-flex; align-items:center; justify-content:center; color:#111; font-weight:900; font-size:15px; }
+  .nav-links { display:flex; gap:24px; font-size:14px; color:var(--gray-400); }
+  .nav-links a { color:inherit; text-decoration:none; } .nav-links a:hover { color:var(--white); }
+
+  .page { max-width:1080px; margin:0 auto; padding:22px 24px 90px; position:relative; }
+  .page::before { content:""; position:absolute; top:-20px; left:0; right:0; height:300px; background:radial-gradient(640px 260px at 50% 0%, rgba(251,191,36,0.08), transparent 70%); pointer-events:none; }
+  .crumb { position:relative; z-index:2; font-size:13px; color:var(--gray-500); margin-bottom:14px; }
+  .crumb a { color:var(--jackpot-400); text-decoration:none; } .crumb a:hover { color:var(--jackpot-300); }
+
+  /* report header */
+  .report-head { position:relative; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:24px; background:var(--gray-900); border:1px solid var(--gray-800); border-radius:16px; padding:22px 26px; margin-bottom:16px; flex-wrap:wrap; }
+  .rh-left { flex:1; min-width:280px; }
+  .rh-left .eyebrow { font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--gray-500); font-weight:600; }
+  .rh-left h1 { margin:6px 0 10px; font-size:32px; font-weight:800; color:var(--white); letter-spacing:-0.02em; }
+  .rh-left .verdict { color:var(--gray-300); font-size:14px; line-height:1.55; max-width:560px; }
+  .rh-left .verdict b { color:var(--white); }
+  .stage-pill { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; vertical-align:middle; margin-left:10px; }
+  .stage-pill.Emerging { background:rgba(251,191,36,0.15); color:var(--jackpot-400); border:1px solid rgba(251,191,36,0.4); }
+  .stage-pill.Rising { background:rgba(34,197,94,0.14); color:var(--green-400); border:1px solid rgba(34,197,94,0.4); }
+  .stage-pill.Peaking { background:rgba(249,115,22,0.14); color:var(--orange-500); border:1px solid rgba(249,115,22,0.4); }
+  .stage-pill.Cooling { background:rgba(107,114,128,0.16); color:var(--gray-400); border:1px solid var(--gray-600); }
+
+  .opp-score { text-align:center; }
+  .opp-ring { width:108px; height:108px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+  .opp-ring .num { font-size:38px; font-weight:800; line-height:1; }
+  .opp-ring .of { font-size:11px; color:var(--gray-500); margin-top:2px; }
+  .opp-label { font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.06em; margin-top:8px; font-weight:600; }
+
+  /* card grid */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; position:relative; z-index:2; }
+  .card { background:var(--gray-900); border:1px solid var(--gray-800); border-radius:14px; padding:18px 20px; }
+  .card.span2 { grid-column:1 / -1; }
+  .card h3 { margin:0 0 14px; font-size:13px; font-weight:700; color:var(--white); display:flex; align-items:center; gap:8px; }
+  .card h3 .hint { font-size:10px; font-weight:500; color:var(--gray-600); cursor:help; border:1px solid var(--gray-700); border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; }
+
+  .metric-row { display:flex; gap:24px; flex-wrap:wrap; }
+  .metric { }
+  .metric .v { font-size:24px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; }
+  .metric .v.up { color:var(--green-400); } .metric .v.down { color:var(--red-400); }
+  .metric .k { font-size:11px; color:var(--gray-500); margin-top:2px; }
+  .spark { display:block; }
+
+  /* seasonality */
+  .season { display:flex; align-items:flex-end; gap:4px; height:64px; margin-top:6px; }
+  .season .bar { flex:1; background:var(--gray-700); border-radius:3px 3px 0 0; position:relative; min-height:4px; }
+  .season .bar.peak { background:linear-gradient(180deg,var(--jackpot-400),var(--jackpot-600)); }
+  .season-labels { display:flex; gap:4px; margin-top:4px; }
+  .season-labels span { flex:1; text-align:center; font-size:9px; color:var(--gray-600); }
+  .peak-note { font-size:12px; color:var(--gray-400); margin-top:8px; }
+  .peak-note b { color:var(--jackpot-400); }
+
+  /* competition meter */
+  .meter { display:inline-flex; gap:3px; margin:2px 0 4px; }
+  .meter i { width:26px; height:8px; border-radius:2px; background:var(--gray-700); }
+  .meter.low i:nth-child(1){ background:var(--green-500);}
+  .meter.medium i:nth-child(-n+2){ background:var(--yellow-500);}
+  .meter.high i { background:var(--orange-500);}
+  .cpc-range { font-size:24px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; }
+  .cpc-range small { font-size:13px; color:var(--gray-500); font-weight:500; }
+  .sim { background:var(--gray-950); border:1px solid var(--gray-800); border-radius:9px; padding:10px 12px; margin-top:12px; font-size:13px; color:var(--gray-300); }
+  .sim b { color:var(--white); }
+
+  /* score breakdown */
+  .bd-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .bd-row:last-child { margin-bottom:0; }
+  .bd-label { width:140px; font-size:12px; color:var(--gray-400); }
+  .bd-track { flex:1; height:8px; border-radius:5px; background:var(--gray-800); overflow:hidden; }
+  .bd-fill { height:100%; border-radius:5px; background:linear-gradient(90deg,var(--jackpot-500),var(--jackpot-400)); }
+  .bd-val { width:34px; text-align:right; font-size:12px; font-weight:700; color:var(--gray-200); font-variant-numeric:tabular-nums; }
+
+  /* chips & lists */
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip { font-size:12px; color:var(--gray-300); background:var(--gray-950); border:1px solid var(--gray-700); border-radius:999px; padding:5px 11px; }
+  .comp-list { display:flex; flex-direction:column; gap:7px; }
+  .comp-item { display:flex; align-items:center; gap:9px; font-size:13px; color:var(--gray-300); }
+  .comp-item .dot { width:6px; height:6px; border-radius:50%; background:var(--gray-500); }
+  .micro-note { font-size:11px; color:var(--gray-600); margin-top:10px; font-style:italic; }
+  .channels { display:inline-flex; gap:5px; flex-wrap:wrap; }
+  .chan-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:6px; background:var(--gray-800); color:var(--gray-400); border:1px solid var(--gray-700); }
+  .chan-badge.best { background:rgba(251,191,36,0.13); color:var(--jackpot-400); border-color:rgba(251,191,36,0.45); }
+  .sub-label { font-size:11px; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.05em; margin:14px 0 8px; }
+
+  /* keyword preview table */
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { text-align:left; padding:9px 12px; color:var(--gray-500); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid var(--gray-800); }
+  thead th.num { text-align:right; } thead th.center { text-align:center; }
+  tbody td { padding:9px 12px; border-bottom:1px solid var(--gray-850); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  td.kw { color:var(--white); }
+  .score-pill { display:inline-flex; align-items:center; justify-content:center; min-width:38px; padding:3px 8px; border-radius:7px; font-weight:800; font-size:13px; }
+  .score-pill.s-hi { background:rgba(16,185,129,0.16); color:var(--score-green); border:1px solid rgba(16,185,129,0.4); }
+  .score-pill.s-mid { background:rgba(250,204,21,0.14); color:var(--yellow-400); border:1px solid rgba(250,204,21,0.35); }
+  .score-pill.s-lo { background:rgba(148,163,184,0.12); color:var(--gray-400); border:1px solid var(--gray-700); }
+  .preview-fade tbody tr:nth-last-child(-n+3) td { opacity:0.45; }
+
+  /* primary CTA */
+  .cta-bar { position:relative; z-index:2; margin-top:18px; background:linear-gradient(180deg, rgba(251,191,36,0.08), rgba(251,191,36,0.02)); border:1px solid rgba(251,191,36,0.3); border-radius:16px; padding:22px 26px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .cta-bar .ct-left h3 { margin:0 0 4px; color:var(--white); font-size:18px; font-weight:800; }
+  .cta-bar .ct-left p { margin:0; color:var(--gray-400); font-size:13px; }
+  .cta-btn { background:var(--jackpot-500); color:#111; border:0; border-radius:12px; padding:14px 24px; font-weight:800; font-size:16px; cursor:pointer; white-space:nowrap; }
+  .cta-btn:hover { background:var(--jackpot-600); }
+  .cta-sub { display:block; text-align:center; font-size:11px; color:var(--gray-500); margin-top:6px; }
+
+  /* sourcing module teaser (deliberately absent data) */
+  .soon { position:relative; z-index:2; margin-top:14px; background:var(--gray-900); border:1px dashed var(--gray-700); border-radius:14px; padding:18px 20px; }
+  .soon h3 { margin:0 0 4px; color:var(--gray-300); font-size:13px; font-weight:700; display:flex; align-items:center; gap:10px; }
+  .soon .badge { font-size:9px; font-weight:800; letter-spacing:0.05em; color:var(--gray-400); background:var(--gray-800); border:1px solid var(--gray-700); border-radius:999px; padding:2px 8px; }
+  .soon p { margin:6px 0 12px; color:var(--gray-500); font-size:12px; line-height:1.5; max-width:680px; }
+  .soon .ghosts { display:flex; gap:10px; flex-wrap:wrap; }
+  .ghost { flex:1; min-width:150px; background:var(--gray-950); border:1px solid var(--gray-800); border-radius:10px; padding:12px 14px; }
+  .ghost .gv { font-size:22px; font-weight:800; color:var(--gray-700); filter:blur(2.5px); user-select:none; }
+  .ghost .gk { font-size:11px; color:var(--gray-600); margin-top:4px; }
+
+  .footnote { color:var(--gray-600); font-size:11px; margin-top:16px; text-align:center; position:relative; z-index:2; line-height:1.6; }
+
+  @media (max-width:760px) { .grid { grid-template-columns:1fr; } .rh-left h1 { font-size:24px; } }
+</style>
+</head>
+<body>
+  <div class="demo-bar">
+    <span class="label">Demo niche</span>
+    <button class="demo-btn active" data-niche="0">Beef tallow skincare (Emerging)</button>
+    <button class="demo-btn" data-niche="1">Magnesium glycinate (Rising)</button>
+    <button class="demo-btn" data-niche="2">Sea moss gel (Cooling)</button>
+  </div>
+
+  <div class="topnav">
+    <div class="brand"><span class="brand-dot">J</span> JackpotKeywords</div>
+    <div class="nav-links"><a href="#">Keyword Search</a><a href="#">Product Search</a><a href="#">Pricing</a><a href="#">Sign In</a></div>
+  </div>
+
+  <div class="page">
+    <div class="crumb"><a href="#">← Product Search</a> &nbsp;/&nbsp; <span id="crumbName"></span> &nbsp;/&nbsp; Opportunity Report</div>
+
+    <!-- header -->
+    <div class="report-head">
+      <div class="rh-left">
+        <div class="eyebrow">Niche Opportunity Report</div>
+        <h1 id="nicheTitle"></h1>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <div class="opp-score">
+        <div class="opp-ring" id="oppRing"><span class="num" id="oppNum"></span><span class="of">/ 100</span></div>
+        <div class="opp-label">Opportunity Score</div>
+      </div>
+    </div>
+
+    <!-- cards -->
+    <div class="grid">
+      <!-- demand & timing -->
+      <div class="card">
+        <h3>Demand &amp; timing</h3>
+        <div class="metric-row">
+          <div class="metric"><div class="v" id="volV"></div><div class="k">searches / mo (Keyword Planner)</div></div>
+          <div class="metric"><div id="momSpark"></div><div class="k">90-day trend <span id="momPct"></span></div></div>
+          <div class="metric"><div class="v" id="trend5"></div><div class="k">5-year trend (Google Trends)</div></div>
+        </div>
+        <div class="sub-label">Seasonality (relative interest by month)</div>
+        <div class="season" id="season"></div>
+        <div class="season-labels"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
+        <div class="peak-note" id="peakNote"></div>
+      </div>
+
+      <!-- money signals -->
+      <div class="card">
+        <h3>Money signals <span class="hint" title="CPC and competition are ADVERTISING signals from the Google Ads Keyword Planner — not SEO ranking difficulty (which needs paid backlink data).">i</span></h3>
+        <div class="metric-row" style="align-items:flex-end">
+          <div class="metric">
+            <div class="cpc-range" id="cpcRange"></div>
+            <div class="k">typical CPC range (commercial value)</div>
+          </div>
+          <div class="metric">
+            <div class="meter" id="compMeter"><i></i><i></i><i></i></div>
+            <div class="k" id="compLabel"></div>
+          </div>
+        </div>
+        <div class="sim" id="budgetSim"></div>
+      </div>
+
+      <!-- opportunity breakdown -->
+      <div class="card">
+        <h3>How the score breaks down</h3>
+        <div id="breakdown"></div>
+      </div>
+
+      <!-- landscape -->
+      <div class="card">
+        <h3>Landscape</h3>
+        <div class="sub-label">Related sub-niches</div>
+        <div class="chips" id="subNiches"></div>
+        <div class="sub-label">Brands already in this space <span style="text-transform:none; letter-spacing:0; color:var(--gray-600)">(names only — no market-share data)</span></div>
+        <div class="comp-list" id="competitors"></div>
+        <div class="sub-label">Best-fit sell channels</div>
+        <div class="channels" id="channels"></div>
+      </div>
+
+      <!-- keyword preview -->
+      <div class="card span2">
+        <h3>Top keywords in this niche <span style="font-weight:500; color:var(--gray-600); text-transform:none; letter-spacing:0">— preview (12 of 1,000+)</span></h3>
+        <table class="preview-fade">
+          <thead><tr><th>Keyword</th><th class="num">Volume / mo</th><th class="num">CPC</th><th class="center">Score</th></tr></thead>
+          <tbody id="kwBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- primary CTA -->
+    <div class="cta-bar">
+      <div class="ct-left">
+        <h3>Ready to go deeper?</h3>
+        <p>Run full keyword research on this niche — 1,000+ keywords, all clusters, intent categories, scores &amp; export.</p>
+      </div>
+      <div>
+        <button class="cta-btn">Run full keyword research →</button>
+        <span class="cta-sub">1 credit ($1.99) · free &amp; unlimited on Pro</span>
+      </div>
+    </div>
+
+    <!-- honesty / trust note (what we deliberately don't do) -->
+    <div class="soon">
+      <h3>What this report intentionally leaves out</h3>
+      <p>We don't estimate profit margin, units sold, supplier cost, or marketplace saturation. Honest versions of those numbers would require scraping marketplaces (Amazon/Etsy) or reselling paid wholesale data (1688/Alibaba) — which we won't do. Everything above is built from Google first-party data, open datasets, and our own scoring, so you can trust the figures aren't guesses.</p>
+    </div>
+
+    <p class="footnote">
+      All figures above come from Google first-party data (Keyword Planner, Google Trends), Gemini clustering, and free search-suggest — no scraping, no paid third-party data.
+      "Money signals" reflect <strong style="color:var(--gray-500)">advertising</strong> competition &amp; commercial value, not SEO ranking difficulty. Brand lists are discovery only and do not imply market share.
+    </p>
+  </div>
+
+<script>
+  const PLATFORMS = { amz:"Amazon", etsy:"Etsy", yt:"YouTube", pin:"Pinterest", ebay:"eBay", tt:"TikTok" };
+  const MONTHS = 12;
+
+  const NICHES = [
+    {
+      name:"Beef tallow skincare", stage:"Emerging", opp:93,
+      verdict:"<b>Strong, early opportunity.</b> Demand is climbing fast (+680% over 90 days) with low advertising competition and above-average commercial value. Still early-stage — a good window to enter before it gets crowded.",
+      vol:22200, mom:680, trend5:"↑ 12×", season:[72,58,46,40,35,30,32,36,46,62,82,96], peak:"November – January (winter dry-skin season)",
+      cpcLow:0.95, cpcHigh:1.85, comp:"low", sim:{spend:300, clicks:1100},
+      breakdown:[["Demand (volume)",78],["Momentum (rising)",98],["Commercial value (CPC)",82],["Competition gap",90]],
+      subs:["whipped tallow balm","tallow for acne","grass-fed tallow","tallow lip balm","unscented tallow"],
+      comps:["Vintage Tradition","Fatco","Toups & Co","independent Etsy makers"],
+      chan:["tt","etsy","amz","yt","pin"], best:"tt",
+      kw:[["beef tallow skincare",22200,1.31,92],["whipped tallow balm",8100,1.10,90],["tallow for face",6600,1.42,88],["grass fed tallow balm",4400,1.55,87],["tallow moisturizer",3600,1.28,85],["tallow for acne",2900,1.18,84],["best tallow skincare",1600,1.62,86],["beef tallow for skin",2400,0.95,80],["tallow lip balm",1300,0.88,79],["unscented tallow balm",880,1.05,77],["whipped tallow recipe",1900,0.42,61],["tallow vs shea butter",720,0.70,64]]
+    },
+    {
+      name:"Magnesium glycinate", stage:"Rising", opp:84,
+      verdict:"<b>Solid but competitive.</b> Large and steadily rising demand (+160% over 90 days), but advertising competition is high. Worth entering with a sharp angle (sleep, anxiety, women's health) rather than a generic listing.",
+      vol:246000, mom:160, trend5:"↑ 5×", season:[80,78,75,72,70,68,68,70,74,80,88,92], peak:"November – December",
+      cpcLow:0.55, cpcHigh:1.15, comp:"high", sim:{spend:300, clicks:780},
+      breakdown:[["Demand (volume)",96],["Momentum (rising)",80],["Commercial value (CPC)",70],["Competition gap",40]],
+      subs:["magnesium glycinate for sleep","magnesium for anxiety","magnesium glycinate women","chelated magnesium"],
+      comps:["Thorne","Nature Made","Pure Encapsulations","Doctor's Best"],
+      chan:["amz","yt"], best:"amz",
+      kw:[["magnesium glycinate",246000,0.83,84],["magnesium glycinate benefits",60500,0.60,80],["magnesium for sleep",49500,0.92,82],["magnesium glycinate dosage",33100,0.45,72],["best magnesium glycinate",18100,1.10,83],["magnesium for anxiety",27100,0.78,79],["chelated magnesium",9900,0.70,74],["magnesium glycinate side effects",14800,0.30,60],["magnesium glycinate vs citrate",8100,0.55,68],["magnesium glycinate for women",4400,0.95,77],["high absorption magnesium",3600,1.05,76],["magnesium glycinate powder",2900,0.88,73]]
+    },
+    {
+      name:"Sea moss gel", stage:"Cooling", opp:58,
+      verdict:"<b>Late / weak opportunity.</b> Demand is declining from its 2024 peak (−28% over 90 days) and competition is high. Enter only with a strong differentiator (format, flavor, certification) — otherwise the window has largely passed.",
+      vol:90500, mom:-28, trend5:"↓ ~40% from peak", season:[100,80,65,55,50,48,50,52,55,60,70,78], peak:"January (New-Year health spike)",
+      cpcLow:0.62, cpcHigh:1.20, comp:"high", sim:{spend:300, clicks:620},
+      breakdown:[["Demand (volume)",80],["Momentum (rising)",18],["Commercial value (CPC)",60],["Competition gap",35]],
+      subs:["raw sea moss","sea moss gummies","irish sea moss","sea moss for skin"],
+      comps:["Organics Nature","Sea Moss Co","TrueSeaMoss","independent Etsy/IG sellers"],
+      chan:["amz","yt","tt"], best:"amz",
+      kw:[["sea moss gel",90500,0.92,64],["raw sea moss",49500,0.78,62],["sea moss benefits",33100,0.55,58],["sea moss gummies",14800,1.10,66],["irish sea moss gel",18100,0.85,60],["sea moss for skin",6600,0.95,61],["how to make sea moss gel",12100,0.30,49],["best sea moss brand",4400,1.18,63],["sea moss capsules",9900,0.88,59],["dr sebi sea moss",8100,0.50,54],["sea moss for weight loss",5400,0.72,56],["organic sea moss gel",3600,1.05,62]]
+    }
+  ];
+
+  // ---- helpers ----
+  function fmt(n){ return n>=1000 ? (n/1000).toFixed(n>=100000?0:1).replace(/\.0$/,'')+"k" : String(n); }
+  function scoreClass(s){ return s>=80?"s-hi":s>=65?"s-mid":"s-lo"; }
+  function oppColor(s){ return s>=80?"var(--score-green)":s>=65?"var(--jackpot-400)":"var(--gray-400)"; }
+  function momTxt(m){ return (m>=0?"+":"")+m+"%"; }
+
+  function sparkline(points, mom, w, h){
+    w=w||96; h=h||30; const pad=2;
+    const max=Math.max(...points),min=Math.min(...points),span=(max-min)||1;
+    const step=(w-pad*2)/(points.length-1);
+    const pts=points.map((v,i)=>{const x=pad+i*step;const y=h-pad-((v-min)/span)*(h-pad*2);return x.toFixed(1)+","+y.toFixed(1);}).join(" ");
+    const up=mom>=0,stroke=up?"var(--green-400)":"var(--red-400)";
+    const id="s"+Math.abs(mom)+w+points[0];
+    const lx=pad+(points.length-1)*step, ly=h-pad-((points[points.length-1]-min)/span)*(h-pad*2);
+    return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${up?'rgba(74,222,128,0.26)':'rgba(248,113,113,0.26)'}"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></linearGradient></defs>
+      <polyline points="${pad},${h-pad} ${pts} ${lx},${h-pad}" fill="url(#${id})"/>
+      <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.2" fill="${stroke}"/></svg>`;
+  }
+
+  function genSpark(stage, mom){
+    if (stage==="Emerging") return [6,8,9,11,14,19,27,38,52,70,86,100];
+    if (stage==="Rising") return [38,42,47,53,59,65,72,79,85,91,96,100];
+    if (stage==="Peaking") return [60,70,80,88,95,100,99,98,97,96,95,95];
+    return [100,97,92,86,79,72,66,60,55,50,46,42];
+  }
+
+  function render(i){
+    const n = NICHES[i];
+    document.getElementById("crumbName").textContent = n.name;
+    document.getElementById("nicheTitle").innerHTML = `${n.name}<span class="stage-pill ${n.stage}">${n.stage}</span>`;
+    document.getElementById("verdict").innerHTML = n.verdict;
+
+    const ring = document.getElementById("oppRing");
+    const col = oppColor(n.opp);
+    ring.style.background = `conic-gradient(${col} ${n.opp*3.6}deg, var(--gray-800) 0)`;
+    ring.innerHTML = `<div style="position:absolute; inset:7px; border-radius:50%; background:var(--gray-900); display:flex; flex-direction:column; align-items:center; justify-content:center;">
+      <span class="num" style="color:${col}">${n.opp}</span><span class="of">/ 100</span></div>`;
+
+    document.getElementById("volV").textContent = fmt(n.vol);
+    document.getElementById("momSpark").innerHTML = sparkline(genSpark(n.stage,n.mom), n.mom, 96, 30);
+    document.getElementById("momPct").innerHTML = `<span style="color:${n.mom>=0?'var(--green-400)':'var(--red-400)'};font-weight:700">${momTxt(n.mom)}</span>`;
+    const t5 = document.getElementById("trend5"); t5.textContent = n.trend5; t5.className = "v " + (n.trend5.includes("↓")?"down":"up");
+
+    // seasonality
+    const peakMax = Math.max(...n.season);
+    document.getElementById("season").innerHTML = n.season.map(v=>{
+      const isPeak = v >= peakMax*0.9;
+      return `<div class="bar ${isPeak?"peak":""}" style="height:${Math.max(6, v)}%" title="${v}"></div>`;
+    }).join("");
+    document.getElementById("peakNote").innerHTML = `Peak demand: <b>${n.peak}</b>`;
+
+    // money
+    document.getElementById("cpcRange").innerHTML = `$${n.cpcLow.toFixed(2)} <small>–</small> $${n.cpcHigh.toFixed(2)}`;
+    document.getElementById("compMeter").className = "meter " + n.comp;
+    document.getElementById("compLabel").textContent = n.comp[0].toUpperCase()+n.comp.slice(1) + " advertising competition";
+    document.getElementById("budgetSim").innerHTML = `Ad-budget estimate: <b>$${n.sim.spend}/mo</b> ≈ <b>${fmt(n.sim.clicks)} clicks/mo</b> at this CPC <span style="color:var(--gray-600)">(Google Ads forecast)</span>`;
+
+    // breakdown
+    document.getElementById("breakdown").innerHTML = n.breakdown.map(([label,val])=>`
+      <div class="bd-row"><div class="bd-label">${label}</div><div class="bd-track"><div class="bd-fill" style="width:${val}%"></div></div><div class="bd-val">${val}</div></div>`).join("");
+
+    // landscape
+    document.getElementById("subNiches").innerHTML = n.subs.map(s=>`<span class="chip">${s}</span>`).join("");
+    document.getElementById("competitors").innerHTML = n.comps.map(c=>`<div class="comp-item"><span class="dot"></span>${c}</div>`).join("");
+    const order = [n.best, ...n.chan.filter(c=>c!==n.best)];
+    document.getElementById("channels").innerHTML = order.map(c=>`<span class="chan-badge${c===n.best?" best":""}">${c===n.best?"★ ":""}${PLATFORMS[c]}</span>`).join("");
+
+    // keywords
+    document.getElementById("kwBody").innerHTML = n.kw.map(([kw,vol,cpc,sc])=>`
+      <tr><td class="kw">${kw}</td><td class="num">${fmt(vol)}</td><td class="num">$${cpc.toFixed(2)}</td><td class="center"><span class="score-pill ${scoreClass(sc)}">${sc}</span></td></tr>`).join("");
+  }
+
+  document.querySelectorAll(".demo-btn").forEach(b=> b.addEventListener("click", ()=>{
+    document.querySelectorAll(".demo-btn").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active"); render(+b.getAttribute("data-niche"));
+  }));
+  render(0);
+</script>
+</body>
+</html>

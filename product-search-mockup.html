@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Product Search Mockup — JackpotKeywords</title>
+<style>
+  :root {
+    --gray-950: #030712;
+    --gray-900: #111827;
+    --gray-850: #1a2030;
+    --gray-800: #1f2937;
+    --gray-700: #374151;
+    --gray-600: #4b5563;
+    --gray-500: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-300: #d1d5db;
+    --gray-200: #e5e7eb;
+    --gray-100: #f3f4f6;
+    --white: #ffffff;
+    --jackpot-300: #fcd34d;
+    --jackpot-400: #fbbf24;
+    --jackpot-500: #f59e0b;
+    --jackpot-600: #d97706;
+    --green-400: #4ade80;
+    --green-500: #22c55e;
+    --score-green: #10b981;
+    --yellow-400: #facc15;
+    --yellow-500: #eab308;
+    --orange-500: #f97316;
+    --red-400: #f87171;
+    --red-500: #ef4444;
+    --violet-400: #a78bfa;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #030712;
+    color: var(--gray-200);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Demo controls (not part of real page) */
+  .demo-bar {
+    background: var(--gray-900);
+    border-bottom: 1px solid var(--gray-800);
+    padding: 10px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 12px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .demo-bar .label { color: var(--gray-500); margin-right: 6px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .demo-btn { background: var(--gray-800); color: var(--gray-300); border: 1px solid var(--gray-700); border-radius: 6px; padding: 6px 12px; font-weight: 500; font-size: 12px; cursor: pointer; }
+  .demo-btn:hover { background: var(--gray-850); color: var(--gray-100); border-color: var(--gray-600); }
+  .demo-btn.active { background: var(--jackpot-500); color: #111; border-color: var(--jackpot-500); font-weight: 700; }
+
+  /* Top nav */
+  .topnav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--gray-800);
+    background: rgba(3,7,18,0.7);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--white); letter-spacing: -0.01em; }
+  .brand-dot { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--jackpot-400), var(--jackpot-600)); display: inline-flex; align-items: center; justify-content: center; color: #111; font-weight: 900; font-size: 15px; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; color: var(--gray-400); align-items: center; }
+  .nav-links a { color: inherit; text-decoration: none; }
+  .nav-links a:hover { color: var(--white); }
+  .nav-links a.active { color: var(--jackpot-400); font-weight: 600; }
+  .nav-links a.active .new-pill { font-size: 9px; background: var(--jackpot-500); color:#111; border-radius: 999px; padding: 1px 6px; margin-left: 6px; font-weight: 800; letter-spacing: 0.04em; vertical-align: middle; }
+
+  /* Page shell */
+  .page { max-width: 1240px; margin: 0 auto; padding: 28px 24px 80px; position: relative; }
+  .page::before {
+    content: ""; position: absolute; top: -20px; left: 0; right: 0; height: 320px;
+    background: radial-gradient(680px 280px at 50% 0%, rgba(251,191,36,0.08), transparent 70%);
+    pointer-events: none;
+  }
+
+  .page-head { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 22px; }
+  .page-head h1 { font-size: 34px; font-weight: 800; color: var(--white); margin: 0 0 8px; letter-spacing: -0.02em; }
+  .page-head h1 .gold { color: var(--jackpot-400); }
+  .page-head p { color: var(--gray-400); font-size: 15px; margin: 0; max-width: 560px; line-height: 1.5; }
+  .refresh-badge { display: inline-flex; align-items: center; gap: 7px; background: var(--gray-900); border: 1px solid var(--gray-800); color: var(--gray-400); font-size: 12px; padding: 6px 12px; border-radius: 999px; }
+  .refresh-badge .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-500); box-shadow: 0 0 8px var(--green-500); }
+
+  .head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .saved-radar-btn { background: var(--gray-900); border: 1px solid var(--gray-700); color: var(--gray-200); font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; cursor: pointer; display: inline-flex; gap: 7px; align-items: center; }
+  .saved-radar-btn:hover { border-color: var(--jackpot-500); color: var(--white); }
+
+  /* Stat strip */
+  .stat-strip { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; position: relative; z-index: 2; }
+  .stat-card { background: var(--gray-900); border: 1px solid var(--gray-800); border-radius: 12px; padding: 14px 18px; min-width: 150px; flex: 1; }
+  .stat-card .v { font-size: 22px; font-weight: 800; color: var(--white); }
+  .stat-card .v.gold { color: var(--jackpot-400); }
+  .stat-card .v.green { color: var(--green-400); }
+  .stat-card .k { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
+  /* Controls / filters */
+  .controls {
+    position: relative; z-index: 2;
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    background: var(--gray-900); border: 1px solid var(--gray-800);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;
+  }
+  .ctrl-search { flex: 1; min-width: 200px; position: relative; }
+  .ctrl-search input {
+    width: 100%; background: var(--gray-950); border: 1px solid var(--gray-700); border-radius: 9px;
+    color: var(--white); font-size: 13px; padding: 9px 12px 9px 34px; outline: none; font-family: inherit;
+  }
+  .ctrl-search input:focus { border-color: var(--jackpot-500); box-shadow: 0 0 0 1px var(--jackpot-500); }
+  .ctrl-search .mag { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 14px; }
+  select.ctrl {
+    background: var(--gray-950); border: 1px solid var(--gray-700); border-radius: 9px;
+    color: var(--gray-200); font-size: 13px; padding: 9px 12px; outline: none; font-family: inherit; cursor: pointer;
+  }
+  select.ctrl:focus { border-color: var(--jackpot-500); }
+  .ctrl-spacer { flex: 1; }
+  .export-btn { background: var(--gray-800); border: 1px solid var(--gray-700); color: var(--gray-300); font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .export-btn:hover { border-color: var(--jackpot-500); color: var(--white); }
+  .export-btn.locked { opacity: 0.55; }
+  .export-btn .lock { font-size: 11px; }
+
+  /* Stage filter chips */
+  .stage-chips { display: flex; gap: 7px; position: relative; z-index: 2; margin-bottom: 14px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; font-weight: 600; padding: 6px 13px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--gray-700); background: var(--gray-900); color: var(--gray-400);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip:hover { color: var(--white); border-color: var(--gray-600); }
+  .chip.active { color: var(--white); }
+  .chip .swatch { width: 8px; height: 8px; border-radius: 50%; }
+  .chip[data-stage="all"].active { background: var(--gray-700); border-color: var(--gray-600); }
+  .chip[data-stage="Emerging"].active { background: rgba(251,191,36,0.15); border-color: var(--jackpot-500); }
+  .chip[data-stage="Rising"].active { background: rgba(34,197,94,0.15); border-color: var(--green-500); }
+  .chip[data-stage="Peaking"].active { background: rgba(249,115,22,0.15); border-color: var(--orange-500); }
+  .chip[data-stage="Cooling"].active { background: rgba(107,114,128,0.18); border-color: var(--gray-500); }
+
+  /* Table */
+  .table-wrap { position: relative; z-index: 2; border: 1px solid var(--gray-800); border-radius: 14px; overflow: hidden; background: var(--gray-900); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 12px 14px; color: var(--gray-500); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--gray-800);
+    background: var(--gray-950); white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th.sortable:hover { color: var(--gray-300); }
+  thead th .arrow { color: var(--jackpot-400); font-size: 10px; margin-left: 3px; }
+  thead th.num, td.num { text-align: right; }
+  thead th.center, td.center { text-align: center; }
+  tbody td { padding: 13px 14px; border-bottom: 1px solid var(--gray-850); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: rgba(255,255,255,0.018); }
+
+  .rank { color: var(--gray-600); font-weight: 700; font-size: 12px; width: 26px; }
+  .niche-cell .name { color: var(--white); font-weight: 600; font-size: 14px; }
+  .niche-cell .sub { color: var(--gray-500); font-size: 11px; margin-top: 2px; }
+  .cat-tag { color: var(--gray-400); font-size: 12px; }
+
+  /* momentum */
+  .momentum { display: flex; align-items: center; gap: 10px; }
+  .spark { display: block; }
+  .pct { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .pct.up { color: var(--green-400); }
+  .pct.down { color: var(--red-400); }
+
+  .num-strong { color: var(--white); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cpc { color: var(--gray-200); font-variant-numeric: tabular-nums; }
+
+  /* competition bar */
+  .comp { display: inline-flex; align-items: center; gap: 7px; }
+  .comp-bars { display: inline-flex; gap: 2px; }
+  .comp-bars i { width: 5px; height: 12px; border-radius: 1px; background: var(--gray-700); display: inline-block; }
+  .comp.low .comp-bars i:nth-child(1) { background: var(--green-500); }
+  .comp.medium .comp-bars i:nth-child(-n+2) { background: var(--yellow-500); }
+  .comp.high .comp-bars i { background: var(--orange-500); }
+  .comp .lbl { font-size: 11px; color: var(--gray-400); }
+
+  /* goldmine score */
+  .score-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; padding: 5px 9px; border-radius: 8px; font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .score-pill.s-hi { background: rgba(16,185,129,0.16); color: var(--score-green); border: 1px solid rgba(16,185,129,0.4); }
+  .score-pill.s-mid { background: rgba(250,204,21,0.14); color: var(--yellow-400); border: 1px solid rgba(250,204,21,0.35); }
+  .score-pill.s-lo { background: rgba(148,163,184,0.12); color: var(--gray-400); border: 1px solid var(--gray-700); }
+
+  /* stage pill */
+  .stage-pill { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.02em; white-space: nowrap; }
+  .stage-pill.Emerging { background: rgba(251,191,36,0.15); color: var(--jackpot-400); border: 1px solid rgba(251,191,36,0.4); }
+  .stage-pill.Rising { background: rgba(34,197,94,0.14); color: var(--green-400); border: 1px solid rgba(34,197,94,0.4); }
+  .stage-pill.Peaking { background: rgba(249,115,22,0.14); color: var(--orange-500); border: 1px solid rgba(249,115,22,0.4); }
+  .stage-pill.Cooling { background: rgba(107,114,128,0.16); color: var(--gray-400); border: 1px solid var(--gray-600); }
+
+  /* sell-channel coverage badges */
+  .channels { display: inline-flex; gap: 4px; flex-wrap: wrap; max-width: 168px; }
+  .chan-badge {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+    padding: 3px 7px; border-radius: 6px;
+    background: var(--gray-800); color: var(--gray-400); border: 1px solid var(--gray-700);
+    white-space: nowrap;
+  }
+  .chan-badge.best {
+    background: rgba(251,191,36,0.13); color: var(--jackpot-400); border-color: rgba(251,191,36,0.45);
+  }
+
+  /* research action */
+  .research-btn { background: var(--jackpot-500); color: #111; border: 0; border-radius: 8px; padding: 7px 12px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap; transition: background 140ms ease; }
+  .research-btn:hover { background: var(--jackpot-600); }
+
+  /* Blurred / locked cells (free tier) */
+  .locked-num { position: relative; }
+  body.free .blurable { filter: blur(5px); opacity: 0.85; user-select: none; pointer-events: none; }
+  body.free .research-btn { background: var(--gray-700); color: var(--gray-500); cursor: not-allowed; }
+  body.free .export-btn:not(.locked) { } /* handled by markup */
+
+  /* Paywall overlay over lower rows (free tier) */
+  .paywall-row td { padding: 0; border: 0; }
+  .paywall {
+    display: none;
+    position: relative;
+    padding: 30px 24px 34px;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(3,7,18,0) 0%, rgba(3,7,18,0.86) 38%, var(--gray-950) 100%);
+    margin-top: -150px; /* pull up over the faded rows */
+    z-index: 5;
+  }
+  body.free .paywall { display: block; }
+  .paywall h3 { color: var(--white); font-size: 20px; font-weight: 800; margin: 0 0 6px; }
+  .paywall h3 .gold { color: var(--jackpot-400); }
+  .paywall p { color: var(--gray-400); font-size: 13px; margin: 0 auto 16px; max-width: 440px; line-height: 1.5; }
+  .paywall .cta { background: var(--jackpot-500); color: #111; border: 0; border-radius: 10px; padding: 12px 22px; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .paywall .cta:hover { background: var(--jackpot-600); }
+  .paywall .alt { display: block; margin-top: 12px; color: var(--gray-500); font-size: 12px; }
+  .paywall .alt a { color: var(--jackpot-400); text-decoration: none; }
+
+  /* fade the locked rows behind the paywall */
+  body.free tr.locked-row { opacity: 0.5; }
+  body.free tr.locked-row:nth-child(n) { } /* progressive fade applied via JS inline */
+
+  .footnote { color: var(--gray-600); font-size: 11px; margin-top: 14px; text-align: center; position: relative; z-index: 2; line-height: 1.6; }
+
+  @media (max-width: 1100px) { .col-channels { display: none; } }
+  @media (max-width: 880px) {
+    .col-cat, .col-comp { display: none; }
+    .page-head h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body class="free">
+  <!-- Demo controls -->
+  <div class="demo-bar">
+    <span class="label">Demo</span>
+    <button class="demo-btn active" id="viewFree">Free / anonymous view</button>
+    <button class="demo-btn" id="viewPro">Pro view (unlocked)</button>
+    <span style="color:var(--gray-600); margin: 0 6px;">|</span>
+    <span class="label">Sort</span>
+    <button class="demo-btn" data-sort="score">Goldmine Score</button>
+    <button class="demo-btn" data-sort="momentum">Momentum</button>
+    <button class="demo-btn" data-sort="volume">Volume</button>
+  </div>
+
+  <!-- Top nav -->
+  <div class="topnav">
+    <div class="brand"><span class="brand-dot">J</span> JackpotKeywords</div>
+    <div class="nav-links">
+      <a href="#">Keyword Search</a>
+      <a href="#" class="active">Product Search <span class="new-pill">NEW</span></a>
+      <a href="#">Pricing</a>
+      <a href="#">Blog</a>
+      <a href="#">Sign In</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <!-- Header -->
+    <div class="page-head">
+      <div>
+        <h1>Product <span class="gold">Search</span></h1>
+        <p>Rising product niches with proven search demand — before they go mainstream. Updated daily from Google Trends + real Google Ads volume &amp; CPC.</p>
+      </div>
+      <div class="head-right">
+        <span class="refresh-badge"><span class="live-dot"></span> Updated 6 hours ago · next refresh in 18h</span>
+        <button class="saved-radar-btn">★ Save this search &amp; get weekly alerts</button>
+      </div>
+    </div>
+
+    <!-- Stat strip -->
+    <div class="stat-strip">
+      <div class="stat-card"><div class="v gold">2,418</div><div class="k">Rising niches tracked</div></div>
+      <div class="stat-card"><div class="v green">312</div><div class="k">New this week</div></div>
+      <div class="stat-card"><div class="v">47</div><div class="k">Emerging — still early</div></div>
+      <div class="stat-card"><div class="v">12</div><div class="k">Categories · 8 regions</div></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="ctrl-search">
+        <span class="mag">⌕</span>
+        <input id="searchBox" type="text" placeholder="Filter niches… (e.g. skincare, pet, kitchen)" />
+      </div>
+      <select class="ctrl" id="catFilter">
+        <option value="all">All categories</option>
+        <option>Beauty &amp; Skincare</option>
+        <option>Health &amp; Supplements</option>
+        <option>Home &amp; Wellness</option>
+        <option>Kitchen</option>
+        <option>Pet</option>
+        <option>Fitness &amp; Sports</option>
+        <option>Travel</option>
+        <option>Gifts</option>
+      </select>
+      <select class="ctrl" id="regionFilter">
+        <option value="all">United States</option>
+        <option>United Kingdom</option>
+        <option>Canada</option>
+        <option>Australia</option>
+        <option>Global</option>
+      </select>
+      <select class="ctrl" id="minVol">
+        <option value="0">Any volume</option>
+        <option value="10000">10k+ / mo</option>
+        <option value="50000">50k+ / mo</option>
+        <option value="100000">100k+ / mo</option>
+      </select>
+      <select class="ctrl" id="platformFilter" title="Where the niche appears in platform search-suggest">
+        <option value="all">Any sell channel</option>
+        <option value="amz">Sells on Amazon</option>
+        <option value="etsy">Sells on Etsy</option>
+        <option value="yt">Sells on YouTube</option>
+        <option value="pin">Sells on Pinterest</option>
+        <option value="ebay">Sells on eBay</option>
+        <option value="tt">Sells on TikTok</option>
+      </select>
+      <div class="ctrl-spacer"></div>
+      <button class="export-btn locked" id="exportBtn"><span class="lock">🔒</span> Export CSV</button>
+    </div>
+
+    <!-- Stage chips -->
+    <div class="stage-chips" id="stageChips">
+      <span class="chip active" data-stage="all">All stages</span>
+      <span class="chip" data-stage="Emerging"><span class="swatch" style="background:var(--jackpot-400)"></span>Emerging</span>
+      <span class="chip" data-stage="Rising"><span class="swatch" style="background:var(--green-500)"></span>Rising</span>
+      <span class="chip" data-stage="Peaking"><span class="swatch" style="background:var(--orange-500)"></span>Peaking</span>
+      <span class="chip" data-stage="Cooling"><span class="swatch" style="background:var(--gray-500)"></span>Cooling</span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th class="sortable" data-sort="name">Trend / niche</th>
+            <th class="sortable" data-sort="momentum">Momentum (90d)</th>
+            <th class="sortable num" data-sort="volume">Volume / mo</th>
+            <th class="sortable num" data-sort="cpc">CPC</th>
+            <th class="col-comp" data-sort="comp">Competition</th>
+            <th class="sortable center" data-sort="score">Goldmine</th>
+            <th class="center" data-sort="stage">Stage</th>
+            <th class="col-cat">Category</th>
+            <th class="col-channels">Sell channels</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><!-- rendered by JS --></tbody>
+      </table>
+      <!-- Paywall (free tier only) -->
+      <div class="paywall" id="paywall">
+        <h3>You're seeing 5 of <span class="gold">2,418</span> rising niches</h3>
+        <p>Unlock the full Product Search — every niche, real search volume &amp; CPC, stage timing, filters, CSV export, and one-click "Research this niche."</p>
+        <button class="cta">Unlock Product Search — $9.99/mo</button>
+        <span class="alt">or <a href="#">run a single search for $1.99</a> · <a href="#">see all plans →</a></span>
+      </div>
+    </div>
+
+    <p class="footnote">
+      Momentum = relative search-interest change over the trailing 90 days (Google Trends).
+      Volume &amp; CPC are 12-month averages from the Google Ads Keyword Planner.
+      Goldmine Score blends momentum, demand, commercial value (CPC) and competition gap.
+      Stage is derived from the shape of the 5-year interest curve.
+      <br><strong style="color:var(--gray-500)">Sell channels</strong> show where a niche appears in each platform's search-suggest (★ = best-fit channel) — this is <em>coverage</em>, i.e. people are searching it there, <em>not</em> per-platform momentum. True "what's hot on TikTok/Amazon right now" momentum is a planned later phase.
+    </p>
+  </div>
+
+<script>
+  // ---- Platform coverage meta ----
+  // chan = platforms where the niche appears in that platform's search-suggest (COVERAGE, not momentum).
+  // best = the strongest-fit sell/publish channel (Gemini-tagged).
+  const PLATFORMS = {
+    amz:  { label:"Amazon",    short:"AMZ" },
+    etsy: { label:"Etsy",      short:"Etsy" },
+    yt:   { label:"YouTube",   short:"YT" },
+    pin:  { label:"Pinterest", short:"Pin" },
+    ebay: { label:"eBay",      short:"eBay" },
+    tt:   { label:"TikTok",    short:"TikTok" }
+  };
+
+  // ---- Sample data (realistic shape; sparkline = 12 monthly relative-interest points) ----
+  const DATA = [
+    { name:"Beef tallow skincare", sub:"tallow balm, whipped tallow", cat:"Beauty & Skincare", vol:22200, cpc:1.31, comp:"low", score:93, stage:"Emerging", mom:680, spark:[8,9,11,10,14,19,27,38,52,70,86,100], chan:["amz","etsy","yt","pin","tt"], best:"tt" },
+    { name:"Cortisol mocktails", sub:"adrenal cocktail, cortisol drink", cat:"Health & Supplements", vol:8100, cpc:1.42, comp:"low", score:90, stage:"Emerging", mom:410, spark:[6,7,9,8,12,16,22,30,44,63,82,100], chan:["yt","pin","tt"], best:"tt" },
+    { name:"Galentine's gifts", sub:"galentines box, friend gift set", cat:"Gifts", vol:14800, cpc:0.92, comp:"low", score:88, stage:"Emerging", mom:320, spark:[10,9,12,14,11,18,26,35,40,55,78,100], chan:["etsy","pin","amz"], best:"etsy" },
+    { name:"Collapsible water bottle", sub:"silicone travel bottle", cat:"Travel", vol:12100, cpc:0.69, comp:"low", score:85, stage:"Emerging", mom:260, spark:[20,22,25,28,30,36,44,53,64,78,90,100], chan:["amz","ebay"], best:"amz" },
+    { name:"Grounding sheets", sub:"earthing sheet, grounding mat", cat:"Home & Wellness", vol:33100, cpc:1.10, comp:"medium", score:86, stage:"Rising", mom:210, spark:[28,30,34,38,45,52,60,68,77,85,93,100], chan:["amz","yt"], best:"amz" },
+    { name:"Magnesium glycinate", sub:"mag glycinate sleep", cat:"Health & Supplements", vol:246000, cpc:0.83, comp:"high", score:84, stage:"Rising", mom:160, spark:[40,44,48,52,58,63,70,77,84,90,95,100], chan:["amz","yt"], best:"amz" },
+    { name:"Mushroom coffee", sub:"lions mane coffee, adaptogen", cat:"Health & Supplements", vol:60500, cpc:1.85, comp:"medium", score:91, stage:"Rising", mom:145, spark:[44,46,50,55,60,66,72,79,85,91,96,100], chan:["amz","yt","tt"], best:"amz" },
+    { name:"Reusable paper towels", sub:"swedish dishcloth", cat:"Kitchen", vol:18100, cpc:0.71, comp:"medium", score:81, stage:"Rising", mom:120, spark:[46,48,52,55,60,65,71,78,84,90,95,100], chan:["amz","etsy"], best:"amz" },
+    { name:"Cat water fountain (ceramic)", sub:"ceramic pet fountain", cat:"Pet", vol:27100, cpc:0.66, comp:"medium", score:82, stage:"Rising", mom:95, spark:[52,54,58,62,66,71,76,82,87,92,96,100], chan:["amz","etsy","ebay"], best:"amz" },
+    { name:"Pickleball paddles", sub:"carbon pickleball paddle", cat:"Fitness & Sports", vol:165000, cpc:0.98, comp:"high", score:77, stage:"Peaking", mom:44, spark:[62,70,78,85,90,96,100,99,97,96,95,94], chan:["amz","ebay","yt"], best:"amz" },
+    { name:"Walking pad treadmill", sub:"under-desk treadmill", cat:"Fitness & Sports", vol:110000, cpc:0.74, comp:"high", score:79, stage:"Peaking", mom:38, spark:[58,66,74,82,90,97,100,98,97,96,95,95], chan:["amz","yt","tt"], best:"amz" },
+    { name:"Snail mucin serum", sub:"cosrx snail essence", cat:"Beauty & Skincare", vol:74000, cpc:0.88, comp:"high", score:75, stage:"Peaking", mom:30, spark:[66,74,82,88,94,99,100,98,97,96,95,94], chan:["amz","yt","tt"], best:"amz" },
+    { name:"Rosemary hair oil", sub:"rosemary oil for hair growth", cat:"Beauty & Skincare", vol:135000, cpc:0.74, comp:"high", score:73, stage:"Peaking", mom:25, spark:[70,78,86,92,97,100,99,98,97,96,95,94], chan:["amz","yt","pin","tt"], best:"tt" },
+    { name:"Lymphatic drainage massager", sub:"body sculpting tool", cat:"Beauty & Skincare", vol:40500, cpc:0.79, comp:"high", score:68, stage:"Cooling", mom:-15, spark:[100,99,96,93,90,86,82,78,74,70,67,64], chan:["amz","tt"], best:"amz" },
+    { name:"Stanley cup accessories", sub:"tumbler straw topper", cat:"Kitchen", vol:90500, cpc:0.61, comp:"high", score:64, stage:"Cooling", mom:-22, spark:[100,98,95,90,85,80,74,69,64,60,56,52], chan:["amz","etsy","tt"], best:"etsy" },
+    { name:"Sea moss gel", sub:"raw sea moss, irish moss", cat:"Health & Supplements", vol:90500, cpc:0.92, comp:"high", score:60, stage:"Cooling", mom:-28, spark:[100,97,92,86,80,73,67,61,55,50,46,42], chan:["amz","yt"], best:"amz" }
+  ];
+
+  const FREE_ROWS = 5;
+  let state = { sort: "score", dir: -1, stage: "all", cat: "all", q: "", minVol: 0, platform: "all" };
+
+  // ---- helpers ----
+  function fmtVol(n){ return n >= 1000 ? (n/1000).toFixed(n>=100000?0:1).replace(/\.0$/,'') + "k" : String(n); }
+  function scoreClass(s){ return s >= 80 ? "s-hi" : s >= 65 ? "s-mid" : "s-lo"; }
+  function compBars(){ return '<i></i><i></i><i></i>'; }
+
+  function channelBadges(d){
+    // best-fit channel first (gold), then the rest — coverage only, not momentum
+    const order = [d.best, ...d.chan.filter(c => c !== d.best)];
+    return '<span class="channels">' + order.map(c => {
+      const p = PLATFORMS[c]; if (!p) return "";
+      const isBest = c === d.best;
+      return `<span class="chan-badge${isBest ? " best" : ""}" title="${p.label}${isBest ? " — best-fit channel" : ""} · appears in search-suggest">${isBest ? "★ " : ""}${p.short}</span>`;
+    }).join("") + '</span>';
+  }
+
+  function sparkline(points, mom){
+    const w = 78, h = 24, pad = 2;
+    const max = Math.max(...points), min = Math.min(...points);
+    const span = (max - min) || 1;
+    const step = (w - pad*2) / (points.length - 1);
+    const pts = points.map((v,i) => {
+      const x = pad + i*step;
+      const y = h - pad - ((v - min)/span) * (h - pad*2);
+      return x.toFixed(1)+","+y.toFixed(1);
+    }).join(" ");
+    const up = mom >= 0;
+    const stroke = up ? "var(--green-400)" : "var(--red-400)";
+    const fillId = "g"+Math.abs(mom)+points[0]+points[points.length-1];
+    const lastX = pad + (points.length-1)*step;
+    const lastY = h - pad - ((points[points.length-1]-min)/span)*(h-pad*2);
+    return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <defs><linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${up?'rgba(74,222,128,0.28)':'rgba(248,113,113,0.28)'}"/>
+        <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+      </linearGradient></defs>
+      <polyline points="${pad},${h-pad} ${pts} ${lastX},${h-pad}" fill="url(#${fillId})" stroke="none"/>
+      <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2" fill="${stroke}"/>
+    </svg>`;
+  }
+
+  function getRows(){
+    let rows = DATA.filter(d =>
+      (state.stage === "all" || d.stage === state.stage) &&
+      (state.cat === "all" || d.cat === state.cat) &&
+      (state.minVol === 0 || d.vol >= state.minVol) &&
+      (state.platform === "all" || d.chan.includes(state.platform)) &&
+      (state.q === "" || (d.name + " " + d.sub).toLowerCase().includes(state.q))
+    );
+    const key = state.sort;
+    const compOrder = { low: 1, medium: 2, high: 3 };
+    rows.sort((a, b) => {
+      if (key === "name" || key === "stage") return state.dir * a[key].localeCompare(b[key]);
+      const av = key === "comp" ? compOrder[a.comp] : a[key];
+      const bv = key === "comp" ? compOrder[b.comp] : b[key];
+      return state.dir < 0 ? bv - av : av - bv;
+    });
+    return rows;
+  }
+
+  function render(){
+    const free = document.body.classList.contains("free");
+    const rows = getRows();
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = rows.map((d, i) => {
+      const locked = free && i >= FREE_ROWS;
+      const fade = locked ? `style="opacity:${Math.max(0.12, 0.5 - (i-FREE_ROWS)*0.09)}"` : "";
+      const momCls = d.mom >= 0 ? "up" : "down";
+      const momTxt = (d.mom >= 0 ? "+" : "") + d.mom + "%";
+      // In free view, blur Volume & CPC even for visible rows (the tease)
+      const volCell = `<span class="${free ? "blurable" : ""} num-strong">${fmtVol(d.vol)}</span>`;
+      const cpcCell = `<span class="${free ? "blurable" : ""} cpc">$${d.cpc.toFixed(2)}</span>`;
+      return `<tr class="${locked ? "locked-row" : ""}" ${fade}>
+        <td class="rank">${i+1}</td>
+        <td class="niche-cell"><div class="name">${d.name}</div><div class="sub">${d.sub}</div></td>
+        <td><div class="momentum">${sparkline(d.spark, d.mom)}<span class="pct ${momCls}">${momTxt}</span></div></td>
+        <td class="num">${volCell}</td>
+        <td class="num">${cpcCell}</td>
+        <td class="col-comp"><span class="comp ${d.comp}"><span class="comp-bars">${compBars()}</span><span class="lbl">${d.comp[0].toUpperCase()+d.comp.slice(1)}</span></span></td>
+        <td class="center"><span class="score-pill ${scoreClass(d.score)}">${d.score}</span></td>
+        <td class="center"><span class="stage-pill ${d.stage}">${d.stage}</span></td>
+        <td class="col-cat"><span class="cat-tag">${d.cat}</span></td>
+        <td class="col-channels">${channelBadges(d)}</td>
+        <td><button class="research-btn">Research →</button></td>
+      </tr>`;
+    }).join("");
+
+    // header sort arrow
+    document.querySelectorAll("thead th").forEach(th => {
+      const s = th.getAttribute("data-sort");
+      const base = th.textContent.replace(/[▲▼]/g,"").trim();
+      if (s) th.innerHTML = base + (s === state.sort ? ` <span class="arrow">${state.dir<0?"▼":"▲"}</span>` : "");
+    });
+  }
+
+  // ---- events ----
+  document.getElementById("viewFree").addEventListener("click", () => {
+    document.body.classList.add("free");
+    document.getElementById("viewFree").classList.add("active");
+    document.getElementById("viewPro").classList.remove("active");
+    document.getElementById("exportBtn").classList.add("locked");
+    document.getElementById("exportBtn").innerHTML = '<span class="lock">🔒</span> Export CSV';
+    render();
+  });
+  document.getElementById("viewPro").addEventListener("click", () => {
+    document.body.classList.remove("free");
+    document.getElementById("viewPro").classList.add("active");
+    document.getElementById("viewFree").classList.remove("active");
+    document.getElementById("exportBtn").classList.remove("locked");
+    document.getElementById("exportBtn").innerHTML = '⬇ Export CSV';
+    render();
+  });
+
+  document.querySelectorAll(".demo-btn[data-sort]").forEach(b => {
+    b.addEventListener("click", () => { setSort(b.getAttribute("data-sort")); });
+  });
+  document.querySelectorAll("thead th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => setSort(th.getAttribute("data-sort")));
+  });
+  function setSort(key){
+    if (state.sort === key) state.dir *= -1;
+    else { state.sort = key; state.dir = (key === "name") ? 1 : -1; }
+    render();
+  }
+
+  document.getElementById("stageChips").addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip"); if (!chip) return;
+    document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    state.stage = chip.getAttribute("data-stage");
+    render();
+  });
+
+  document.getElementById("searchBox").addEventListener("input", e => { state.q = e.target.value.toLowerCase().trim(); render(); });
+  document.getElementById("catFilter").addEventListener("change", e => { state.cat = e.target.value; render(); });
+  document.getElementById("minVol").addEventListener("change", e => { state.minVol = +e.target.value; render(); });
+  document.getElementById("platformFilter").addEventListener("change", e => { state.platform = e.target.value; render(); });
+
+  render();
+</script>
+</body>
+</html>
